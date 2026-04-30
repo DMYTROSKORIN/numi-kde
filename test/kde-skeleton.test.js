@@ -11,6 +11,8 @@ const requiredFiles = [
   "kde/qml/ResultsPane.qml",
   "kde/resources/org.skorin.numi-kde.desktop",
   "kde/resources/org.skorin.numi-kde.metainfo.xml",
+  "kde/src/qalcbridge.h",
+  "kde/src/qalcbridge.cpp",
 ];
 
 test("native KDE skeleton files exist", () => {
@@ -19,10 +21,12 @@ test("native KDE skeleton files exist", () => {
   }
 });
 
-test("native KDE CMake skeleton declares required Qt packages", () => {
+test("native KDE CMake skeleton declares required Qt packages and libqalculate", () => {
   const cmake = fs.readFileSync("kde/CMakeLists.txt", "utf8");
 
   assert.match(cmake, /find_package\(Qt6 6\.6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2\)/);
+  assert.match(cmake, /pkg_check_modules\(QALCULATE REQUIRED libqalculate\)/);
+  assert.match(cmake, /target_link_libraries\(numi-kde\n\s+PRIVATE\n\s+Qt6::Core\n\s+Qt6::Gui\n\s+Qt6::Qml\n\s+Qt6::Quick\n\s+Qt6::QuickControls2\n\s+\$\{QALCULATE_LIBRARIES\}/);
   assert.match(cmake, /qt_add_qml_module/);
   assert.doesNotMatch(cmake, /KF6Kirigami/);
 });
@@ -50,6 +54,19 @@ test("native KDE QML skeleton contains editor and result panes", () => {
   assert.match(resultsPane, /property int monoSize/);
   assert.match(resultsPane, /onContentYChanged/);
   assert.match(resultsPane, /width: root\.availableWidth/);
+});
+
+test("native KDE backend uses libqalculate bridge", () => {
+  const modelH = fs.readFileSync("kde/src/documentmodel.h", "utf8");
+  const modelCpp = fs.readFileSync("kde/src/documentmodel.cpp", "utf8");
+  const bridgeH = fs.readFileSync("kde/src/qalcbridge.h", "utf8");
+
+  assert.match(modelH, /class QalcBridge;/);
+  assert.match(modelH, /QalcBridge \*m_qalc;/);
+  assert.match(modelCpp, /m_qalc = new QalcBridge\(this\);/);
+  assert.match(modelCpp, /m_qalc->evaluateDocument\(m_source\)/);
+  assert.match(bridgeH, /class Calculator;/);
+  assert.match(bridgeH, /evaluateDocument/);
 });
 
 test("native KDE QML uses Numi reference visual tokens", () => {

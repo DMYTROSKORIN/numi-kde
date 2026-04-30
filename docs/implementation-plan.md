@@ -229,11 +229,20 @@
 - тесты в `test/kde-skeleton.test.js` расширены для проверки наличия новых настроек и слайдеров;
 - `npm test` проходит (54/54), CMake build завершен успешно.
 
+Выполнено (Phase 2.3 — Migration to libqalculate):
+
+- `libqalculate` добавлена как зависимость в `kde/CMakeLists.txt`;
+- реализован `QalcBridge` (C++ обёртка над `libqalculate`) для вычислений в нативном GUI;
+- `DocumentModel` переписан на использование `QalcBridge` вместо Node.js worker для вычислений;
+- Node.js worker сохранён только для генерации синтаксической подсветки (до её миграции на C++);
+- исправлены ошибки сборки, связанные с API `libqalculate` (timeout в `Calculator::print`);
+- тесты в `test/kde-skeleton.test.js` расширены для проверки интеграции `libqalculate`;
+- `npm test` проходит (55/55), CMake build завершен успешно.
+
 Следующий шаг:
 
-- Phase 2.3: миграция JS evaluator → libqalculate (устранит отсутствие результатов для
-  `100 USD to AED`, `20% from 100` и прочих выражений, требующих полного расчётного движка);
-- Wayland always-on-top через KWindowSystem.
+- Phase 2.4: Wayland always-on-top через KWindowSystem;
+- миграция синтаксической подсветки на C++ (для полного отказа от Node.js в GUI).
 
 ## Следующая рабочая задача
 
