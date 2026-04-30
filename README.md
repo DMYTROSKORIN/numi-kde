@@ -27,6 +27,7 @@ This is the first scaffold:
 - `docs/architecture.md`: implementation plan and boundaries.
 - `docs/implementation-plan.md`: detailed roadmap toward the KDE-native application.
 - `docs/extensions.md`: current JavaScript extension loading policy.
+- `docs/gui-prototype.md`: first runnable GUI prototype and native KDE requirements.
 
 ## Usage
 
@@ -35,4 +36,5 @@ npm test
 node ./src/cli.js "20 inches in cm"
 node ./src/cli.js "x = 10\nx * 2"
 npm run server
+npm run gui
 ```

@@ -63,14 +63,16 @@
 - добавлена extension loading policy в `docs/extensions.md`;
 - extension loader теперь валидирует manifest, запускает source в ограниченном `vm` context
   и возвращает diagnostics вместо падения evaluator;
+- добавлен первый runnable GUI prototype в `gui/` и `src/gui/`;
+- добавлена документация GUI prototype в `docs/gui-prototype.md`;
 - реализованы первые Phase 1 gaps: implicit multiplication, `:=`, inline comments,
   thousands separators, decimal comma, расширенные units, temperature conversions,
   Numi-like percentage cases, ISO date arithmetic, extension-defined variables/functions/units;
-- проверка: `npm test` проходит, 43/43.
+- проверка: `npm test` проходит, 45/45.
 
 Следующий шаг:
 
-- перейти к первому KDE editor spike: source editor, result column, shared core adapter.
+- установить/подключить Qt6 Quick/Kirigami dev packages и перенести GUI spike в native KDE shell.
 
 ## Опорные технологии
 
@@ -704,10 +706,11 @@ Critical GUI cases:
 - Done: formatting options for precision, trailing zeros, grouping and scientific notation are fixture-covered.
 - Done: extension-defined variables, functions and linear units are tested through the public core API.
 - Done: extension manifest validation, source loading and runtime diagnostics are tested.
+- Done: first runnable GUI prototype uses shared core through `src/gui/adapter.js`.
 - Done: CLI/server remain stable against the shared core.
 - Done: diagnostics include source ranges for parser/evaluator errors.
 - Done: parser/evaluator/formatter/units are split into separate modules.
-- Next: KDE editor spike, more compatibility fixtures.
+- Next: native KDE/Kirigami shell, semantic highlighting, more compatibility fixtures.
 
 ### M2. KDE prototype
 
@@ -760,9 +763,9 @@ Critical GUI cases:
 
 ## Immediate Next Steps
 
-1. Add first KDE editor spike with source editor, result column and shared core adapter.
-2. Add more date/time fixtures only after deciding how to handle `today` and timezone policy.
-3. Continue compatibility fixtures as GUI needs expose gaps.
+1. Install or enable Qt6 Quick/Kirigami development packages for CMake.
+2. Add native `kde/` CMake/QML skeleton with source editor, result column and shared core adapter.
+3. Add more date/time fixtures only after deciding how to handle `today` and timezone policy.
 4. Add a first `docs/gui-spec.md` or implement the KDE skeleton directly from section 4.
 5. Create a small Qt/Kirigami prototype that renders editor + result column.
 
