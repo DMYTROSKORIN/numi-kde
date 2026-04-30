@@ -81,7 +81,12 @@ export function evaluate(input, options = {}) {
 }
 
 function evaluateLine(rawLine, state, index) {
-  const parsed = parseLine(rawLine);
+  let parsed;
+  try {
+    parsed = parseLine(rawLine);
+  } catch (error) {
+    return { ok: false, line: index + 1, input: rawLine, result: null, formatted: "", diagnostics: [createDiagnostic(error)] };
+  }
   const input = parsed.source;
 
   if (!parsed.executable) {

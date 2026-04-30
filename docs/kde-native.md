@@ -1,10 +1,10 @@
 # Native KDE Prototype
 
-Last updated: 2026-04-30.
+Last updated: 2026-05-01.
 
-Last completed handoff commit: `Document project handoff state` at current `HEAD`.
+Last completed commit: `fix: Phase 2.1 editor rendering polish and UX fixes`.
 
-Last functional GUI commit: `1b28e45 Wire native GUI live evaluation`.
+Last functional GUI commit: current HEAD.
 
 The native KDE prototype lives in `kde/`.
 
@@ -84,6 +84,7 @@ Current native behavior:
 - result rows highlight on pointer hover;
 - clicking a result copies its formatted value to the clipboard;
 - syntax highlighting marks units/currency-like tokens, `%` and natural operators;
+- editor line height, font metrics and padding are synchronized for exact caret and highlight alignment;
 - the window is resizable from all edges and corners;
 - resized geometry is persisted for the next launch;
 - the window stays above other windows by default;
@@ -103,9 +104,8 @@ The native prototype currently calls the JS core through a local Node worker pro
 for preserving one tested evaluator while the UI takes shape, but the final Linux package must
 either embed that runtime cleanly or replace the bridge with a native backend.
 
-The syntax highlighting layer is functional but still early. It highlights semantic token classes;
-the next editor pass must tighten caret alignment, line-height parity, selection behavior and
-large-document performance.
+The syntax highlighting layer is functional. It highlights semantic token classes.
+Selection behavior and large-document performance still need work.
 
 The current semantic highlighter treats all 3-5 uppercase words as currency-like tokens so examples
 such as `500 AED to USD` render correctly before real currency evaluation exists. Actual currency
@@ -116,7 +116,6 @@ are not implemented yet.
 
 ## Next Work
 
-- Polish editor rendering and caret/highlight alignment.
 - Add font size and result column width settings.
 - Add settings panel for always-on-top, font size and result width.
 - Add history panel and persistence model.

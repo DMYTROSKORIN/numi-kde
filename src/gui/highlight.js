@@ -1,9 +1,9 @@
 import { findUnit } from "../core/units.js";
 
-const TOKEN_PATTERN = /\s+|\d{1,3}(?:,\d{3})+(?:\.\d+)?(?:e[+-]?\d+)?|\d+(?:[.,]\d+)?(?:e[+-]?\d+)?|[A-Za-z_π][\wπ]*|:=|[%+\-*/^(),;=]|\S/giu;
+const TOKEN_PATTERN = /\s+|\d{1,3}(?:,\d{3})+(?:\.\d+)?(?:e[+-]?\d+)?|\d+(?:[.,]\d+)?(?:e[+-]?\d+)?|[A-Za-z_π\p{L}][\wπ\p{L}]*|:=|[%+\-*/^(),;=]|\S/giu;
 
 const OPERATOR_WORDS = new Set(["as", "from", "in", "of", "to"]);
-const OPERATOR_SYMBOLS = new Set([":=", "+", "-", "*", "/", "^", "(", ")", ",", ";", "="]);
+const OPERATOR_SYMBOLS = new Set([":=", "+", "-", "^", "(", ")", ",", ";", "="]);
 
 const HIGHLIGHT_COLORS = {
   entity: "#6fc4e8",
@@ -32,7 +32,7 @@ export function classifyHighlightToken(token) {
   if (OPERATOR_WORDS.has(lower) || OPERATOR_SYMBOLS.has(token)) {
     return "operator";
   }
-  if (token === "%" || findUnit(token) || /^[A-Z]{3,5}$/u.test(token)) {
+  if (token === "%" || token === "*" || token === "/" || findUnit(token) || /^[A-Z]{3,5}$/u.test(token)) {
     return "entity";
   }
 

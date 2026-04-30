@@ -6,9 +6,13 @@ Controls.ScrollView {
 
     property var lines: []
     property Item syncFlickable: null
+    property real lineH: 25
     property color resultColor: "#8fd14f"
     property color mutedColor: "#6b6d76"
     signal copyRequested(int row)
+
+    readonly property string monoFont: "Menlo, Monaco, Consolas, monospace"
+    readonly property int monoSize: 16
 
     clip: true
     background: Rectangle {
@@ -18,13 +22,15 @@ Controls.ScrollView {
     ListView {
         id: resultList
 
+        width: root.availableWidth
+        height: root.availableHeight
         model: root.lines
         boundsBehavior: Flickable.StopAtBounds
         interactive: false
 
         delegate: Item {
             width: resultList.width
-            height: 25
+            height: root.lineH
 
             Rectangle {
                 anchors.fill: parent
@@ -37,8 +43,8 @@ Controls.ScrollView {
                 id: resultText
                 text: ok ? result : ""
                 color: ok ? root.resultColor : "#ff5f57"
-                font.family: "Menlo, Monaco, Consolas, monospace"
-                font.pixelSize: 16
+                font.family: root.monoFont
+                font.pixelSize: root.monoSize
                 horizontalAlignment: Text.AlignRight
                 verticalAlignment: Text.AlignVCenter
                 elide: Text.ElideRight
@@ -59,6 +65,13 @@ Controls.ScrollView {
                     }
                 }
             }
+        }
+    }
+
+    Connections {
+        target: root.syncFlickable
+        function onContentYChanged() {
+            resultList.contentY = root.syncFlickable.contentY
         }
     }
 }

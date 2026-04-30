@@ -141,6 +141,8 @@
   between launches via Qt `Settings`;
 - added first semantic syntax highlighting layer for units/currency-like tokens, percent tokens
   and natural operators such as `in`, `to`, `as`, `of`, `from`;
+- polished editor rendering: synchronized font metrics, line height (25px) and padding between the
+  editable TextArea and the highlighted overlay for exact alignment;
 - реализованы первые Phase 1 gaps: implicit multiplication, `:=`, inline comments,
   thousands separators, decimal comma, расширенные units, temperature conversions,
   Numi-like percentage cases, ISO date arithmetic, extension-defined variables/functions/units;
@@ -149,32 +151,65 @@
 
 Следующий шаг:
 
-- начать с GUI polishing step: точное выравнивание подсвеченного слоя и caret, line-height
-  parity, selection behavior, font size controls and result column width;
-- после этого добавить settings panel for always-on-top/font/result width и history panel;
+- Phase 2.2: расширить панель настроек (размер шрифта, ширина колонки результатов);
+- каждый подшаг делать с тестом, `npm test`, CMake build, runtime launch, docs update,
+  commit and `git push`.
+
+### 2026-05-01
+
+Выполнено (Phase 2.1 — Editor Rendering Polish + UX fixes):
+
+- исправлен курсор в пустом поле: при `text.length === 0` курсор всегда принудительно в позиции 0
+  через `onCursorPositionChanged`;
+- исправлена разметка cursor: вместо `cursorColor` (не совместим с Controls.TextArea в Qt 6.10)
+  использован `cursorDelegate: Rectangle` с явным цветом `textColor` для видимого курсора;
+- выравнивание overlay и TextArea: `lineH = fontMetrics.height` вычисляется через `FontMetrics`
+  для точного совпадения высоты строк между overlay-Column и TextArea;
+- убран hardcoded `height: 25` в Text-делегате и ResultsPane — теперь `lineH` приходит из
+  EditorPane через свойство и синхронизирует высоту строк;
+- добавлен `placeholderText` в EditorPane: светло-серый текст-подсказка исчезает при фокусе;
+- очищен `sourceText: ""` в DocumentPage — при запуске поле пустое без невидимого демо-текста;
+- ListView в ResultsPane получил явные `width: root.availableWidth` и `height: root.availableHeight`
+  для правильного отображения результатов (ранее ширина могла быть 0);
+- добавлен базовый скролл-синк: `Connections` в ResultsPane слушает `onContentYChanged`
+  целевого flickable;
+- добавлена настройка "Всегда поверх окон" в popup шестерёнки:
+  - `Settings.alwaysOnTop` сохраняется в Qt Settings;
+  - `flags` в Main.qml вычисляется динамически через binding;
+  - CheckBox в DocumentPage.qml меняет `Window.window.alwaysOnTop`;
+- исправлены `*` и `/` в highlight.js: перенесены из operator (жёлтый) в entity (синий),
+  как `%` и валютные токены;
+- исправлена поддержка не-ASCII ввода (Кириллица и др.):
+  - `TOKEN_PATTERN` в highlight.js расширен `\p{L}` — Unicode-буквы;
+  - identifier regex в syntax.js расширен `\p{L}` — Кириллица как идентификатор;
+  - добавлен try-catch в `evaluateLine` вокруг `parseLine` — один проблемный символ
+    не роняет весь evaluator;
+- тесты обновлены под новое поведение (52/52 pass);
+- CMake сборка: pass; native GUI стартует без stderr.
+
+Следующий шаг:
+
+- Phase 2.2: расширить панель настроек (размер шрифта, ширина колонки результатов);
 - каждый подшаг делать с тестом, `npm test`, CMake build, runtime launch, docs update,
   commit and `git push`.
 
 ## Следующая рабочая задача
 
-Приоритет для следующего агента: **Phase 2.1 Editor Rendering Polish**.
+Приоритет для следующего агента: **Phase 2.2 Settings and Panels**.
 
 Стартовая точка:
 
-1. Открыть `kde/qml/EditorPane.qml`.
-2. Проверить, что overlay `Text` с `highlightedHtml` совпадает с `Controls.TextArea`
-   по `font.family`, `font.pixelSize`, padding and line height.
-3. Если QML overlay не дает точного caret/selection alignment, сделать technical spike:
-   QWidget/QPlainTextEdit based editor или C++/QML custom highlighter.
+1. Реализовать QML компонент для панели настроек (SettingsPage.qml).
+2. Добавить переключатель "Always on Top" и ползунок для размера шрифта.
+3. Связать настройки с `Qt.labs.settings` или аналогичным механизмом.
 4. Добавить tests:
-   - Node test for highlight classification if classifier changes;
-   - KDE skeleton test for any new QML contract;
+   - Node test для новых параметров форматирования/отображения;
+   - KDE skeleton test для новых QML компонентов;
    - manual runtime check via `./build/kde/numi-kde`.
 5. Обновить `docs/implementation-plan.md`, `docs/kde-native.md` and `docs/handoff.md`.
 6. Commit and push.
 
-Не начинать packaging, KRunner или currencies до полировки редактора: GUI является P0 и сейчас
-самый рискованный слой.
+Не начинать packaging, KRunner или currencies до базовой реализации панелей.
 
 ## Опорные технологии
 

@@ -61,7 +61,7 @@ export function tokenize(input, offset = 0) {
       continue;
     }
 
-    const identifier = input.slice(index).match(/^[A-Za-z_π][\wπ]*/u);
+    const identifier = input.slice(index).match(/^[A-Za-z_π\p{L}][\wπ\p{L}]*/u);
     if (identifier) {
       const value = identifier[0].toLowerCase();
       if (value === "of") {
