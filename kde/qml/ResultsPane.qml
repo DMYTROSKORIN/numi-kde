@@ -32,17 +32,14 @@ Controls.ScrollView {
             width: resultList.width
             height: root.lineH
 
-            Rectangle {
-                anchors.fill: parent
-                radius: 4
-                color: resultMouse.containsMouse && resultText.text.length > 0 ? "#30333b" : "transparent"
-                z: -1
-            }
-
             Controls.Label {
                 id: resultText
                 text: ok ? result : ""
-                color: ok ? root.resultColor : "#ff5f57"
+                color: {
+                    if (!ok) return "#ff5f57"
+                    if (resultMouse.containsMouse && text.length > 0) return "#ffd35a"
+                    return root.resultColor
+                }
                 font.family: root.monoFont
                 font.pixelSize: root.monoSize
                 horizontalAlignment: Text.AlignRight

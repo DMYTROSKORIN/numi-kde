@@ -4,6 +4,11 @@ import { createHighlightedHtml } from "./highlight.js";
 export function createDocumentViewModel(source, options = {}) {
   const evaluated = evaluateDocument(source, options);
   const parsed = parseDocument(source);
+
+  const definedVariables = new Set(
+    parsed.map((p) => p.assignment?.name).filter(Boolean),
+  );
+
   const lines = evaluated.map((line, index) => {
     const parsedLine = parsed[index] ?? {};
     const diagnostics = [...(line.diagnostics ?? []), ...(parsedLine.diagnostics ?? [])];
@@ -15,7 +20,7 @@ export function createDocumentViewModel(source, options = {}) {
       result: line.formatted,
       diagnostics,
       tokens: parsedLine.tokens ?? [],
-      highlightedHtml: createHighlightedHtml(line.input),
+      highlightedHtml: createHighlightedHtml(line.input, definedVariables),
       astType: parsedLine.ast?.type ?? null,
       assignment: parsedLine.assignment?.name ?? null,
     };

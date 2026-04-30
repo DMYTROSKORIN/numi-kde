@@ -1,8 +1,8 @@
 # Native KDE Prototype
 
-Last updated: 2026-05-01.
+Last updated: 2026-04-30.
 
-Last completed commit: `fix: Phase 2.1 editor rendering polish and UX fixes`.
+Last completed commit: `fix: Phase 2.1.1 cursor, hover and highlight fixes`.
 
 Last functional GUI commit: current HEAD.
 
@@ -74,16 +74,15 @@ Current local status:
 - `cmake -S kde -B build/kde` passes;
 - `cmake --build build/kde` passes;
 - `./build/kde/numi-kde` starts in the graphical session without stderr output;
-- `npm test` passes 52/52.
+- `npm test` passes 54/54.
 
 Current native behavior:
 
 - the left editor is active and editable;
 - the right result column is driven by the shared evaluator;
 - editing text triggers live recalculation;
-- result rows highlight on pointer hover;
-- clicking a result copies its formatted value to the clipboard;
-- syntax highlighting marks units/currency-like tokens, `%` and natural operators;
+- hovering a result highlights only the result text in bright yellow; clicking copies it to clipboard;
+- syntax highlighting marks units/currency-like tokens, `%` and natural operators in blue; defined variable names in neon green;
 - editor line height, font metrics and padding are synchronized for exact caret and highlight alignment;
 - the window is resizable from all edges and corners;
 - resized geometry is persisted for the next launch;

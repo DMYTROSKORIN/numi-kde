@@ -32,6 +32,22 @@ test("creates GUI syntax highlight markup for units and natural operators", () =
   assert.match(model.lines[2].highlightedHtml, /color:#6fc4e8">cm/);
 });
 
+test("highlights defined variable names in neon green", () => {
+  const model = createDocumentViewModel("A := 500\nA + 100\nB := A * 2");
+
+  assert.match(model.lines[0].highlightedHtml, /color:#39ff14">A/);
+  assert.match(model.lines[1].highlightedHtml, /color:#39ff14">A/);
+  assert.match(model.lines[2].highlightedHtml, /color:#39ff14">B/);
+  assert.match(model.lines[2].highlightedHtml, /color:#39ff14">A/);
+});
+
+test("/help command returns feature summary", () => {
+  const model = createDocumentViewModel("/help");
+
+  assert.equal(model.lines[0].ok, true);
+  assert.ok(model.lines[0].result.length > 0);
+});
+
 test("serves GUI prototype and evaluation API", async () => {
   const port = 15157;
   const child = spawn(process.execPath, ["./src/gui/server.js"], {

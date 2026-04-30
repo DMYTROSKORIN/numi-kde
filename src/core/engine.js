@@ -80,7 +80,13 @@ export function evaluate(input, options = {}) {
   return results.at(-1) ?? { ok: true, input, result: null, formatted: "" };
 }
 
+const HELP_TEXT = "10+5 · A:=5 · 10 km в mi · сегодня+2 нед · 20% от 100";
+
 function evaluateLine(rawLine, state, index) {
+  if (rawLine.trim() === "/help") {
+    return { ok: true, line: index + 1, input: rawLine, result: { value: "/help" }, formatted: HELP_TEXT, diagnostics: [] };
+  }
+
   let parsed;
   try {
     parsed = parseLine(rawLine);
