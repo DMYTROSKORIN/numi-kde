@@ -1,4 +1,5 @@
 import { evaluateDocument, parseDocument } from "../core/engine.js";
+import { createHighlightedHtml } from "./highlight.js";
 
 export function createDocumentViewModel(source, options = {}) {
   const evaluated = evaluateDocument(source, options);
@@ -14,6 +15,7 @@ export function createDocumentViewModel(source, options = {}) {
       result: line.formatted,
       diagnostics,
       tokens: parsedLine.tokens ?? [],
+      highlightedHtml: createHighlightedHtml(line.input),
       astType: parsedLine.ast?.type ?? null,
       assignment: parsedLine.assignment?.name ?? null,
     };

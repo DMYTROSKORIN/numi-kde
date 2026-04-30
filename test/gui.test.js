@@ -19,6 +19,19 @@ test("creates GUI document view model from shared core", () => {
   assert.match(model.lines[2].diagnostics[0].message, /Unknown variable/);
 });
 
+test("creates GUI syntax highlight markup for units and natural operators", () => {
+  const model = createDocumentViewModel("500 AED to USD\n5% from 100\n20 inches in cm");
+
+  assert.match(model.lines[0].highlightedHtml, /color:#6fc4e8">AED/);
+  assert.match(model.lines[0].highlightedHtml, /color:#ffd35a">to/);
+  assert.match(model.lines[0].highlightedHtml, /color:#6fc4e8">USD/);
+  assert.match(model.lines[1].highlightedHtml, /color:#6fc4e8">%</);
+  assert.match(model.lines[1].highlightedHtml, /color:#ffd35a">from/);
+  assert.match(model.lines[2].highlightedHtml, /color:#6fc4e8">inches/);
+  assert.match(model.lines[2].highlightedHtml, /color:#ffd35a">in/);
+  assert.match(model.lines[2].highlightedHtml, /color:#6fc4e8">cm/);
+});
+
 test("serves GUI prototype and evaluation API", async () => {
   const port = 15157;
   const child = spawn(process.execPath, ["./src/gui/server.js"], {

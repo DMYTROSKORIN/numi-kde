@@ -18,7 +18,7 @@ The QML shell mirrors the tested web GUI prototype:
 - source editor on the left;
 - result column on the right;
 - compact frameless Numi-like window;
-- traffic-light title controls and centered title;
+- Linux/KDE title controls and centered title;
 - monospace editor/result typography;
 - dark Numi palette with yellow labels, blue units/keywords and green results.
 
@@ -70,12 +70,17 @@ Current local status:
 - `cmake -S kde -B build/kde` passes;
 - `cmake --build build/kde` passes;
 - `./build/kde/numi-kde` starts in the graphical session without stderr output;
-- `QT_QPA_PLATFORM=offscreen ./build/kde/numi-kde` starts without QML runtime errors.
 
 Current native behavior:
 
-- the window is editable;
-- the window is resizable;
+- the left editor is active and editable;
+- the right result column is driven by the shared evaluator;
+- editing text triggers live recalculation;
+- result rows highlight on pointer hover;
+- clicking a result copies its formatted value to the clipboard;
+- syntax highlighting marks units/currency-like tokens, `%` and natural operators;
+- the window is resizable from all edges and corners;
+- resized geometry is persisted for the next launch;
 - the window stays above other windows by default;
 - top-left action is reserved for history;
 - top-right actions are minimize, maximize/restore and close;
@@ -89,26 +94,17 @@ them.
 
 ## Current Limitations
 
-The native skeleton does not yet call the JS core. It is a UI shell scaffold with static sample
-content styled against the Numi visual reference. The next step is to connect it to the shared core
-through a local adapter process or native backend bridge.
+The native prototype currently calls the JS core through a local Node worker process. This is good
+for preserving one tested evaluator while the UI takes shape, but the final Linux package must
+either embed that runtime cleanly or replace the bridge with a native backend.
 
-The web prototype remains the runnable GUI for immediate UX testing:
-
-```sh
-npm run gui
-```
-
-Then open:
-
-```text
-http://127.0.0.1:15156
-```
+The syntax highlighting layer is functional but still early. It highlights semantic token classes;
+the next editor pass must tighten caret alignment, line-height parity, selection behavior and
+large-document performance.
 
 ## Next Work
 
-- Wire native `DocumentPage` to the shared evaluation backend.
-- Replace placeholder results with live results.
-- Add semantic token highlighting using `parseDocument()`.
+- Polish editor rendering and caret/highlight alignment.
 - Add font size and result column width settings.
+- Add history and settings panels.
 - Add native screenshot checks once the binary builds.

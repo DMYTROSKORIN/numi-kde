@@ -84,15 +84,25 @@
   - top-right controls: close, minimize, maximize/fullscreen;
   - window stays always on top by default, later configurable;
 - implemented GUI requirements in native prototype; app builds and starts without runtime stderr;
+- connected the native Qt Quick shell to the shared JS evaluation backend through
+  `DocumentModel` and `src/gui/evaluate-document.js`;
+- restored active text input in the native editor;
+- native GUI now recalculates while typing, renders input on the left and results on the right;
+- result rows highlight on hover and copy the formatted result to the clipboard on click;
+- native window resize handles were added for all edges/corners and window geometry persists
+  between launches via Qt `Settings`;
+- added first semantic syntax highlighting layer for units/currency-like tokens, percent tokens
+  and natural operators such as `in`, `to`, `as`, `of`, `from`;
 - реализованы первые Phase 1 gaps: implicit multiplication, `:=`, inline comments,
   thousands separators, decimal comma, расширенные units, temperature conversions,
   Numi-like percentage cases, ISO date arithmetic, extension-defined variables/functions/units;
-- проверка: `npm test` проходит, 50/50; `cmake -S kde -B build/kde` and
+- проверка: `npm test` проходит, 52/52; `cmake -S kde -B build/kde` and
   `cmake --build build/kde` pass cleanly; native GUI starts without stderr output.
 
 Следующий шаг:
 
-- подключить live evaluation backend к native shell.
+- визуально отполировать редактор: точное выравнивание подсвеченного слоя и caret,
+  настройки шрифта/размера, result column width, history/settings panels.
 
 ## Опорные технологии
 

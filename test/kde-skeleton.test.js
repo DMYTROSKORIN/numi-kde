@@ -32,10 +32,15 @@ test("native KDE QML skeleton contains editor and result panes", () => {
   const editorPane = fs.readFileSync("kde/qml/EditorPane.qml", "utf8");
   const resultsPane = fs.readFileSync("kde/qml/ResultsPane.qml", "utf8");
 
-  assert.match(documentPage, /resultLines/);
+  assert.match(documentPage, /lines: documentModel/);
+  assert.match(documentPage, /highlightModel: documentModel/);
+  assert.match(documentPage, /documentModel\.source = text/);
   assert.match(documentPage, /text: "⚙"/);
   assert.doesNotMatch(documentPage, /text: "→"/);
   assert.match(editorPane, /Controls\.TextArea/);
+  assert.match(editorPane, /highlightedHtml/);
+  assert.match(editorPane, /Text\.RichText/);
+  assert.match(editorPane, /color: "transparent"/);
   assert.match(resultsPane, /ListView/);
   assert.match(resultsPane, /property Item syncFlickable/);
   assert.doesNotMatch(resultsPane, /onContentYChanged/);
@@ -46,10 +51,14 @@ test("native KDE QML uses Numi reference visual tokens", () => {
   const documentPage = fs.readFileSync("kde/qml/DocumentPage.qml", "utf8");
   const resultsPane = fs.readFileSync("kde/qml/ResultsPane.qml", "utf8");
 
-  assert.match(main, /width: 456/);
-  assert.match(main, /height: 368/);
+  assert.match(main, /width: windowSettings\.savedWidth/);
+  assert.match(main, /height: windowSettings\.savedHeight/);
+  assert.match(main, /savedWidth: 456/);
+  assert.match(main, /savedHeight: 368/);
   assert.match(main, /FramelessWindowHint/);
   assert.match(main, /WindowStaysOnTopHint/);
+  assert.match(main, /Settings/);
+  assert.match(main, /ResizeHandle/);
   assert.match(main, /"#22242a"/);
   assert.match(main, /"#ffd35a"/);
   assert.match(main, /"#6fc4e8"/);
@@ -67,4 +76,19 @@ test("native KDE QML uses Linux window controls", () => {
   assert.match(main, /Qt\.quit/);
   assert.doesNotMatch(main, /#febc2e/);
   assert.doesNotMatch(main, /#28c840/);
+});
+
+test("native KDE QML wires live input and result copy behavior", () => {
+  const documentPage = fs.readFileSync("kde/qml/DocumentPage.qml", "utf8");
+  const resultsPane = fs.readFileSync("kde/qml/ResultsPane.qml", "utf8");
+  const main = fs.readFileSync("kde/qml/Main.qml", "utf8");
+
+  assert.match(documentPage, /documentModel\.source = text/);
+  assert.match(documentPage, /lines: documentModel/);
+  assert.match(documentPage, /documentModel\.copyResult\(row\)/);
+  assert.match(resultsPane, /hoverEnabled: true/);
+  assert.match(resultsPane, /copyRequested\(index\)/);
+  assert.match(main, /WindowStaysOnTopHint/);
+  assert.match(main, /savedWidth/);
+  assert.match(main, /startSystemResize/);
 });

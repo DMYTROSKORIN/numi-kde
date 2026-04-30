@@ -6,22 +6,15 @@ Item {
     id: page
 
     property string sourceText: "Price: $10\nFee: 4 GBP in Euro\nsum in USD - 4%\n\nnext friday + 2 weeks\n20 ml in tea spoons\n20% of what is 30 cm"
-    property var resultLines: [
-        { "line": 1, "result": "$10", "ok": true },
-        { "line": 2, "result": "5.65 EUR", "ok": true },
-        { "line": 3, "result": "$15.54", "ok": true },
-        { "line": 4, "result": "", "ok": true },
-        { "line": 5, "result": "8/14/15", "ok": true },
-        { "line": 6, "result": "4.06 tsp.", "ok": true },
-        { "line": 7, "result": "150 cm", "ok": true }
-    ]
+
+    Component.onCompleted: documentModel.source = sourceText
 
     ColumnLayout {
         anchors.fill: parent
         anchors.leftMargin: 38
         anchors.rightMargin: 36
         anchors.topMargin: 8
-        anchors.bottomMargin: 14
+        anchors.bottomMargin: 34
         spacing: 0
 
         RowLayout {
@@ -41,7 +34,12 @@ Item {
                 accentYellow: Window.window.numiYellow
                 accentBlue: Window.window.numiBlue
                 mutedColor: Window.window.numiMuted
-                onTextChanged: page.sourceText = text
+                highlightModel: documentModel
+                text: page.sourceText
+                onTextChanged: {
+                    page.sourceText = text
+                    documentModel.source = text
+                }
             }
 
             ResultsPane {
@@ -50,27 +48,38 @@ Item {
                 Layout.fillHeight: true
                 resultColor: Window.window.numiGreen
                 mutedColor: Window.window.numiMuted
-                lines: page.resultLines
+                lines: documentModel
                 syncFlickable: editor.flickable
+                onCopyRequested: (row) => documentModel.copyResult(row)
             }
         }
+    }
 
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 34
-            spacing: 0
+    Controls.Button {
+        id: settingsButton
 
-            Controls.Label {
-                text: "⚙"
-                color: Window.window.numiMuted
-                opacity: 0.65
-                font.pixelSize: 20
-                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
-            }
+        anchors.left: parent.left
+        anchors.leftMargin: 10
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 7
+        width: 30
+        height: 30
+        padding: 0
+        text: "⚙"
+        hoverEnabled: true
 
-            Item {
-                Layout.fillWidth: true
-            }
+        contentItem: Text {
+            text: settingsButton.text
+            color: Window.window.numiMuted
+            opacity: 0.75
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            font.pixelSize: 20
+        }
+
+        background: Rectangle {
+            radius: 5
+            color: settingsButton.down ? Window.window.controlPressed : settingsButton.hovered ? Window.window.controlHover : "transparent"
         }
     }
 }

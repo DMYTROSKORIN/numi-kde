@@ -1,6 +1,9 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QQuickStyle>
+
+#include "documentmodel.h"
 
 int main(int argc, char *argv[])
 {
@@ -11,6 +14,8 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
 
     QQmlApplicationEngine engine;
+    DocumentModel documentModel;
+    engine.rootContext()->setContextProperty(QStringLiteral("documentModel"), &documentModel);
     QObject::connect(
         &engine,
         &QQmlApplicationEngine::objectCreationFailed,

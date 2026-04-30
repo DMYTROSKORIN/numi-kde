@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls as Controls
-import QtQuick.Layouts
 
 Controls.ScrollView {
     id: root
@@ -9,6 +8,7 @@ Controls.ScrollView {
     property Item syncFlickable: null
     property color resultColor: "#8fd14f"
     property color mutedColor: "#6b6d76"
+    signal copyRequested(int row)
 
     clip: true
     background: Rectangle {
@@ -22,20 +22,42 @@ Controls.ScrollView {
         boundsBehavior: Flickable.StopAtBounds
         interactive: false
 
-        delegate: RowLayout {
+        delegate: Item {
             width: resultList.width
             height: 25
-            spacing: 6
+
+            Rectangle {
+                anchors.fill: parent
+                radius: 4
+                color: resultMouse.containsMouse && resultText.text.length > 0 ? "#30333b" : "transparent"
+                z: -1
+            }
 
             Controls.Label {
                 id: resultText
-                text: modelData.ok ? modelData.result : ""
-                color: modelData.ok ? root.resultColor : "#ff5f57"
+                text: ok ? result : ""
+                color: ok ? root.resultColor : "#ff5f57"
                 font.family: "Menlo, Monaco, Consolas, monospace"
                 font.pixelSize: 16
                 horizontalAlignment: Text.AlignRight
+                verticalAlignment: Text.AlignVCenter
                 elide: Text.ElideRight
-                Layout.fillWidth: true
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            MouseArea {
+                id: resultMouse
+
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: resultText.text.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: {
+                    if (resultText.text.length > 0) {
+                        root.copyRequested(index)
+                    }
+                }
             }
         }
     }

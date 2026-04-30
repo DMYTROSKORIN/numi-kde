@@ -14,7 +14,11 @@ qt_policy(SET QTP0004 NEW)
 
 qt_add_executable(numi-kde
   src/main.cpp
+  src/documentmodel.cpp
+  src/documentmodel.h
 )
+
+target_compile_definitions(numi-kde PRIVATE NUMI_KDE_SOURCE_DIR="${CMAKE_SOURCE_DIR}/..")
 
 qt_add_qml_module(numi-kde
   URI NumiKde

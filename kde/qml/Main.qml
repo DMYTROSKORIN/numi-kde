@@ -1,11 +1,12 @@
 import QtQuick
 import QtQuick.Controls as Controls
+import QtCore
 
 Controls.ApplicationWindow {
     id: root
 
-    width: 456
-    height: 368
+    width: windowSettings.savedWidth
+    height: windowSettings.savedHeight
     minimumWidth: 420
     minimumHeight: 320
     visible: true
@@ -23,6 +24,27 @@ Controls.ApplicationWindow {
     readonly property color numiRed: "#ff5f57"
     readonly property color controlHover: "#30333b"
     readonly property color controlPressed: "#3a3d45"
+
+    Settings {
+        id: windowSettings
+        category: "Window"
+        property int savedWidth: 456
+        property int savedHeight: 368
+        property int savedX: -1
+        property int savedY: -1
+    }
+
+    Component.onCompleted: {
+        if (windowSettings.savedX >= 0 && windowSettings.savedY >= 0) {
+            root.x = windowSettings.savedX
+            root.y = windowSettings.savedY
+        }
+    }
+
+    onWidthChanged: windowSettings.savedWidth = width
+    onHeightChanged: windowSettings.savedHeight = height
+    onXChanged: windowSettings.savedX = x
+    onYChanged: windowSettings.savedY = y
 
     background: Rectangle {
         color: "transparent"
@@ -129,6 +151,78 @@ Controls.ApplicationWindow {
             anchors.bottom: parent.bottom
         }
 
+        ResizeHandle {
+            edge: Qt.TopEdge
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 7
+            cursorShape: Qt.SizeVerCursor
+        }
+
+        ResizeHandle {
+            edge: Qt.BottomEdge
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 7
+            cursorShape: Qt.SizeVerCursor
+        }
+
+        ResizeHandle {
+            edge: Qt.LeftEdge
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            width: 7
+            cursorShape: Qt.SizeHorCursor
+        }
+
+        ResizeHandle {
+            edge: Qt.RightEdge
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.right: parent.right
+            width: 7
+            cursorShape: Qt.SizeHorCursor
+        }
+
+        ResizeHandle {
+            edge: Qt.TopEdge | Qt.LeftEdge
+            anchors.top: parent.top
+            anchors.left: parent.left
+            width: 14
+            height: 14
+            cursorShape: Qt.SizeFDiagCursor
+        }
+
+        ResizeHandle {
+            edge: Qt.TopEdge | Qt.RightEdge
+            anchors.top: parent.top
+            anchors.right: parent.right
+            width: 14
+            height: 14
+            cursorShape: Qt.SizeBDiagCursor
+        }
+
+        ResizeHandle {
+            edge: Qt.BottomEdge | Qt.LeftEdge
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            width: 14
+            height: 14
+            cursorShape: Qt.SizeBDiagCursor
+        }
+
+        ResizeHandle {
+            edge: Qt.BottomEdge | Qt.RightEdge
+            anchors.bottom: parent.bottom
+            anchors.right: parent.right
+            width: 14
+            height: 14
+            cursorShape: Qt.SizeFDiagCursor
+        }
+
         component WindowButton: Controls.Button {
             property color color: "#6b6d76"
             property color hoverColor: "#30333b"
@@ -152,6 +246,15 @@ Controls.ApplicationWindow {
                 radius: 5
                 color: parent.down ? parent.pressedColor : parent.hovered ? parent.hoverColor : "transparent"
             }
+        }
+
+        component ResizeHandle: MouseArea {
+            required property int edge
+
+            hoverEnabled: true
+            acceptedButtons: Qt.LeftButton
+            z: 10
+            onPressed: root.startSystemResize(edge)
         }
     }
 }
