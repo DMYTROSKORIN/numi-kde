@@ -1,10 +1,10 @@
 # numi-kde Handoff
 
-Last updated: 2026-04-30.
+Last updated: 2026-05-01.
 
-Last completed handoff commit: `Document project handoff state` at current `HEAD`.
+Last completed handoff commit: `fix: Phase 2.1 editor rendering polish and UX fixes`.
 
-Last functional GUI commit: `1b28e45 Wire native GUI live evaluation`.
+Last functional GUI commit: current HEAD.
 
 ## User Goal
 
@@ -28,8 +28,6 @@ and KDE-native behavior.
 
 ## Current Verified State
 
-The latest completed step is pushed to GitHub.
-
 Verified commands:
 
 ```sh
@@ -44,7 +42,7 @@ Expected status:
 - `npm test`: 52/52 pass.
 - CMake configure/build: pass.
 - Native GUI starts without stderr output.
-- `git status --short`: clean immediately after the pushed handoff commit.
+- `git status --short`: clean after the pushed commit.
 
 ## What Works Now
 
@@ -61,74 +59,69 @@ Core:
 - deterministic ISO date arithmetic;
 - extension skeleton for variables/functions/units;
 - diagnostics with source ranges;
-- parser token ranges for highlighting.
+- parser token ranges for highlighting;
+- non-ASCII/Unicode input (Cyrillic etc.) handled gracefully — tokenised as identifiers,
+  returns a diagnostic error instead of crashing the evaluator.
 
 Native GUI:
 
 - Qt Quick shell in `kde/`;
 - compact dark frameless Numi-like window;
-- Linux/KDE controls, no macOS traffic-light decoration;
-- top-left history button placeholder;
-- top-right minimize, maximize/restore and close;
-- bottom-left settings gear placeholder close to the corner;
-- no bottom-right arrow;
-- always-on-top enabled by default;
+- Linux/KDE controls: top-left history button, top-right minimize/maximize/close;
+- bottom-left settings gear — opens a Popup with "Всегда поверх окон" toggle;
+- always-on-top saved in Qt Settings, default true, reflected in window flags at launch;
 - resizable from edges and corners;
 - window geometry persists between launches;
-- left editor is active and editable;
-- right result column updates live while typing;
+- empty field: cursor forced to position 0 when no text;
+- cursor rendered via `cursorDelegate: Rectangle` (visible on dark background);
+- highlight overlay and TextArea share `lineH = fontMetrics.height` for pixel alignment;
+- placeholder text (grey) disappears on focus;
+- result column has correct width (`width: root.availableWidth`);
 - result hover highlight;
 - clicking a result copies its formatted value to clipboard;
-- first syntax highlighting layer for units, currency-like uppercase tokens, `%`, and natural
-  operators such as `in`, `to`, `as`, `of`, `from`.
+- semantic syntax highlighting: `*`, `/`, `%`, units, currency-like uppercase tokens,
+  natural operators — all in entity (blue) or operator (yellow).
+
+## Known Limitations
+
+- Native GUI calls the JS evaluator through a local Node process. Final packaging must embed Node
+  or move to a native runtime.
+- Scroll sync between editor and results is wired (Connections block) but TextArea does not
+  expose `contentY` directly — scrolling long documents may desync results column.
+  Fix in Phase 2.3.
+- Settings UI has only the "always on top" toggle. Font size and result column width are not yet
+  configurable. Phase 2.2.
+- History panel button is a placeholder.
+- KRunner, global shortcut, tray, file dialogs, `.numi` association and packaging are not
+  implemented.
 
 ## Important Files
 
 - `docs/implementation-plan.md`: authoritative roadmap and progress log.
 - `docs/kde-native.md`: native GUI build/run/status notes.
-- `kde/qml/Main.qml`: frameless window, controls, resize handles, saved geometry.
-- `kde/qml/DocumentPage.qml`: left editor/right results layout and model wiring.
-- `kde/qml/EditorPane.qml`: active editor plus syntax highlight overlay.
-- `kde/qml/ResultsPane.qml`: right result list, hover highlight and copy signal.
-- `kde/src/documentmodel.h`
-- `kde/src/documentmodel.cpp`: C++ model exposed to QML.
-- `src/gui/evaluate-document.js`: Node worker entry point for native bridge.
-- `src/gui/adapter.js`: core-to-GUI view model.
-- `src/gui/highlight.js`: syntax highlight classifier and HTML renderer.
-- `test/gui.test.js`: GUI adapter/highlight tests.
+- `kde/qml/Main.qml`: frameless window, controls, dynamic flags, `alwaysOnTop` property.
+- `kde/qml/DocumentPage.qml`: layout, settings popup with alwaysOnTop toggle.
+- `kde/qml/EditorPane.qml`: editor with FontMetrics, `cursorDelegate`, placeholderText, overlay.
+- `kde/qml/ResultsPane.qml`: result list with proper sizing, scroll sync Connections.
+- `kde/src/documentmodel.h` / `documentmodel.cpp`: C++ model exposed to QML.
+- `src/gui/evaluate-document.js`: Node worker entry point.
+- `src/gui/highlight.js`: syntax highlight — `\p{L}` TOKEN_PATTERN, `*`/`/` as entity.
+- `src/core/syntax.js`: tokenizer with `\p{L}` Unicode identifier support.
+- `src/core/engine.js`: evaluator with try-catch in `evaluateLine` for robustness.
 - `test/kde-skeleton.test.js`: native QML/CMake structure tests.
-
-## Known Limitations
-
-- Native GUI currently calls the JS evaluator through a local Node process. This is acceptable for
-  development, but final Linux packaging must either embed Node cleanly or move the backend to a
-  native runtime.
-- Syntax highlighting is early. It works, but editor polish is incomplete:
-  caret alignment, highlight overlay line height, selection behavior and long-document performance
-  still need work.
-- `AED`/`USD` are highlighted as currency-like tokens, but real currency conversion is not
-  implemented yet.
-- History and settings buttons are placeholders.
-- Settings UI does not exist yet, although geometry persistence is already implemented.
-- KRunner, global shortcut, tray, file dialogs, `.numi` file association and packaging are not
-  implemented.
 
 ## Next Task
 
-Start with **Phase 2.1 Editor Rendering Polish**.
+Start with **Phase 2.2 Settings Panel expansion**.
 
 Recommended first patch:
 
-1. Inspect `kde/qml/EditorPane.qml`.
-2. Make highlighted overlay and editable `TextArea` share exact font metrics, padding and line
-   spacing.
-3. Verify typing, selecting text, scrolling and resizing still work.
-4. Keep result column behavior unchanged.
-5. Add/update tests in `test/kde-skeleton.test.js` and `test/gui.test.js` if the QML contract or
-   highlighter changes.
-6. Run `npm test`, CMake configure/build, then launch `./build/kde/numi-kde`.
-7. Update this file, `docs/implementation-plan.md` and `docs/kde-native.md`.
-8. Commit and push.
-
-Do not start packaging, KRunner or live currencies before this GUI polish step. The editor is the
-highest-risk part of the product experience.
+1. Expand the existing settings popup in `kde/qml/DocumentPage.qml` with:
+   - font size slider;
+   - result column width control.
+2. Wire new settings to `Qt.Settings` for persistence.
+3. Propagate font size and column width through EditorPane and ResultsPane.
+4. Add/update tests in `test/kde-skeleton.test.js`.
+5. Run `npm test`, CMake configure/build, then launch `./build/kde/numi-kde`.
+6. Update this file, `docs/implementation-plan.md` and `docs/kde-native.md`.
+7. Commit and push.

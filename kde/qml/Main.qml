@@ -12,7 +12,10 @@ Controls.ApplicationWindow {
     visible: true
     title: "Numi"
     color: "transparent"
-    flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+    flags: Qt.Window | Qt.FramelessWindowHint | (alwaysOnTop ? Qt.WindowStaysOnTopHint : 0)
+
+    property bool alwaysOnTop: windowSettings.alwaysOnTop
+    onAlwaysOnTopChanged: windowSettings.alwaysOnTop = alwaysOnTop
 
     readonly property color numiWindow: "#22242a"
     readonly property color numiTitle: "#5d5f69"
@@ -32,6 +35,7 @@ Controls.ApplicationWindow {
         property int savedHeight: 368
         property int savedX: -1
         property int savedY: -1
+        property bool alwaysOnTop: true
     }
 
     Component.onCompleted: {
