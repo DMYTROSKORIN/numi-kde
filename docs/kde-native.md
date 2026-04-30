@@ -72,6 +72,16 @@ Current local status:
 - `./build/kde/numi-kde` starts in the graphical session without stderr output;
 - `QT_QPA_PLATFORM=offscreen ./build/kde/numi-kde` starts without QML runtime errors.
 
+Current native behavior:
+
+- the window is editable;
+- the window is resizable;
+- the window stays above other windows by default;
+- top-left action is reserved for history;
+- top-right actions are minimize, maximize/restore and close;
+- bottom-left action is reserved for settings;
+- bottom-right arrow is intentionally removed.
+
 The first runnable native prototype deliberately avoids direct Kirigami imports to keep configure
 and launch clean on Fedora. It still uses Qt Quick Controls and requests the KDE desktop style in
 `main.cpp`. Kirigami components can be reintroduced when settings pages, drawers or navigation need

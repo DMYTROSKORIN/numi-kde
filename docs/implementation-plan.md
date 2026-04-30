@@ -75,10 +75,19 @@
 - direct Kirigami imports removed from the first runnable native prototype to keep Fedora
   configure/build/runtime output clean; KDE desktop style is still requested through Qt Quick
   Controls;
+- приняты GUI requirements:
+  - приложение Linux/KDE-first, без macOS traffic-light decoration;
+  - окно должно быть resizable и editable;
+  - bottom-left control is settings gear;
+  - bottom-right arrow is removed until needed;
+  - top-left control is history;
+  - top-right controls: close, minimize, maximize/fullscreen;
+  - window stays always on top by default, later configurable;
+- implemented GUI requirements in native prototype; app builds and starts without runtime stderr;
 - реализованы первые Phase 1 gaps: implicit multiplication, `:=`, inline comments,
   thousands separators, decimal comma, расширенные units, temperature conversions,
   Numi-like percentage cases, ISO date arithmetic, extension-defined variables/functions/units;
-- проверка: `npm test` проходит, 49/49; `cmake -S kde -B build/kde` and
+- проверка: `npm test` проходит, 50/50; `cmake -S kde -B build/kde` and
   `cmake --build build/kde` pass cleanly; native GUI starts without stderr output.
 
 Следующий шаг:

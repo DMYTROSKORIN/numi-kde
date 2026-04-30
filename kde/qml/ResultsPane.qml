@@ -6,20 +6,13 @@ Controls.ScrollView {
     id: root
 
     property var lines: []
-    property Flickable syncFlickable: null
+    property Item syncFlickable: null
     property color resultColor: "#8fd14f"
     property color mutedColor: "#6b6d76"
 
     clip: true
     background: Rectangle {
         color: "transparent"
-    }
-
-    Connections {
-        target: root.syncFlickable
-        function onContentYChanged() {
-            resultList.contentY = root.syncFlickable.contentY
-        }
     }
 
     ListView {

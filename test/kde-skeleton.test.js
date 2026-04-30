@@ -33,10 +33,12 @@ test("native KDE QML skeleton contains editor and result panes", () => {
   const resultsPane = fs.readFileSync("kde/qml/ResultsPane.qml", "utf8");
 
   assert.match(documentPage, /resultLines/);
-  assert.match(documentPage, /sampleLines/);
-  assert.match(editorPane, /Text\.RichText/);
+  assert.match(documentPage, /text: "⚙"/);
+  assert.doesNotMatch(documentPage, /text: "→"/);
+  assert.match(editorPane, /Controls\.TextArea/);
   assert.match(resultsPane, /ListView/);
-  assert.match(resultsPane, /syncFlickable/);
+  assert.match(resultsPane, /property Item syncFlickable/);
+  assert.doesNotMatch(resultsPane, /onContentYChanged/);
 });
 
 test("native KDE QML uses Numi reference visual tokens", () => {
@@ -47,10 +49,22 @@ test("native KDE QML uses Numi reference visual tokens", () => {
   assert.match(main, /width: 456/);
   assert.match(main, /height: 368/);
   assert.match(main, /FramelessWindowHint/);
+  assert.match(main, /WindowStaysOnTopHint/);
   assert.match(main, /"#22242a"/);
   assert.match(main, /"#ffd35a"/);
   assert.match(main, /"#6fc4e8"/);
   assert.match(main, /"#8fd14f"/);
   assert.match(documentPage, /Price:/);
   assert.match(resultsPane, /horizontalAlignment: Text\.AlignRight/);
+});
+
+test("native KDE QML uses Linux window controls", () => {
+  const main = fs.readFileSync("kde/qml/Main.qml", "utf8");
+
+  assert.match(main, /historyButton/);
+  assert.match(main, /showMinimized/);
+  assert.match(main, /Window\.Maximized/);
+  assert.match(main, /Qt\.quit/);
+  assert.doesNotMatch(main, /#febc2e/);
+  assert.doesNotMatch(main, /#28c840/);
 });

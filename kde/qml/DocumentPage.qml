@@ -41,16 +41,6 @@ Item {
                 accentYellow: Window.window.numiYellow
                 accentBlue: Window.window.numiBlue
                 mutedColor: Window.window.numiMuted
-                sampleMode: true
-                sampleLines: [
-                    "<span style='color:#ffd35a'>Price:</span> $10",
-                    "<span style='color:#ffd35a'>Fee:</span> 4 GBP <span style='color:#6fc4e8'>in</span> Euro",
-                    "<span style='color:#6fc4e8'>sum in USD</span> - 4%",
-                    "",
-                    "next friday + 2 weeks",
-                    "20 <span style='color:#6fc4e8'>ml in tea spoons</span>",
-                    "20% <span style='color:#6fc4e8'>of what is</span> 30 cm"
-                ]
                 onTextChanged: page.sourceText = text
             }
 
@@ -71,23 +61,15 @@ Item {
             spacing: 0
 
             Controls.Label {
-                text: "⌘"
+                text: "⚙"
                 color: Window.window.numiMuted
                 opacity: 0.65
-                font.pixelSize: 18
+                font.pixelSize: 20
                 Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
             }
 
             Item {
                 Layout.fillWidth: true
-            }
-
-            Controls.Label {
-                text: "→"
-                color: Window.window.numiMuted
-                opacity: 0.65
-                font.pixelSize: 22
-                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
             }
         }
     }
