@@ -16,17 +16,65 @@
 Главный принцип: сначала фиксируем поведение вычислителя тестами, затем подключаем это же
 поведение к GUI, CLI, server и KRunner. UI не должен содержать вычислительную логику.
 
-## Текущее состояние
+## Текущее состояние для handoff
 
-Уже есть минимальный scaffold:
+Дата актуализации: 2026-04-30.
 
-- `src/core/engine.js`: базовый evaluator;
-- `src/cli.js`: one-shot CLI;
-- `src/server.js`: совместимый HTTP endpoint;
-- `test/core.test.js`: первые проверки поведения;
-- `docs/architecture.md`: базовые архитектурные границы.
+Последний завершенный commit перед handoff: `Document project handoff state` at current `HEAD`.
 
-Это пока не KDE-приложение. Текущая версия пригодна для проверки ядра, CLI и endpoint.
+Последний функциональный GUI commit: `1b28e45 Wire native GUI live evaluation`.
+
+Рабочая ветка после этого шага должна быть чистой. Если следующий агент видит локальные
+изменения, сначала проверить `git status --short` и не откатывать их без явной команды
+пользователя.
+
+Что уже есть:
+
+- JS compatibility core в `src/core/` с parser/evaluator/formatter/units/dates/extensions;
+- CLI: `src/cli.js`;
+- Alfred/Numi-compatible HTTP endpoint: `src/server.js`;
+- web GUI prototype: `gui/` и `src/gui/server.js`;
+- native Qt Quick/KDE prototype: `kde/`;
+- native C++ bridge `kde/src/documentmodel.*`, который вызывает общий JS evaluator через
+  `src/gui/evaluate-document.js`;
+- GUI adapter `src/gui/adapter.js`, который возвращает line view model, diagnostics, result,
+  tokens and highlighted HTML;
+- syntax highlight classifier: `src/gui/highlight.js`;
+- tests:
+  - core compatibility fixtures;
+  - GUI adapter and server tests;
+  - KDE skeleton/QML structure tests.
+
+Текущая проверка завершенного шага:
+
+- `npm test`: 52/52 pass;
+- `cmake -S kde -B build/kde`: pass;
+- `cmake --build build/kde`: pass;
+- `./build/kde/numi-kde`: starts in graphical session without stderr output.
+
+Текущее native GUI поведение:
+
+- окно compact frameless, темное, визуально ориентировано на Numi reference;
+- Linux/KDE controls: top-left history action, top-right minimize/maximize/close;
+- bottom-left gear reserved for settings, pushed close to the corner;
+- no bottom-right arrow;
+- окно always-on-top by default;
+- окно resizable from all edges/corners;
+- window geometry persists between launches through Qt `Settings`;
+- active editable text area on the left;
+- live evaluation on typing;
+- results shown in the right column;
+- result hover highlight;
+- result click copies formatted value to clipboard;
+- first semantic syntax highlighting for units/currency-like tokens, `%`, and natural
+  operators: `in`, `to`, `as`, `of`, `from`.
+
+Документация для продолжения:
+
+- `docs/handoff.md`: короткий operational handoff для следующего агента;
+- `docs/kde-native.md`: как собрать/запустить native GUI и что в нем уже работает;
+- `docs/architecture.md`: границы core/CLI/server/GUI;
+- `docs/extensions.md`: текущая extension policy.
 
 ## P0 Workflow Rules
 
@@ -101,8 +149,32 @@
 
 Следующий шаг:
 
-- визуально отполировать редактор: точное выравнивание подсвеченного слоя и caret,
-  настройки шрифта/размера, result column width, history/settings panels.
+- начать с GUI polishing step: точное выравнивание подсвеченного слоя и caret, line-height
+  parity, selection behavior, font size controls and result column width;
+- после этого добавить settings panel for always-on-top/font/result width и history panel;
+- каждый подшаг делать с тестом, `npm test`, CMake build, runtime launch, docs update,
+  commit and `git push`.
+
+## Следующая рабочая задача
+
+Приоритет для следующего агента: **Phase 2.1 Editor Rendering Polish**.
+
+Стартовая точка:
+
+1. Открыть `kde/qml/EditorPane.qml`.
+2. Проверить, что overlay `Text` с `highlightedHtml` совпадает с `Controls.TextArea`
+   по `font.family`, `font.pixelSize`, padding and line height.
+3. Если QML overlay не дает точного caret/selection alignment, сделать technical spike:
+   QWidget/QPlainTextEdit based editor или C++/QML custom highlighter.
+4. Добавить tests:
+   - Node test for highlight classification if classifier changes;
+   - KDE skeleton test for any new QML contract;
+   - manual runtime check via `./build/kde/numi-kde`.
+5. Обновить `docs/implementation-plan.md`, `docs/kde-native.md` and `docs/handoff.md`.
+6. Commit and push.
+
+Не начинать packaging, KRunner или currencies до полировки редактора: GUI является P0 и сейчас
+самый рискованный слой.
 
 ## Опорные технологии
 

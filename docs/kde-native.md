@@ -1,5 +1,11 @@
 # Native KDE Prototype
 
+Last updated: 2026-04-30.
+
+Last completed handoff commit: `Document project handoff state` at current `HEAD`.
+
+Last functional GUI commit: `1b28e45 Wire native GUI live evaluation`.
+
 The native KDE prototype lives in `kde/`.
 
 It is the starting point for the final Qt 6/KF6 application. The current skeleton already
@@ -48,8 +54,6 @@ In the current workspace, package discovery confirmed:
 - `qt6-qtbase-devel` provides `cmake(Qt6)`;
 - `qt6-qtdeclarative-devel` provides `cmake(Qt6Qml)` and `cmake(Qt6Quick)`;
 
-Automatic installation was not completed because `sudo` requires the user's password.
-
 ## Build
 
 After installing dependencies:
@@ -70,6 +74,7 @@ Current local status:
 - `cmake -S kde -B build/kde` passes;
 - `cmake --build build/kde` passes;
 - `./build/kde/numi-kde` starts in the graphical session without stderr output;
+- `npm test` passes 52/52.
 
 Current native behavior:
 
@@ -102,9 +107,17 @@ The syntax highlighting layer is functional but still early. It highlights seman
 the next editor pass must tighten caret alignment, line-height parity, selection behavior and
 large-document performance.
 
+The current semantic highlighter treats all 3-5 uppercase words as currency-like tokens so examples
+such as `500 AED to USD` render correctly before real currency evaluation exists. Actual currency
+conversion still requires a mocked/tested rate provider and must not depend on live network tests.
+
+The top-left history action and bottom-left settings action are visual placeholders. Their panels
+are not implemented yet.
+
 ## Next Work
 
 - Polish editor rendering and caret/highlight alignment.
 - Add font size and result column width settings.
-- Add history and settings panels.
+- Add settings panel for always-on-top, font size and result width.
+- Add history panel and persistence model.
 - Add native screenshot checks once the binary builds.
