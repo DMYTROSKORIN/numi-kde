@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createExtensionRegistry, evaluate, evaluateDocument, parseDocument } from "../src/core/engine.js";
+import {
+  createExtensionRegistry,
+  evaluate,
+  evaluateDocument,
+  loadExtensionModules,
+  parseDocument,
+} from "../src/core/engine.js";
 import { documentFixtures, expressionFixtures, formattingFixtures } from "../fixtures/core-compatibility.js";
 
 for (const [name, source, expected] of expressionFixtures) {
@@ -71,4 +77,71 @@ test("supports extension variables, functions and units", () => {
   assert.equal(evaluate("answer", { extensions }).formatted, "42");
   assert.equal(evaluate("triple(14)", { extensions }).formatted, "42");
   assert.equal(evaluate("2 smoots in m", { extensions }).formatted, "3.4036 m");
+});
+
+test("loads extension modules from manifest and source", () => {
+  const { diagnostics, registry } = loadExtensionModules([
+    {
+      manifest: {
+        id: "demo-extension",
+        apiVersion: 1,
+        version: "0.1.0",
+        entry: "extension.js",
+      },
+      source: `
+        numi.setVariable("bonus", 7);
+        numi.addFunction("quad", value => value * 4);
+        numi.addUnit("hand", {
+          dimension: "length",
+          ratio: 0.1016,
+          aliases: ["hand", "hands"]
+        });
+      `,
+    },
+  ]);
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(evaluate("bonus", { extensions: registry }).formatted, "7");
+  assert.equal(evaluate("quad(3)", { extensions: registry }).formatted, "12");
+  assert.equal(evaluate("10 hands in m", { extensions: registry }).formatted, "1.016 m");
+});
+
+test("reports extension manifest diagnostics without loading source", () => {
+  const { diagnostics, registry } = loadExtensionModules([
+    {
+      manifest: { apiVersion: 1 },
+      source: "numi.setVariable('shouldNotLoad', 1);",
+    },
+  ]);
+
+  assert.equal(registry.variables.has("shouldNotLoad"), false);
+  assert.deepEqual(diagnostics, [
+    {
+      severity: "error",
+      extensionId: "<unknown>",
+      message: "Extension manifest id must be a non-empty string",
+    },
+  ]);
+});
+
+test("reports extension runtime diagnostics and keeps earlier modules", () => {
+  const { diagnostics, registry } = loadExtensionModules([
+    {
+      manifest: { id: "ok", apiVersion: 1, entry: "ok.js" },
+      source: "numi.setVariable('loaded', 2);",
+    },
+    {
+      manifest: { id: "broken", apiVersion: 1, entry: "broken.js" },
+      source: "throw new Error('boom');",
+    },
+  ]);
+
+  assert.equal(evaluate("loaded", { extensions: registry }).formatted, "2");
+  assert.deepEqual(diagnostics, [
+    {
+      severity: "error",
+      extensionId: "broken",
+      message: "boom",
+    },
+  ]);
 });

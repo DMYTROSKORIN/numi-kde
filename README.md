@@ -26,6 +26,7 @@ This is the first scaffold:
 - `test/core.test.js`: executable compatibility checks.
 - `docs/architecture.md`: implementation plan and boundaries.
 - `docs/implementation-plan.md`: detailed roadmap toward the KDE-native application.
+- `docs/extensions.md`: current JavaScript extension loading policy.
 
 ## Usage
 

@@ -1,12 +1,12 @@
 import { evaluateDateExpression } from "./dates.js";
 import { createDiagnostic, NumiError } from "./errors.js";
-import { createExtensionRegistry } from "./extensions.js";
+import { createExtensionRegistry, loadExtensionModules } from "./extensions.js";
 import { parseExpression, parseLine } from "./syntax.js";
 import { convertQuantity, createQuantity, findUnit } from "./units.js";
 export { formatResult } from "./formatter.js";
 import { formatResult } from "./formatter.js";
 export { NumiError } from "./errors.js";
-export { createExtensionRegistry } from "./extensions.js";
+export { createExtensionRegistry, loadExtensionModules } from "./extensions.js";
 
 const CONSTANTS = new Map([
   ["pi", Math.PI],
