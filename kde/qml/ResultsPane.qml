@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Layouts
-import org.kde.kirigami as Kirigami
 
 Controls.ScrollView {
     id: root
@@ -33,7 +32,7 @@ Controls.ScrollView {
         delegate: RowLayout {
             width: resultList.width
             height: 25
-            spacing: Kirigami.Units.smallSpacing
+            spacing: 6
 
             Controls.Label {
                 id: resultText

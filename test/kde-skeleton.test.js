@@ -19,12 +19,12 @@ test("native KDE skeleton files exist", () => {
   }
 });
 
-test("native KDE CMake skeleton declares required Qt and Kirigami packages", () => {
+test("native KDE CMake skeleton declares required Qt packages", () => {
   const cmake = fs.readFileSync("kde/CMakeLists.txt", "utf8");
 
   assert.match(cmake, /find_package\(Qt6 6\.6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2\)/);
-  assert.match(cmake, /find_package\(KF6Kirigami REQUIRED\)/);
   assert.match(cmake, /qt_add_qml_module/);
+  assert.doesNotMatch(cmake, /KF6Kirigami/);
 });
 
 test("native KDE QML skeleton contains editor and result panes", () => {

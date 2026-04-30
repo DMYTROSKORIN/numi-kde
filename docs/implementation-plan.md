@@ -65,17 +65,21 @@
   и возвращает diagnostics вместо падения evaluator;
 - добавлен первый runnable GUI prototype в `gui/` и `src/gui/`;
 - добавлена документация GUI prototype в `docs/gui-prototype.md`;
-- определены Fedora dev dependencies для native KDE: `qt6-qtbase-devel`,
-  `qt6-qtdeclarative-devel`, `kf6-kirigami-devel`;
-- добавлен native KDE/Kirigami skeleton в `kde/`;
+- определены Fedora dev dependencies для runnable native prototype: `qt6-qtbase-devel`,
+  `qt6-qtdeclarative-devel`;
+- добавлен native KDE/Qt Quick skeleton в `kde/`;
 - добавлена документация native KDE skeleton в `docs/kde-native.md`;
-- native KDE shell собран локально через CMake после установки Qt/Kirigami dev packages;
+- native KDE shell собран локально через CMake после установки Qt dev packages;
 - native shell визуально приближен к Numi reference: compact dark frameless window,
   traffic-light controls, yellow/blue syntax accents, green results;
+- direct Kirigami imports removed from the first runnable native prototype to keep Fedora
+  configure/build/runtime output clean; KDE desktop style is still requested through Qt Quick
+  Controls;
 - реализованы первые Phase 1 gaps: implicit multiplication, `:=`, inline comments,
   thousands separators, decimal comma, расширенные units, temperature conversions,
   Numi-like percentage cases, ISO date arithmetic, extension-defined variables/functions/units;
-- проверка: `npm test` проходит, 49/49; `cmake --build build/kde` проходит.
+- проверка: `npm test` проходит, 49/49; `cmake -S kde -B build/kde` and
+  `cmake --build build/kde` pass cleanly; native GUI starts without stderr output.
 
 Следующий шаг:
 

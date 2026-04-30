@@ -2,7 +2,7 @@
 
 The native KDE prototype lives in `kde/`.
 
-It is the starting point for the final Qt 6/KF6/Kirigami application. The current skeleton already
+It is the starting point for the final Qt 6/KF6 application. The current skeleton already
 defines:
 
 - `kde/CMakeLists.txt`
@@ -33,7 +33,7 @@ https://camo.githubusercontent.com/49d6223fe0ad7af2d1991e9eb4ef9ea32ef3d20bd4c48
 On Fedora KDE, install the missing development packages:
 
 ```sh
-sudo dnf install -y qt6-qtbase-devel qt6-qtdeclarative-devel kf6-kirigami-devel
+sudo dnf install -y qt6-qtbase-devel qt6-qtdeclarative-devel
 ```
 
 These provide the missing CMake packages:
@@ -42,13 +42,11 @@ These provide the missing CMake packages:
 - `Qt6Qml`
 - `Qt6Quick`
 - `Qt6QuickControls2`
-- `KF6Kirigami`
 
 In the current workspace, package discovery confirmed:
 
 - `qt6-qtbase-devel` provides `cmake(Qt6)`;
 - `qt6-qtdeclarative-devel` provides `cmake(Qt6Qml)` and `cmake(Qt6Quick)`;
-- `kf6-kirigami-devel` provides `cmake(KF6Kirigami)`.
 
 Automatic installation was not completed because `sudo` requires the user's password.
 
@@ -71,11 +69,13 @@ Current local status:
 
 - `cmake -S kde -B build/kde` passes;
 - `cmake --build build/kde` passes;
+- `./build/kde/numi-kde` starts in the graphical session without stderr output;
 - `QT_QPA_PLATFORM=offscreen ./build/kde/numi-kde` starts without QML runtime errors.
 
-Fedora currently emits non-fatal CMake warnings about Kirigami QML plugin link targets during
-configure. The binary still builds and uses runtime QML imports. This should be revisited before
-release packaging.
+The first runnable native prototype deliberately avoids direct Kirigami imports to keep configure
+and launch clean on Fedora. It still uses Qt Quick Controls and requests the KDE desktop style in
+`main.cpp`. Kirigami components can be reintroduced when settings pages, drawers or navigation need
+them.
 
 ## Current Limitations
 

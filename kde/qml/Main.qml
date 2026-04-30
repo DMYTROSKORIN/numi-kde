@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls as Controls
-import org.kde.kirigami as Kirigami
 
 Controls.ApplicationWindow {
     id: root
