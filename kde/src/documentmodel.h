@@ -4,6 +4,9 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
+#include <QProcess>
+
+class QalcBridge;
 
 class DocumentModel : public QAbstractListModel
 {
@@ -22,6 +25,7 @@ public:
     };
 
     explicit DocumentModel(QObject *parent = nullptr);
+    ~DocumentModel();
 
     QString source() const;
     void setSource(const QString &source);
@@ -40,11 +44,12 @@ signals:
 
 private:
     void evaluate();
-    static QString runEvaluator(const QString &source);
+    static QString runHighlightWorker(const QString &source);
     static QString firstDiagnostic(const QJsonObject &line);
 
     QString m_source;
     QJsonArray m_lines;
     int m_errorCount = 0;
     int m_resultCount = 0;
+    QalcBridge *m_qalc;
 };

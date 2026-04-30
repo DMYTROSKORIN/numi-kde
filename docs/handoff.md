@@ -68,7 +68,7 @@ git status --short          # чисто
 | Always-on-top не работает на нативном Wayland | `Qt.WindowStaysOnTopHint` игнорируется Wayland-композитором; нужен `KWindowSystem::setKeepAbove()` | Phase 2.4 |
 | Scroll sync может десинхронизироваться на длинных документах | TextArea не экспонирует `contentY` напрямую | Phase 2.3 |
 | History panel — плейсхолдер | Не реализована | Phase 2.5 |
-| Node.js worker для вычислений | Для финального пакета нужен embedded runtime или нативный C++ бэкенд | Phase 2.3 |
+| Node.js worker для подсветки | Всё ещё используется для highlight; нужно перенести в C++ для полной нативности | Phase 2.6 |
 
 ---
 
@@ -79,14 +79,15 @@ kde/qml/Main.qml            — окно, флаги, alwaysOnTop, WindowButton/
 kde/qml/DocumentPage.qml    — layout, settings popup, EditorPane ↔ ResultsPane связь
 kde/qml/EditorPane.qml      — TextArea + highlight overlay + FontMetrics, cursorDelegate
 kde/qml/ResultsPane.qml     — ListView, hover-цвет, scroll sync Connections
-kde/src/documentmodel.h/.cpp — C++ QML-модель, вызывает Node worker
+kde/src/documentmodel.h/.cpp — C++ QML-модель, вызывает QalcBridge и Node highlight
+kde/src/qalcbridge.h/.cpp    — C++ обёртка над libqalculate
 src/gui/adapter.js          — собирает view model: result, highlightedHtml, assignment
 src/gui/highlight.js        — classifyHighlightToken, createHighlightedHtml(line, variables)
-src/gui/evaluate-document.js — Node worker entry point
+src/gui/evaluate-document.js — Node worker entry point (теперь только для highlight)
 src/core/engine.js          — evaluateDocument, evaluateLine, /help спецслучай
 src/core/syntax.js          — токенайзер с \p{L} Unicode
 test/gui.test.js            — тесты adapter и highlight
-test/kde-skeleton.test.js   — структурные тесты QML/CMake
+test/kde-skeleton.test.js   — структурные тесты QML/CMake/C++ backend
 docs/Gemini-qalculate-evolution.md — план миграции на libqalculate
 ```
 
@@ -94,11 +95,9 @@ docs/Gemini-qalculate-evolution.md — план миграции на libqalcula
 
 ## Следующие задачи по приоритету
 
-### Phase 2.3 — Миграция на libqalculate (главная архитектурная задача)
+### Phase 2.4 — Always-on-top на Wayland
 
-**Цель:** заменить JS-движок в нативном GUI на C++ libqalculate.
-Это устранит все проблемы с валютой, процентами и расширенной математикой.
-Детальный план — в `docs/Gemini-qalculate-evolution.md`.
+**Цель:** чтобы переключатель "Всегда поверх окон" работал и на нативном Wayland KDE.
 
 **Контекст:**
 - `libqalculate-devel 5.7.0` уже установлен на Fedora 43.

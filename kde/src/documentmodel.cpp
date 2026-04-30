@@ -1,4 +1,5 @@
 #include "documentmodel.h"
+#include "qalcbridge.h"
 
 #include <QClipboard>
 #include <QCoreApplication>
@@ -13,6 +14,11 @@
 
 DocumentModel::DocumentModel(QObject *parent)
     : QAbstractListModel(parent)
+{
+    m_qalc = new QalcBridge(this);
+}
+
+DocumentModel::~DocumentModel()
 {
 }
 
@@ -95,29 +101,52 @@ void DocumentModel::copyResult(int row)
 
 void DocumentModel::evaluate()
 {
-    const auto output = runEvaluator(m_source);
-    const auto document = QJsonDocument::fromJson(output.toUtf8());
-    const auto root = document.object();
-    const auto summary = root.value(QStringLiteral("summary")).toObject();
-    const auto lines = root.value(QStringLiteral("lines")).toArray();
+    const auto highlightOutput = runHighlightWorker(m_source);
+    const auto highlightDoc = QJsonDocument::fromJson(highlightOutput.toUtf8());
+    const auto highlightLines = highlightDoc.object().value(QStringLiteral("lines")).toArray();
+
+    const auto qalcResults = m_qalc->evaluateDocument(m_source);
 
     beginResetModel();
-    m_lines = lines;
-    m_errorCount = summary.value(QStringLiteral("errorCount")).toInt();
-    m_resultCount = summary.value(QStringLiteral("resultCount")).toInt();
-    endResetModel();
+    m_lines = QJsonArray();
+    m_errorCount = 0;
+    m_resultCount = 0;
 
+    for (int i = 0; i < qalcResults.size(); ++i) {
+        QJsonObject lineObj;
+        const auto &res = qalcResults.at(i);
+        lineObj.insert(QStringLiteral("ok"), res.ok);
+        lineObj.insert(QStringLiteral("result"), res.result);
+        if (!res.ok) {
+            m_errorCount++;
+            QJsonArray diags;
+            QJsonObject d;
+            d.insert(QStringLiteral("message"), res.error);
+            diags.append(d);
+            lineObj.insert(QStringLiteral("diagnostics"), diags);
+        } else if (!res.result.isEmpty()) {
+            m_resultCount++;
+        }
+
+        if (i < highlightLines.size()) {
+            lineObj.insert(QStringLiteral("highlightedHtml"), highlightLines.at(i).toObject().value(QStringLiteral("highlightedHtml")));
+        }
+
+        m_lines.append(lineObj);
+    }
+
+    endResetModel();
     emit linesChanged();
 }
 
-QString DocumentModel::runEvaluator(const QString &source)
+QString DocumentModel::runHighlightWorker(const QString &source)
 {
     QProcess process;
     process.setProgram(QStringLiteral("node"));
     process.setArguments({QStringLiteral(NUMI_KDE_SOURCE_DIR) + QStringLiteral("/src/gui/evaluate-document.js")});
     process.start();
     if (!process.waitForStarted(1000)) {
-        return QStringLiteral("{\"lines\":[],\"summary\":{\"errorCount\":1,\"resultCount\":0}}");
+        return QStringLiteral("{\"lines\":[]}");
     }
 
     process.write(source.toUtf8());
