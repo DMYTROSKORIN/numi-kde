@@ -20,6 +20,12 @@ Controls.ApplicationWindow {
         root.flags = Qt.Window | Qt.FramelessWindowHint | (alwaysOnTop ? Qt.WindowStaysOnTopHint : 0)
     }
 
+    property int fontSize: windowSettings.fontSize
+    onFontSizeChanged: windowSettings.fontSize = fontSize
+
+    property int resultWidth: windowSettings.resultWidth
+    onResultWidthChanged: windowSettings.resultWidth = resultWidth
+
     readonly property color numiWindow: "#22242a"
     readonly property color numiTitle: "#5d5f69"
     readonly property color numiText: "#f0f0f3"
@@ -39,6 +45,8 @@ Controls.ApplicationWindow {
         property int savedX: -1
         property int savedY: -1
         property bool alwaysOnTop: true
+        property int fontSize: 16
+        property int resultWidth: 124
     }
 
     Component.onCompleted: {

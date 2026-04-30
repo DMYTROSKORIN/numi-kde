@@ -36,6 +36,7 @@ Item {
                 mutedColor: Window.window.numiMuted
                 highlightModel: documentModel
                 placeholderText: "/help"
+                monoSize: Window.window ? Window.window.fontSize : 16
                 text: page.sourceText
                 onTextChanged: {
                     page.sourceText = text
@@ -44,12 +45,13 @@ Item {
             }
 
             ResultsPane {
-                Layout.preferredWidth: 124
+                Layout.preferredWidth: Window.window ? Window.window.resultWidth : 124
                 Layout.minimumWidth: 108
                 Layout.fillHeight: true
                 resultColor: Window.window.numiGreen
                 mutedColor: Window.window.numiMuted
                 lineH: editor.lineH
+                monoSize: Window.window ? Window.window.fontSize : 16
                 lines: documentModel
                 syncFlickable: editor.flickable
                 onCopyRequested: (row) => documentModel.copyResult(row)
@@ -142,6 +144,46 @@ Item {
                     color: "#f0f0f3"
                     font.pixelSize: 13
                     verticalAlignment: Text.AlignVCenter
+                }
+            }
+
+            Column {
+                spacing: 4
+                width: parent.width
+
+                Text {
+                    text: "Размер шрифта"
+                    color: "#f0f0f3"
+                    font.pixelSize: 11
+                }
+
+                Controls.Slider {
+                    width: parent.width
+                    from: 11
+                    to: 24
+                    stepSize: 1
+                    value: Window.window ? Window.window.fontSize : 16
+                    onMoved: if (Window.window) Window.window.fontSize = value
+                }
+            }
+
+            Column {
+                spacing: 4
+                width: parent.width
+
+                Text {
+                    text: "Ширина результатов"
+                    color: "#f0f0f3"
+                    font.pixelSize: 11
+                }
+
+                Controls.Slider {
+                    width: parent.width
+                    from: 80
+                    to: 300
+                    stepSize: 8
+                    value: Window.window ? Window.window.resultWidth : 124
+                    onMoved: if (Window.window) Window.window.resultWidth = value
                 }
             }
         }

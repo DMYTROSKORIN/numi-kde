@@ -12,7 +12,7 @@ Controls.ScrollView {
     signal copyRequested(int row)
 
     readonly property string monoFont: "Menlo, Monaco, Consolas, monospace"
-    readonly property int monoSize: 16
+    property int monoSize: 16
 
     clip: true
     background: Rectangle {

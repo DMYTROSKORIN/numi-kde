@@ -17,7 +17,7 @@ Controls.ScrollView {
     // lineH comes from font metrics so overlay rows match TextArea line height
     readonly property real lineH: fontMetrics.height
     readonly property string monoFont: "Menlo, Monaco, Consolas, monospace"
-    readonly property int monoSize: 16
+    property int monoSize: 16
 
     clip: true
 

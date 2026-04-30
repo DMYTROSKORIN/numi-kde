@@ -42,10 +42,12 @@ test("native KDE QML skeleton contains editor and result panes", () => {
   assert.match(editorPane, /Text\.RichText/);
   assert.match(editorPane, /color: "transparent"/);
   assert.match(editorPane, /cursorDelegate:/);
+  assert.match(editorPane, /property int monoSize/);
   assert.match(editorPane, /placeholderText:/);
   assert.doesNotMatch(editorPane, /onCursorPositionChanged/);
   assert.match(resultsPane, /ListView/);
   assert.match(resultsPane, /property Item syncFlickable/);
+  assert.match(resultsPane, /property int monoSize/);
   assert.match(resultsPane, /onContentYChanged/);
   assert.match(resultsPane, /width: root\.availableWidth/);
 });
@@ -67,10 +69,13 @@ test("native KDE QML uses Numi reference visual tokens", () => {
   assert.match(main, /"#ffd35a"/);
   assert.match(main, /"#6fc4e8"/);
   assert.match(main, /"#8fd14f"/);
+  assert.match(main, /fontSize/);
+  assert.match(main, /resultWidth/);
   assert.match(documentPage, /placeholderText:/);
   assert.match(documentPage, /\/help/);
   assert.match(documentPage, /alwaysOnTop/);
   assert.match(documentPage, /settingsPopup/);
+  assert.match(documentPage, /Slider/);
   assert.match(resultsPane, /horizontalAlignment: Text\.AlignRight/);
 });
 
