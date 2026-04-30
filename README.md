@@ -28,6 +28,7 @@ This is the first scaffold:
 - `docs/implementation-plan.md`: detailed roadmap toward the KDE-native application.
 - `docs/extensions.md`: current JavaScript extension loading policy.
 - `docs/gui-prototype.md`: first runnable GUI prototype and native KDE requirements.
+- `docs/kde-native.md`: native Qt/KF6/Kirigami skeleton build notes.
 
 ## Usage
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.skorin.numi-kde</id>
+  <name>numi-kde</name>
+  <summary>KDE-native Numi-compatible calculator</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-Proprietary</project_license>
+  <description>
+    <p>Document-style calculator for KDE with expressions on the left and results on the right.</p>
+  </description>
+  <launchable type="desktop-id">org.skorin.numi-kde.desktop</launchable>
+</component>

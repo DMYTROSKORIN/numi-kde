@@ -65,14 +65,18 @@
   и возвращает diagnostics вместо падения evaluator;
 - добавлен первый runnable GUI prototype в `gui/` и `src/gui/`;
 - добавлена документация GUI prototype в `docs/gui-prototype.md`;
+- определены Fedora dev dependencies для native KDE: `qt6-qtbase-devel`,
+  `qt6-qtdeclarative-devel`, `kf6-kirigami-devel`;
+- добавлен native KDE/Kirigami skeleton в `kde/`;
+- добавлена документация native KDE skeleton в `docs/kde-native.md`;
 - реализованы первые Phase 1 gaps: implicit multiplication, `:=`, inline comments,
   thousands separators, decimal comma, расширенные units, temperature conversions,
   Numi-like percentage cases, ISO date arithmetic, extension-defined variables/functions/units;
-- проверка: `npm test` проходит, 45/45.
+- проверка: `npm test` проходит, 48/48.
 
 Следующий шаг:
 
-- установить/подключить Qt6 Quick/Kirigami dev packages и перенести GUI spike в native KDE shell.
+- после ручной установки dev packages собрать `kde/` и подключить live evaluation backend.
 
 ## Опорные технологии
 
@@ -707,10 +711,11 @@ Critical GUI cases:
 - Done: extension-defined variables, functions and linear units are tested through the public core API.
 - Done: extension manifest validation, source loading and runtime diagnostics are tested.
 - Done: first runnable GUI prototype uses shared core through `src/gui/adapter.js`.
+- Done: native KDE skeleton exists and is covered by structure tests.
 - Done: CLI/server remain stable against the shared core.
 - Done: diagnostics include source ranges for parser/evaluator errors.
 - Done: parser/evaluator/formatter/units are split into separate modules.
-- Next: native KDE/Kirigami shell, semantic highlighting, more compatibility fixtures.
+- Next: build native KDE shell after dev package install, then wire live evaluation backend.
 
 ### M2. KDE prototype
 
@@ -763,9 +768,9 @@ Critical GUI cases:
 
 ## Immediate Next Steps
 
-1. Install or enable Qt6 Quick/Kirigami development packages for CMake.
-2. Add native `kde/` CMake/QML skeleton with source editor, result column and shared core adapter.
-3. Add more date/time fixtures only after deciding how to handle `today` and timezone policy.
+1. Manually install `qt6-qtbase-devel qt6-qtdeclarative-devel kf6-kirigami-devel` with sudo.
+2. Build native `kde/` skeleton and fix compile/QML issues.
+3. Wire native shell to live evaluation backend.
 4. Add a first `docs/gui-spec.md` or implement the KDE skeleton directly from section 4.
 5. Create a small Qt/Kirigami prototype that renders editor + result column.
 

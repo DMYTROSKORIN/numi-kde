@@ -1,0 +1,39 @@
+cmake_minimum_required(VERSION 3.24)
+
+project(numi-kde-native VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+
+find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2)
+find_package(KF6 REQUIRED COMPONENTS Kirigami)
+
+qt_add_executable(numi-kde
+  src/main.cpp
+)
+
+qt_add_qml_module(numi-kde
+  URI NumiKde
+  VERSION 1.0
+  QML_FILES
+    qml/Main.qml
+    qml/DocumentPage.qml
+    qml/EditorPane.qml
+    qml/ResultsPane.qml
+)
+
+target_link_libraries(numi-kde
+  PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Qml
+    Qt6::Quick
+    Qt6::QuickControls2
+    KF6::Kirigami
+)
+
+install(TARGETS numi-kde RUNTIME DESTINATION bin)
+install(FILES resources/org.skorin.numi-kde.desktop DESTINATION share/applications)
+install(FILES resources/org.skorin.numi-kde.metainfo.xml DESTINATION share/metainfo)
