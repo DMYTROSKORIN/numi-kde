@@ -25,6 +25,7 @@ This is the first scaffold:
 - `src/server.js`: local `q` endpoint compatible with the Alfred workflow shape.
 - `test/core.test.js`: executable compatibility checks.
 - `docs/architecture.md`: implementation plan and boundaries.
+- `docs/implementation-plan.md`: detailed roadmap toward the KDE-native application.
 
 ## Usage
 

@@ -1,36 +1,46 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluate, evaluateDocument } from "../src/core/engine.js";
+import { createExtensionRegistry, evaluate, evaluateDocument, parseDocument } from "../src/core/engine.js";
+import { documentFixtures, expressionFixtures, formattingFixtures } from "../fixtures/core-compatibility.js";
 
-test("evaluates arithmetic with precedence", () => {
-  assert.equal(evaluate("2 + 3 * 4").formatted, "14");
-  assert.equal(evaluate("(2 + 3) * 4").formatted, "20");
-  assert.equal(evaluate("2^3^2").formatted, "512");
-});
+for (const [name, source, expected] of expressionFixtures) {
+  test(`evaluates fixture: ${name}`, () => {
+    assert.equal(evaluate(source).formatted, expected);
+  });
+}
 
-test("supports constants and functions", () => {
-  assert.equal(evaluate("round(pi)").formatted, "3");
-  assert.equal(evaluate("sqrt(81)").formatted, "9");
-  assert.equal(evaluate("avg(2;4;6)").formatted, "4");
-});
+for (const fixture of documentFixtures) {
+  test(`evaluates document fixture: ${fixture.name}`, () => {
+    const lines = evaluateDocument(fixture.source);
+    assert.deepEqual(lines.map((line) => line.formatted), fixture.results);
+  });
+}
 
-test("supports multi-line variables and summary tokens", () => {
-  const lines = evaluateDocument("x = 10\ny = x * 2\nprev + sum + avg");
+for (const fixture of formattingFixtures) {
+  test(`formats fixture: ${fixture.name}`, () => {
+    assert.equal(evaluate(fixture.source, { format: fixture.options }).formatted, fixture.expected);
+  });
+}
 
-  assert.equal(lines[0].formatted, "10");
-  assert.equal(lines[1].formatted, "20");
-  assert.equal(lines[2].formatted, "65");
-});
+test("parseDocument exposes token ranges for future GUI highlighting", () => {
+  const [line] = parseDocument("total = 2pi + 1");
 
-test("supports basic percentage expressions", () => {
-  assert.equal(evaluate("20% of 50").formatted, "10");
-  assert.equal(evaluate("1 + 5%").formatted, "1.05");
-});
-
-test("converts basic units", () => {
-  assert.equal(evaluate("20 inches in cm").formatted, "50.8 cm");
-  assert.equal(evaluate("32px in rem").formatted, "2 rem");
-  assert.equal(evaluate("2 hours in minutes").formatted, "120 min");
+  assert.equal(line.ok, true);
+  assert.equal(line.assignment.name, "total");
+  assert.equal(line.ast.type, "BinaryExpression");
+  assert.equal(line.ast.left.type, "BinaryExpression");
+  assert.equal(line.ast.left.implicit, true);
+  assert.deepEqual(
+    line.tokens.map((token) => [token.type, token.raw, token.start, token.end]),
+    [
+      ["identifier", "total", 0, 5],
+      ["assignment", "=", 6, 7],
+      ["number", "2", 8, 9],
+      ["identifier", "pi", 9, 11],
+      ["+", "+", 12, 13],
+      ["number", "1", 14, 15],
+    ],
+  );
 });
 
 test("reports parse errors without throwing from document evaluation", () => {
@@ -38,4 +48,27 @@ test("reports parse errors without throwing from document evaluation", () => {
 
   assert.equal(line.ok, false);
   assert.match(line.error, /Unknown variable/);
+  assert.deepEqual(line.diagnostics, [
+    {
+      severity: "error",
+      message: "Unknown variable: unknown",
+      range: { start: 0, end: 7 },
+    },
+  ]);
+});
+
+test("supports extension variables, functions and units", () => {
+  const extensions = createExtensionRegistry((numi) => {
+    numi.setVariable("answer", 42);
+    numi.addFunction("triple", (value) => value * 3);
+    numi.addUnit("smoot", {
+      dimension: "length",
+      ratio: 1.7018,
+      aliases: ["smoot", "smoots"],
+    });
+  });
+
+  assert.equal(evaluate("answer", { extensions }).formatted, "42");
+  assert.equal(evaluate("triple(14)", { extensions }).formatted, "42");
+  assert.equal(evaluate("2 smoots in m", { extensions }).formatted, "3.4036 m");
 });
