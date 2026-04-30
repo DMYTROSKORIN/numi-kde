@@ -1,8 +1,8 @@
 # numi-kde Handoff
 
-Last updated: 2026-05-01.
+Last updated: 2026-04-30.
 
-Last completed handoff commit: `fix: Phase 2.1 editor rendering polish and UX fixes`.
+Last completed handoff commit: `fix: Phase 2.1.1 cursor, hover and highlight fixes`.
 
 Last functional GUI commit: current HEAD.
 
@@ -39,12 +39,12 @@ cmake --build build/kde
 
 Expected status:
 
-- `npm test`: 52/52 pass.
+- `npm test`: 54/54 pass.
 - CMake configure/build: pass.
 - Native GUI starts without stderr output.
 - `git status --short`: clean after the pushed commit.
 
-## What Works Now
+## What Works Now (Phase 2.1.1)
 
 Core:
 
@@ -77,10 +77,13 @@ Native GUI:
 - highlight overlay and TextArea share `lineH = fontMetrics.height` for pixel alignment;
 - placeholder text (grey) disappears on focus;
 - result column has correct width (`width: root.availableWidth`);
-- result hover highlight;
-- clicking a result copies its formatted value to clipboard;
+- result hover: only result text turns bright yellow `#ffd35a`; click copies to clipboard;
 - semantic syntax highlighting: `*`, `/`, `%`, units, currency-like uppercase tokens,
-  natural operators — all in entity (blue) or operator (yellow).
+  natural operators — entity (blue) or operator (yellow);
+- defined variable names highlighted neon green `#39ff14` everywhere they appear;
+- `/help` command returns one-line feature summary in the result column;
+- placeholder text changed to `/help` hint, dimmer color;
+- always-on-top flag explicitly re-applied in `onAlwaysOnTopChanged` (works on X11/XWayland).
 
 ## Known Limitations
 
@@ -110,18 +113,20 @@ Native GUI:
 - `src/core/engine.js`: evaluator with try-catch in `evaluateLine` for robustness.
 - `test/kde-skeleton.test.js`: native QML/CMake structure tests.
 
+## Known Limitations (updated)
+
+- cursor first-char bug is fixed (removed `onCursorPositionChanged` handler).
+- always-on-top works on X11/XWayland; on native Wayland needs KWindowSystem `setKeepAbove()`.
+- `/help` result is one short line; full help panel not yet implemented.
+- variable neon green works for user-defined variables via `:=` or `=` assignments.
+- currency conversion (`100 USD to AED`) still requires qalculate migration.
+- `20% from 100` still requires qalculate migration.
+
 ## Next Task
 
-Start with **Phase 2.2 Settings Panel expansion**.
+Priority order:
 
-Recommended first patch:
-
-1. Expand the existing settings popup in `kde/qml/DocumentPage.qml` with:
-   - font size slider;
-   - result column width control.
-2. Wire new settings to `Qt.Settings` for persistence.
-3. Propagate font size and column width through EditorPane and ResultsPane.
-4. Add/update tests in `test/kde-skeleton.test.js`.
-5. Run `npm test`, CMake configure/build, then launch `./build/kde/numi-kde`.
-6. Update this file, `docs/implementation-plan.md` and `docs/kde-native.md`.
-7. Commit and push.
+1. **Phase 2.2** — Settings panel: font size slider + result column width.
+2. **Phase 2.3** — libqalculate C++ migration (replaces Node worker; fixes currency, percentage,
+   and all advanced math). See `docs/Gemini-qalculate-evolution.md` for the full plan.
+3. **Wayland always-on-top** — use KWindowSystem `setKeepAbove(windowHandle(), value)` in C++.

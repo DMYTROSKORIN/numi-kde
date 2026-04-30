@@ -15,7 +15,10 @@ Controls.ApplicationWindow {
     flags: Qt.Window | Qt.FramelessWindowHint | (alwaysOnTop ? Qt.WindowStaysOnTopHint : 0)
 
     property bool alwaysOnTop: windowSettings.alwaysOnTop
-    onAlwaysOnTopChanged: windowSettings.alwaysOnTop = alwaysOnTop
+    onAlwaysOnTopChanged: {
+        windowSettings.alwaysOnTop = alwaysOnTop
+        root.flags = Qt.Window | Qt.FramelessWindowHint | (alwaysOnTop ? Qt.WindowStaysOnTopHint : 0)
+    }
 
     readonly property color numiWindow: "#22242a"
     readonly property color numiTitle: "#5d5f69"

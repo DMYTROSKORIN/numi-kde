@@ -193,6 +193,35 @@
 - каждый подшаг делать с тестом, `npm test`, CMake build, runtime launch, docs update,
   commit and `git push`.
 
+### 2026-04-30 (Phase 2.1.1 — Cursor, highlight and UX fixes)
+
+Выполнено:
+
+- удалён `onCursorPositionChanged` из EditorPane — обработчик сбрасывал курсор в 0 при вводе
+  первого символа, что приводило к эффекту "первый символ справа от курсора" (issues 2, 3);
+- исправлен hover в ResultsPane: убрано закрашивание всей строки, теперь только цвет текста
+  результата меняется на ярко-жёлтый `#ffd35a` при наведении (issue 6);
+- highlight.js: добавлен класс `variable` (neon green `#39ff14`); `createHighlightedHtml` и
+  `classifyHighlightToken` принимают `variables: Set` и выделяют имена переменных зелёным;
+  проверка переменных идёт раньше entity/operator (issue 7);
+- adapter.js: собирает `definedVariables` из всех строк-присваиваний и передаёт в
+  `createHighlightedHtml` (issue 7);
+- engine.js: строка `/help` возвращает `ok: true` с кратким русскоязычным описанием
+  возможностей приложения (issue 4);
+- DocumentPage.qml: placeholder изменён на `/help` — нейтральная подсказка о команде;
+- EditorPane.qml: цвет placeholder потемнел с `#45474f` до `#3a3c44` (issue 4);
+- Main.qml: исправлен "always on top" — `onAlwaysOnTopChanged` теперь явно переприменяет
+  `root.flags`, что необходимо для работы на X11; Wayland-специфичная always-on-top
+  требует KWindowSystem и будет реализована отдельно (issue 9);
+- тесты: 54/54 pass; CMake сборка: pass; native GUI стартует без stderr.
+
+Следующий шаг:
+
+- Phase 2.2: расширить панель настроек (размер шрифта, ширина колонки результатов);
+- Phase 2.3: миграция JS evaluator → libqalculate (устранит отсутствие результатов для
+  `100 USD to AED`, `20% from 100` и прочих выражений, требующих полного расчётного движка);
+- Wayland always-on-top через KWindowSystem.
+
 ## Следующая рабочая задача
 
 Приоритет для следующего агента: **Phase 2.2 Settings and Panels**.

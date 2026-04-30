@@ -8,15 +8,16 @@ const OPERATOR_SYMBOLS = new Set([":=", "+", "-", "^", "(", ")", ",", ";", "="])
 const HIGHLIGHT_COLORS = {
   entity: "#6fc4e8",
   operator: "#ffd35a",
+  variable: "#39ff14",
 };
 
-export function createHighlightedHtml(line) {
+export function createHighlightedHtml(line, variables = new Set()) {
   return Array.from(line.matchAll(TOKEN_PATTERN), ([token]) => {
     if (/^\s+$/u.test(token)) {
       return escapeWhitespace(token);
     }
 
-    const kind = classifyHighlightToken(token);
+    const kind = classifyHighlightToken(token, variables);
     const escaped = escapeHtml(token);
     if (!kind) {
       return escaped;
@@ -26,9 +27,12 @@ export function createHighlightedHtml(line) {
   }).join("");
 }
 
-export function classifyHighlightToken(token) {
+export function classifyHighlightToken(token, variables = new Set()) {
   const lower = token.toLowerCase();
 
+  if (variables.has(token)) {
+    return "variable";
+  }
   if (OPERATOR_WORDS.has(lower) || OPERATOR_SYMBOLS.has(token)) {
     return "operator";
   }

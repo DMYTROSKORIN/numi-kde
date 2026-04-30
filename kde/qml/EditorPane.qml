@@ -83,15 +83,12 @@ Controls.ScrollView {
             topPadding: 0
             bottomPadding: 0
             placeholderText: root.placeholderText
-            placeholderTextColor: "#45474f"
+            placeholderTextColor: "#3a3c44"
 
             background: Rectangle {
                 color: "transparent"
             }
 
-            onCursorPositionChanged: {
-                if (text.length === 0) cursorPosition = 0
-            }
         }
     }
 }

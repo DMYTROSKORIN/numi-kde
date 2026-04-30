@@ -35,7 +35,7 @@ Item {
                 accentBlue: Window.window.numiBlue
                 mutedColor: Window.window.numiMuted
                 highlightModel: documentModel
-                placeholderText: "10 + 20\n100 USD in EUR\ntoday + 2 weeks"
+                placeholderText: "/help"
                 text: page.sourceText
                 onTextChanged: {
                     page.sourceText = text
