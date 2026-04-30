@@ -1,5 +1,2 @@
-node_modules/
-coverage/
-dist/
-.DS_Store
-*.log
+build/
+__cmake_systeminformation/

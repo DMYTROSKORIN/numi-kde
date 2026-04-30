@@ -2,28 +2,42 @@ import QtQuick
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 
-Controls.ScrollView {
+Flickable {
     id: root
 
-    property alias text: editor.text
-    readonly property alias flickable: editor
+    property string text: ""
+    property color paletteWindow: "#22242a"
+    property color textColor: "#f0f0f3"
+    property color accentYellow: "#ffd35a"
+    property color accentBlue: "#6fc4e8"
+    property color mutedColor: "#6b6d76"
+    property bool sampleMode: false
+    property var sampleLines: []
+    readonly property alias flickable: root
 
     clip: true
+    boundsBehavior: Flickable.StopAtBounds
+    contentWidth: editorColumn.implicitWidth
+    contentHeight: editorColumn.implicitHeight
 
-    Controls.TextArea {
-        id: editor
+    Column {
+        id: editorColumn
 
-        selectByMouse: true
-        wrapMode: TextEdit.NoWrap
-        persistentSelection: true
-        textFormat: TextEdit.PlainText
-        font.family: Kirigami.Theme.fixedWidthFont.family
-        font.pointSize: Kirigami.Theme.defaultFont.pointSize
-        color: Kirigami.Theme.textColor
-        selectedTextColor: Kirigami.Theme.highlightedTextColor
-        selectionColor: Kirigami.Theme.highlightColor
-        background: Rectangle {
-            color: Kirigami.Theme.backgroundColor
+        width: root.width
+        spacing: 0
+
+        Repeater {
+            model: root.sampleLines
+
+            Text {
+                width: editorColumn.width
+                height: 25
+                text: modelData
+                textFormat: Text.RichText
+                color: root.textColor
+                font.family: "Menlo, Monaco, Consolas, monospace"
+                font.pixelSize: 16
+            }
         }
     }
 }

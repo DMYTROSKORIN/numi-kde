@@ -8,8 +8,13 @@ Controls.ScrollView {
 
     property var lines: []
     property Flickable syncFlickable: null
+    property color resultColor: "#8fd14f"
+    property color mutedColor: "#6b6d76"
 
     clip: true
+    background: Rectangle {
+        color: "transparent"
+    }
 
     Connections {
         target: root.syncFlickable
@@ -27,21 +32,15 @@ Controls.ScrollView {
 
         delegate: RowLayout {
             width: resultList.width
-            height: Math.max(resultText.implicitHeight, Kirigami.Units.gridUnit)
+            height: 25
             spacing: Kirigami.Units.smallSpacing
-
-            Controls.Label {
-                text: modelData.line
-                color: Kirigami.Theme.disabledTextColor
-                font.pointSize: Kirigami.Theme.smallFont.pointSize
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 2
-            }
 
             Controls.Label {
                 id: resultText
                 text: modelData.ok ? modelData.result : ""
-                color: modelData.ok ? Kirigami.Theme.textColor : Kirigami.Theme.negativeTextColor
-                font.family: Kirigami.Theme.fixedWidthFont.family
+                color: modelData.ok ? root.resultColor : "#ff5f57"
+                font.family: "Menlo, Monaco, Consolas, monospace"
+                font.pixelSize: 16
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
                 Layout.fillWidth: true

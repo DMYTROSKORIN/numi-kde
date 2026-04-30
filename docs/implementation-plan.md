@@ -69,14 +69,17 @@
   `qt6-qtdeclarative-devel`, `kf6-kirigami-devel`;
 - добавлен native KDE/Kirigami skeleton в `kde/`;
 - добавлена документация native KDE skeleton в `docs/kde-native.md`;
+- native KDE shell собран локально через CMake после установки Qt/Kirigami dev packages;
+- native shell визуально приближен к Numi reference: compact dark frameless window,
+  traffic-light controls, yellow/blue syntax accents, green results;
 - реализованы первые Phase 1 gaps: implicit multiplication, `:=`, inline comments,
   thousands separators, decimal comma, расширенные units, temperature conversions,
   Numi-like percentage cases, ISO date arithmetic, extension-defined variables/functions/units;
-- проверка: `npm test` проходит, 48/48.
+- проверка: `npm test` проходит, 49/49; `cmake --build build/kde` проходит.
 
 Следующий шаг:
 
-- после ручной установки dev packages собрать `kde/` и подключить live evaluation backend.
+- подключить live evaluation backend к native shell.
 
 ## Опорные технологии
 
@@ -712,10 +715,11 @@ Critical GUI cases:
 - Done: extension manifest validation, source loading and runtime diagnostics are tested.
 - Done: first runnable GUI prototype uses shared core through `src/gui/adapter.js`.
 - Done: native KDE skeleton exists and is covered by structure tests.
+- Done: native KDE shell builds locally and matches the first Numi visual reference pass.
 - Done: CLI/server remain stable against the shared core.
 - Done: diagnostics include source ranges for parser/evaluator errors.
 - Done: parser/evaluator/formatter/units are split into separate modules.
-- Next: build native KDE shell after dev package install, then wire live evaluation backend.
+- Next: wire live evaluation backend into the native KDE shell.
 
 ### M2. KDE prototype
 
@@ -768,9 +772,9 @@ Critical GUI cases:
 
 ## Immediate Next Steps
 
-1. Manually install `qt6-qtbase-devel qt6-qtdeclarative-devel kf6-kirigami-devel` with sudo.
-2. Build native `kde/` skeleton and fix compile/QML issues.
-3. Wire native shell to live evaluation backend.
+1. Wire native shell to live evaluation backend.
+2. Replace static sample rows with live evaluated document rows.
+3. Add semantic syntax highlighting using `parseDocument()` token classes.
 4. Add a first `docs/gui-spec.md` or implement the KDE skeleton directly from section 4.
 5. Create a small Qt/Kirigami prototype that renders editor + result column.
 

@@ -17,10 +17,16 @@ The QML shell mirrors the tested web GUI prototype:
 
 - source editor on the left;
 - result column on the right;
-- SplitView layout;
+- compact frameless Numi-like window;
+- traffic-light title controls and centered title;
 - monospace editor/result typography;
-- KDE theme colors;
-- placeholder actions for New/Open/Save/Preferences.
+- dark Numi palette with yellow labels, blue units/keywords and green results.
+
+Visual reference:
+
+```text
+https://camo.githubusercontent.com/49d6223fe0ad7af2d1991e9eb4ef9ea32ef3d20bd4c4801ba33481bcf4dcce43/68747470733a2f2f6e756d692e6170702f696d616765732f6e756d692d73637265656e73686f742d79656c6c6f772e706e67
+```
 
 ## Fedora Dependencies
 
@@ -61,10 +67,21 @@ Run:
 ./build/kde/numi-kde
 ```
 
+Current local status:
+
+- `cmake -S kde -B build/kde` passes;
+- `cmake --build build/kde` passes;
+- `QT_QPA_PLATFORM=offscreen ./build/kde/numi-kde` starts without QML runtime errors.
+
+Fedora currently emits non-fatal CMake warnings about Kirigami QML plugin link targets during
+configure. The binary still builds and uses runtime QML imports. This should be revisited before
+release packaging.
+
 ## Current Limitations
 
-The native skeleton does not yet call the JS core. It is a UI shell scaffold. The next step is to
-connect it to the shared core through a local adapter process or native backend bridge.
+The native skeleton does not yet call the JS core. It is a UI shell scaffold with static sample
+content styled against the Numi visual reference. The next step is to connect it to the shared core
+through a local adapter process or native backend bridge.
 
 The web prototype remains the runnable GUI for immediate UX testing:
 

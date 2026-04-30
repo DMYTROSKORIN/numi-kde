@@ -11,7 +11,7 @@ It is not the final KDE UI. It exists to test the product shape early:
 - line-level diagnostics;
 - synchronized scrolling;
 - monospace document typography;
-- light/dark system color support.
+- Numi reference palette: dark window, yellow labels, blue keywords and green results.
 
 ## Run
 

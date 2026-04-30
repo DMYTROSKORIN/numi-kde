@@ -8,7 +8,10 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2)
-find_package(KF6 REQUIRED COMPONENTS Kirigami)
+find_package(KF6Kirigami REQUIRED)
+
+qt_policy(SET QTP0001 NEW)
+qt_policy(SET QTP0004 NEW)
 
 qt_add_executable(numi-kde
   src/main.cpp
