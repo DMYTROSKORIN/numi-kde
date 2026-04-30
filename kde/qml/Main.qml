@@ -10,7 +10,7 @@ Controls.ApplicationWindow {
     minimumWidth: 420
     minimumHeight: 320
     visible: true
-    title: "Numi"
+    title: qsTr("Numi")
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint | (alwaysOnTop ? Qt.WindowStaysOnTopHint : 0)
 
@@ -25,6 +25,9 @@ Controls.ApplicationWindow {
 
     property int resultWidth: windowSettings.resultWidth
     onResultWidthChanged: windowSettings.resultWidth = resultWidth
+
+    property int decimalPlaces: windowSettings.decimalPlaces
+    onDecimalPlacesChanged: windowSettings.decimalPlaces = decimalPlaces
 
     readonly property color numiWindow: "#22242a"
     readonly property color numiTitle: "#5d5f69"
@@ -47,6 +50,7 @@ Controls.ApplicationWindow {
         property bool alwaysOnTop: true
         property int fontSize: 16
         property int resultWidth: 124
+        property int decimalPlaces: 3
     }
 
     Component.onCompleted: {

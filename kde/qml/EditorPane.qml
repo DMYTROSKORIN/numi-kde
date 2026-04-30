@@ -83,7 +83,7 @@ Controls.ScrollView {
             topPadding: 0
             bottomPadding: 0
             placeholderText: root.placeholderText
-            placeholderTextColor: "#3a3c44"
+            placeholderTextColor: "#2a2c34"
 
             background: Rectangle {
                 color: "transparent"

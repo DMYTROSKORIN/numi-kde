@@ -46,7 +46,9 @@ Item {
 
             ResultsPane {
                 Layout.preferredWidth: Window.window ? Window.window.resultWidth : 124
-                Layout.minimumWidth: 108
+                Layout.fillWidth: false
+                Layout.minimumWidth: 80
+                Layout.maximumWidth: 300
                 Layout.fillHeight: true
                 resultColor: Window.window.numiGreen
                 mutedColor: Window.window.numiMuted
@@ -110,7 +112,7 @@ Item {
             Controls.CheckBox {
                 id: alwaysOnTopCheck
 
-                text: "Всегда поверх окон"
+                text: qsTr("Always on top")
                 checked: Window.window ? !!Window.window.alwaysOnTop : true
                 onToggled: {
                     if (Window.window) {
@@ -152,7 +154,7 @@ Item {
                 width: parent.width
 
                 Text {
-                    text: "Размер шрифта"
+                    text: qsTr("Font size")
                     color: "#f0f0f3"
                     font.pixelSize: 11
                 }
@@ -172,7 +174,7 @@ Item {
                 width: parent.width
 
                 Text {
-                    text: "Ширина результатов"
+                    text: qsTr("Result width")
                     color: "#f0f0f3"
                     font.pixelSize: 11
                 }
@@ -184,6 +186,26 @@ Item {
                     stepSize: 8
                     value: Window.window ? Window.window.resultWidth : 124
                     onMoved: if (Window.window) Window.window.resultWidth = value
+                }
+            }
+
+            Column {
+                spacing: 4
+                width: parent.width
+
+                Text {
+                    text: qsTr("Decimal places")
+                    color: "#f0f0f3"
+                    font.pixelSize: 11
+                }
+
+                Controls.Slider {
+                    width: parent.width
+                    from: 0
+                    to: 10
+                    stepSize: 1
+                    value: Window.window ? Window.window.decimalPlaces : 3
+                    onMoved: if (Window.window) Window.window.decimalPlaces = value
                 }
             }
         }
