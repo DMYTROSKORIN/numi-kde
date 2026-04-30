@@ -213,11 +213,24 @@
 - Main.qml: исправлен "always on top" — `onAlwaysOnTopChanged` теперь явно переприменяет
   `root.flags`, что необходимо для работы на X11; Wayland-специфичная always-on-top
   требует KWindowSystem и будет реализована отдельно (issue 9);
-- тесты: 54/54 pass; CMake сборка: pass; native GUI стартует без stderr.
+- тесты обновлены под новое поведение (54/54 pass);
+- CMake сборка: pass; native GUI стартует без stderr.
+
+Выполнено (Phase 2.2 — Settings and Panels):
+
+- в `Main.qml` добавлены свойства `fontSize` и `resultWidth` в `Settings`, которые сохраняются
+  между запусками;
+- в `DocumentPage.qml` добавлены два слайдера в popup настроек:
+  - "Размер шрифта" (11–24, шаг 1);
+  - "Ширина результатов" (80–300, шаг 8);
+- `EditorPane` и `ResultsPane` теперь принимают `monoSize` динамически;
+- `ResultsPane` теперь динамически меняет ширину через `Layout.preferredWidth`, привязанный
+  к настройке `resultWidth`;
+- тесты в `test/kde-skeleton.test.js` расширены для проверки наличия новых настроек и слайдеров;
+- `npm test` проходит (54/54), CMake build завершен успешно.
 
 Следующий шаг:
 
-- Phase 2.2: расширить панель настроек (размер шрифта, ширина колонки результатов);
 - Phase 2.3: миграция JS evaluator → libqalculate (устранит отсутствие результатов для
   `100 USD to AED`, `20% from 100` и прочих выражений, требующих полного расчётного движка);
 - Wayland always-on-top через KWindowSystem.
