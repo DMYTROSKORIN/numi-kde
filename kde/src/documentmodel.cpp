@@ -105,6 +105,7 @@ void DocumentModel::evaluate()
     const auto highlightDoc = QJsonDocument::fromJson(highlightOutput.toUtf8());
     const auto highlightLines = highlightDoc.object().value(QStringLiteral("lines")).toArray();
 
+    m_qalc->setDecimalPlaces(m_qalc->parent()->property("decimalPlaces").toInt());
     const auto qalcResults = m_qalc->evaluateDocument(m_source);
 
     beginResetModel();

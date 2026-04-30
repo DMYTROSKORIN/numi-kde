@@ -1,15 +1,20 @@
 #include "qalcbridge.h"
 #include <libqalculate/qalculate.h>
 #include <QStringList>
+#include <QRegularExpression>
 
 QalcBridge::QalcBridge(QObject *parent) : QObject(parent) {
     m_calc = new Calculator();
     m_calc->loadGlobalDefinitions();
-    m_calc->loadExchangeRates(); // This might be slow/sync, but let's start with it
+    m_calc->loadExchangeRates();
 }
 
 QalcBridge::~QalcBridge() {
     delete m_calc;
+}
+
+void QalcBridge::setDecimalPlaces(int places) {
+    m_decimalPlaces = places;
 }
 
 QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
@@ -23,21 +28,46 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     PrintOptions po;
     po.number_fraction_format = FRACTION_DECIMAL;
     po.base = 10;
+    po.max_decimals = m_decimalPlaces;
 
     for (const QString &line : lines) {
         LineResult res;
         res.ok = false;
+        QString trimmed = line.trimmed();
 
-        if (line.trimmed().isEmpty() || line.trimmed().startsWith("//") || line.trimmed().startsWith("#")) {
+        if (trimmed.isEmpty() || trimmed.startsWith("//") || trimmed.startsWith("#")) {
             res.ok = true;
             res.result = "";
             results.append(res);
             continue;
         }
 
+        if (trimmed == "/help") {
+            res.ok = true;
+            res.result = "Numi-KDE Help:\n"
+                         "• Math: 2 + 2 * 3^2, sqrt(256), sin(pi/2)\n"
+                         "• Units: 10 meters in feet, 50kg to lbs\n"
+                         "• Currency: 100 USD to EUR, 50 EUR in JPY\n"
+                         "• Dates: today + 2 weeks, 2026-05-15 - today\n"
+                         "• Variables: x = 10, y := x * 2\n"
+                         "• Percentages: 20% of 200, 20% from 200";
+            results.append(res);
+            continue;
+        }
+
+        // Pre-process: libqalculate prefers "X% of Y" over "X% from Y"
+        QString processedLine = line;
+        static QRegularExpression fromRegex("(\\d+%)\\s+from\\s+", QRegularExpression::CaseInsensitiveOption);
+        processedLine.replace(fromRegex, "\\1 of ");
+
         try {
-            MathStructure result = m_calc->calculate(line.toStdString(), eo);
-            res.result = QString::fromStdString(m_calc->print(result, 2000, po));
+            MathStructure result = m_calc->calculate(processedLine.toStdString(), eo);
+            QString out = QString::fromStdString(m_calc->print(result, 2000, po));
+            // Strip quotes from dates/strings
+            if (out.startsWith('"') && out.endsWith('"')) {
+                out = out.mid(1, out.length() - 2);
+            }
+            res.result = out;
             res.ok = true;
         } catch (...) {
             res.ok = false;

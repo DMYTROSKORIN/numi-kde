@@ -20,9 +20,11 @@ public:
     ~QalcBridge();
 
     QList<LineResult> evaluateDocument(const QString &source);
+    void setDecimalPlaces(int places);
 
 private:
     Calculator *m_calc;
+    int m_decimalPlaces = 3;
 };
 
 #endif // QALCBRIDGE_H
