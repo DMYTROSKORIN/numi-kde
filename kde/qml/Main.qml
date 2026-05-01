@@ -12,14 +12,16 @@ Controls.ApplicationWindow {
     visible: true
     title: qsTr("Numi")
     color: "transparent"
-    flags: Qt.Window | Qt.FramelessWindowHint | (alwaysOnTop ? Qt.WindowStaysOnTopHint : 0)
+    flags: Qt.Window | Qt.FramelessWindowHint
 
     property bool alwaysOnTop: windowSettings.alwaysOnTop
     onAlwaysOnTopChanged: {
         windowSettings.alwaysOnTop = alwaysOnTop
-        root.flags = Qt.Window | Qt.FramelessWindowHint | (alwaysOnTop ? Qt.WindowStaysOnTopHint : 0)
+        // We DO NOT change root.flags here. Changing flags causes the window
+        // to recreate and jump to the center of the screen.
+        // The C++ DocumentModel::setKeepAbove handles the actual window state.
         if (typeof documentModel !== "undefined") {
-            documentModel.setKeepAbove(alwaysOnTop)
+            Qt.callLater(() => documentModel.setKeepAbove(alwaysOnTop))
         }
     }
 
@@ -36,6 +38,9 @@ Controls.ApplicationWindow {
             documentModel.decimalPlaces = decimalPlaces
         }
     }
+
+    property bool showResultsSeparator: windowSettings.showResultsSeparator
+    onShowResultsSeparatorChanged: windowSettings.showResultsSeparator = showResultsSeparator
 
     readonly property color numiWindow: "#22242a"
     readonly property color numiTitle: "#5d5f69"
@@ -59,6 +64,7 @@ Controls.ApplicationWindow {
         property int fontSize: 16
         property int resultWidth: 124
         property int decimalPlaces: 3
+        property bool showResultsSeparator: true
     }
 
     Component.onCompleted: {
@@ -67,14 +73,20 @@ Controls.ApplicationWindow {
             root.y = windowSettings.savedY
         }
         if (typeof documentModel !== "undefined") {
-            documentModel.setKeepAbove(alwaysOnTop)
             documentModel.decimalPlaces = decimalPlaces
         }
+        // Defer setKeepAbove until after the window is shown and its WId is valid
+        Qt.callLater(() => {
+            if (typeof documentModel !== "undefined") {
+                documentModel.setKeepAbove(alwaysOnTop)
+            }
+        })
     }
 
-    Component.onDestruction: {
-        if (typeof documentModel !== "undefined") {
-            documentModel.saveSession()
+    // Re-apply keep-above whenever the window becomes visible (e.g. after hide/show)
+    onVisibleChanged: {
+        if (visible && typeof documentModel !== "undefined") {
+            Qt.callLater(() => documentModel.setKeepAbove(alwaysOnTop))
         }
     }
 
@@ -127,7 +139,12 @@ Controls.ApplicationWindow {
                 font.pixelSize: 20
                 hoverEnabled: true
 
-                onClicked: historyDrawer.open()
+                onClicked: {
+                    if (typeof documentModel !== "undefined") {
+                        documentModel.saveSession()
+                    }
+                    historyDrawer.open()
+                }
 
                 contentItem: Text {
                     text: historyButton.text
@@ -190,6 +207,7 @@ Controls.ApplicationWindow {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             settingsWindow: settingsWindow
+            showResultsSeparator: root.showResultsSeparator
         }
 
         ResizeHandle {
@@ -307,13 +325,13 @@ Controls.ApplicationWindow {
 
     Controls.Drawer {
         id: historyDrawer
-        width: 250
+        width: 260
         height: root.height
         edge: Qt.LeftEdge
         z: 100
         background: Rectangle {
-            color: "#22242a"
-            border.color: "#1a1b20"
+            color: "#2d303a"
+            border.color: "#3a3d47"
             border.width: 1
         }
 

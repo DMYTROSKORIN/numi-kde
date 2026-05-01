@@ -1,42 +1,72 @@
 # Architecture
 
+Last updated: 2026-05-01.
+
 ## Product Shape
 
-Numi's durable workflow is a document calculator:
+`numi-kde` is a document calculator:
 
 - users type plain text lines;
-- each meaningful line receives a result;
-- variables and tokens can refer to earlier lines;
-- documents are saved as plain `.numi` text files.
+- meaningful lines get aligned results;
+- variables can refer to earlier lines;
+- the UI is a compact scratchpad rather than a traditional keypad calculator.
 
-`numi-kde` keeps that workflow independent from the desktop shell. The core must work in tests,
-CLI, a local HTTP endpoint, and the KDE UI.
+## Current Layers
 
-## Layers
+1. `kde`: primary native KDE app, Qt/QML/C++.
+2. `kde/src/qalcbridge.*`: `libqalculate` evaluation bridge and compatibility preprocessing.
+3. `kde/src/documentmodel.*`: QML model, history, clipboard, settings-backed behavior, KWin integration.
+4. `kde/src/syntaxhighlighter.*`: C++ semantic-ish highlighting for the editor overlay.
+5. `kde/src/shortcutmanager.*`: KDE global shortcut registration and conflict handling.
 
-1. `core`: parser, evaluator, units, variables, formatting, plugin registry.
-2. `cli`: command-line entry point compatible with one-shot Numi CLI usage.
-3. `server`: local `localhost:15055?q=...` compatibility endpoint.
-4. `kde`: Qt/Kirigami interface, global shortcut, tray behavior, clipboard workflows.
-5. `krunner`: KRunner plugin backed by the same core/server.
+## Native Runtime Flow
+
+```text
+QML EditorPane
+  -> DocumentPage updates documentModel.source
+  -> DocumentModel::evaluate()
+  -> QalcBridge::evaluateDocument()
+  -> libqalculate + preprocessing
+  -> LineResult display text + optional numeric total value
+  -> DocumentModel list roles and aggregate total
+  -> ResultsPane / EditorPane overlay render rows
+```
+
+Preprocessing currently handles:
+
+- case-insensitive fiat units where libqalculate has the unit;
+- `20% from/of X`;
+- incomplete input suppression;
+- explicit division-by-zero error;
+- `time` and `now`;
+- explicit date spans such as `today - 26.08.1983`;
+- manual crypto conversion for top CoinGecko symbols.
+
+`LineResult::hasNumericValue` is the boundary between display formatting and totals. `DocumentModel` should sum this explicit numeric value instead of reparsing formatted result strings with units, currencies, or locale separators.
+
+## KDE Integration Boundaries
+
+- Tray and app icon: Qt resources from `kde/resources`.
+- Global shortcut: `KGlobalAccel`, default `Ctrl+Alt+1`.
+- X11 keep-above: `KX11Extras` / `NET::KeepAbove`.
+- Wayland keep-above: managed KWin Window Rule in `kwinrulesrc` plus DBus `reconfigure`.
+- Autostart: `~/.config/autostart/numi-kde.desktop`.
+- Settings/history: `QSettings`, except KWin rules which are written manually to preserve KWin INI syntax.
 
 ## Compatibility Strategy
 
-Public Numi source code is not available in the cloned repository. Compatibility should therefore
-be driven by fixtures collected from:
+Public Numi source code is not available in this repo. Compatibility should be driven by:
 
-- public documentation and wiki examples;
-- the existing Alfred workflow contract;
-- public JavaScript extension examples;
-- black-box comparisons against official Numi builds where available.
+- examples from public docs and user workflows;
+- native tests in `kde/tests/qalc_test.cpp`;
+- black-box comparisons against official Numi builds if available.
 
-Each supported behavior should have a fixture before being considered stable.
+Behavior should be covered by tests before being considered stable.
 
-## Implementation Notes
+## Design Constraints
 
-The first version is dependency-free modern JavaScript so development can start on the current
-machine without installing Rust or Qt. The core API should stay narrow enough to allow a later
-Rust or C++ implementation behind the same tests if needed.
-
-Qt/Kirigami work should begin after the core has enough coverage for arithmetic, variables,
-units, percentages, dates, and formatting. That avoids baking parser behavior into UI code.
+- Keep calculation logic out of QML.
+- Do not reintroduce Node.js or the old web prototype.
+- Keep QML small and focused on layout/interaction.
+- Prefer KDE-native integration points over ad hoc platform hacks.
+- On Wayland, compositor-owned behavior must go through supported KDE/KWin mechanisms.

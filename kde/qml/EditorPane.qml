@@ -83,7 +83,8 @@ Controls.ScrollView {
             topPadding: 0
             bottomPadding: 0
             placeholderText: root.placeholderText
-            placeholderTextColor: "#2a2c34"
+            placeholderTextColor: "#1a1c22"
+            opacity: editor.text === "" ? 0.15 : 1.0
 
             Keys.onTabPressed: (event) => {
                 let pos = editor.cursorPosition

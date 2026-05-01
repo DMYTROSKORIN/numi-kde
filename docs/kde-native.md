@@ -1,121 +1,98 @@
-# Native KDE Prototype
+# Native KDE Application
 
-Last updated: 2026-04-30.
+Last updated: 2026-05-01.
 
-Last completed commit: `fix: Phase 2.1.1 cursor, hover and highlight fixes`.
+The native KDE application lives in `kde/` and is the primary runtime target.
 
-Last functional GUI commit: current HEAD.
+## Stack
 
-The native KDE prototype lives in `kde/`.
+- Qt 6 / QML / Qt Quick Controls.
+- C++ backend.
+- `libqalculate` calculation engine.
+- KF6WindowSystem for window integration.
+- KF6GlobalAccel for global shortcuts when available.
+- Qt DBus for KWin reconfiguration.
 
-It is the starting point for the final Qt 6/KF6 application. The current skeleton already
-defines:
-
-- `kde/CMakeLists.txt`
-- `kde/src/main.cpp`
-- `kde/qml/Main.qml`
-- `kde/qml/DocumentPage.qml`
-- `kde/qml/EditorPane.qml`
-- `kde/qml/ResultsPane.qml`
-- desktop and AppStream metadata.
-
-The QML shell mirrors the tested web GUI prototype:
-
-- source editor on the left;
-- result column on the right;
-- compact frameless Numi-like window;
-- Linux/KDE title controls and centered title;
-- monospace editor/result typography;
-- dark Numi palette with yellow labels, blue units/keywords and green results.
-
-Visual reference:
-
-```text
-https://camo.githubusercontent.com/49d6223fe0ad7af2d1991e9eb4ef9ea32ef3d20bd4c4801ba33481bcf4dcce43/68747470733a2f2f6e756d692e6170702f696d616765732f6e756d692d73637265656e73686f742d79656c6c6f772e706e67
-```
+The repository is scoped to the native KDE application. It does not include the old JavaScript/web prototype.
 
 ## Fedora Dependencies
 
-On Fedora KDE, install the missing development packages:
-
 ```sh
-sudo dnf install -y qt6-qtbase-devel qt6-qtdeclarative-devel
+sudo dnf install -y \
+  cmake gcc-c++ libqalculate-devel \
+  qt6-qtbase-devel qt6-qtdeclarative-devel \
+  kf6-kwindowsystem-devel kf6-kglobalaccel-devel
 ```
 
-These provide the missing CMake packages:
+The CMake target requires Qt 6 Core/DBus/Gui/Widgets/Network/Qml/Quick/QuickControls2, KF6WindowSystem, optional KF6GlobalAccel, and libqalculate.
 
-- `Qt6`
-- `Qt6Qml`
-- `Qt6Quick`
-- `Qt6QuickControls2`
-
-In the current workspace, package discovery confirmed:
-
-- `qt6-qtbase-devel` provides `cmake(Qt6)`;
-- `qt6-qtdeclarative-devel` provides `cmake(Qt6Qml)` and `cmake(Qt6Quick)`;
-
-## Build
-
-After installing dependencies:
+## Build, Test, Run
 
 ```sh
 cmake -S kde -B build/kde
-cmake --build build/kde
-```
-
-Run:
-
-```sh
+cmake --build build/kde --target numi-kde numi-kde-tests
+ctest --test-dir build/kde --output-on-failure
 ./build/kde/numi-kde
 ```
 
-Current local status:
+Latest local status:
 
-- `cmake -S kde -B build/kde` passes;
-- `cmake --build build/kde` passes;
-- `./build/kde/numi-kde` starts in the graphical session without stderr output;
-- `npm test` passes 54/54.
+- configure: passes;
+- native build: passes;
+- native CTest: 2/2 passes;
+- GUI dev binary starts without QML warnings.
 
-Current native behavior:
+## Current Behavior
 
-- the left editor is active and editable;
-- the right result column is driven by the shared evaluator;
-- editing text triggers live recalculation;
-- hovering a result highlights only the result text in bright yellow; clicking copies it to clipboard;
-- syntax highlighting marks units/currency-like tokens, `%` and natural operators in blue; defined variable names in neon green;
-- editor line height, font metrics and padding are synchronized for exact caret and highlight alignment;
-- the window is resizable from all edges and corners;
-- resized geometry is persisted for the next launch;
-- the window stays above other windows by default;
-- top-left action is reserved for history;
-- top-right actions are minimize, maximize/restore and close;
-- bottom-left action is reserved for settings;
-- bottom-right arrow is intentionally removed.
+- Compact frameless dark window.
+- Editable source document on the left.
+- Result column on the right, with automatic expansion for long result text.
+- Live C++ evaluation while typing.
+- C++ syntax highlighting.
+- Result hover/click behavior.
+- Total footer for numeric rows, including converted unit/currency/crypto values.
+- `/help` opens a readable in-app guide.
+- `today - DD.MM.YYYY` returns a year/day date span.
+- History drawer with persisted sessions.
+- Settings window for display, behavior, precision, autostart and hotkey.
+- Tray icon and tray menu.
+- Global shortcut: `Ctrl+Alt+1` by default.
+- `Ctrl+N`: clear current document.
+- `Tab`: completion.
+- Persistent window geometry.
+- Transparent app/tray PNG resources.
 
-The first runnable native prototype deliberately avoids direct Kirigami imports to keep configure
-and launch clean on Fedora. It still uses Qt Quick Controls and requests the KDE desktop style in
-`main.cpp`. Kirigami components can be reintroduced when settings pages, drawers or navigation need
-them.
+## Always on Top
+
+X11:
+
+- Uses `KX11Extras` with `NET::KeepAbove`.
+- QML keeps static window flags to avoid window recreation and re-centering.
+
+KDE Wayland:
+
+- Wayland clients cannot directly control stacking.
+- When enabled, `DocumentModel` writes a managed KWin Window Rule to `~/.config/kwinrulesrc` and calls `org.kde.KWin.reconfigure`.
+- The managed rule is identified by `Description=Numi-KDE keep above (managed)`.
+- The rule matches `wmclass` substring `numi-kde` and title `Numi`, then sets `keepabove=true`.
+
+Manual validation on a real KDE Wayland session is still required because automated tests cannot verify compositor stacking.
+
+## Runtime Files
+
+```text
+kde/src/main.cpp
+kde/src/documentmodel.{h,cpp}
+kde/src/qalcbridge.{h,cpp}
+kde/src/shortcutmanager.{h,cpp}
+kde/src/syntaxhighlighter.{h,cpp}
+kde/qml/*.qml
+kde/resources/*.png
+kde/tests/qalc_test.cpp
+```
 
 ## Current Limitations
 
-The native prototype currently calls the JS core through a local Node worker process. This is good
-for preserving one tested evaluator while the UI takes shape, but the final Linux package must
-either embed that runtime cleanly or replace the bridge with a native backend.
-
-The syntax highlighting layer is functional. It highlights semantic token classes.
-Selection behavior and large-document performance still need work.
-
-The current semantic highlighter treats all 3-5 uppercase words as currency-like tokens so examples
-such as `500 AED to USD` render correctly before real currency evaluation exists. Actual currency
-conversion still requires a mocked/tested rate provider and must not depend on live network tests.
-
-The top-left history action and bottom-left settings action are visual placeholders. Their panels
-are not implemented yet.
-
-## Next Work
-
-- Add font size and result column width settings.
-- Add settings panel for always-on-top, font size and result width.
-- Add history panel and persistence model.
-- Add native screenshot checks once the binary builds.
+- No packaged-install smoke test yet.
+- KWin keep-above rule writer is not unit-tested with an injected config path.
+- Wayland keep-above depends on KWin accepting/reloading the generated rule.

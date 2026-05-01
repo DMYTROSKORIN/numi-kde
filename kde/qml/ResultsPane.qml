@@ -34,7 +34,7 @@ Controls.ScrollView {
 
             Controls.Label {
                 id: resultText
-                text: ok ? result : ""
+                text: ok ? result : "Error"
                 color: {
                     if (!ok) return "#ff5f57"
                     if (resultMouse.containsMouse && text.length > 0) return "#ffd35a"
@@ -65,10 +65,10 @@ Controls.ScrollView {
         }
     }
 
-    Connections {
-        target: root.syncFlickable
-        function onContentYChanged() {
-            resultList.contentY = root.syncFlickable.contentY
-        }
+    Binding {
+        target: resultList
+        property: "contentY"
+        value: root.syncFlickable ? root.syncFlickable.contentY : 0
+        restoreMode: Binding.RestoreNone
     }
 }

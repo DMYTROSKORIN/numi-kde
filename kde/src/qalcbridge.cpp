@@ -4,12 +4,57 @@
 #include <QStringList>
 #include <QRegularExpression>
 #include <QSet>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QUrl>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QDateTime>
+#include <QTime>
+#include <QLocale>
+#include <algorithm>
+#include <cmath>
+
+// Top-50 crypto CoinGecko IDs → ticker symbols
+static const QList<QPair<QString,QString>> CRYPTO_LIST = {
+    {"bitcoin","BTC"}, {"ethereum","ETH"}, {"tether","USDT"}, {"binancecoin","BNB"},
+    {"solana","SOL"}, {"ripple","XRP"}, {"usd-coin","USDC"}, {"staked-ether","STETH"},
+    {"dogecoin","DOGE"}, {"the-open-network","TON"}, {"cardano","ADA"},
+    {"avalanche-2","AVAX"}, {"tron","TRX"}, {"shiba-inu","SHIB"},
+    {"polkadot","DOT"}, {"bitcoin-cash","BCH"}, {"chainlink","LINK"},
+    {"near","NEAR"}, {"litecoin","LTC"}, {"uniswap","UNI"},
+    {"aptos","APT"}, {"internet-computer","ICP"}, {"cosmos","ATOM"},
+    {"cronos","CRO"}, {"ethereum-classic","ETC"}, {"stellar","XLM"},
+    {"filecoin","FIL"}, {"monero","XMR"}, {"okb","OKB"},
+    {"hedera-hashgraph","HBAR"}, {"immutable-x","IMX"},
+    {"vechain","VET"}, {"arbitrum","ARB"}, {"algorand","ALGO"},
+    {"the-sandbox","SAND"}, {"decentraland","MANA"}, {"aave","AAVE"},
+    {"quant-network","QNT"}, {"theta-token","THETA"}, {"elrond-erd-2","EGLD"},
+    {"axie-infinity","AXS"}, {"eos","EOS"}, {"flow","FLOW"},
+    {"tezos","XTZ"}, {"bitcoin-sv","BSV"}, {"neo","NEO"},
+    {"kucoin-shares","KCS"}, {"iota","IOTA"}, {"pancakeswap-token","CAKE"},
+    {"gala","GALA"}
+};
 
 QalcBridge::QalcBridge(QObject *parent) : QObject(parent) {
     m_calc = new Calculator();
     m_calc->loadGlobalDefinitions();
     m_calc->loadExchangeRates();
     m_highlighter = new SyntaxHighlighter(m_calc);
+
+    m_nam = new QNetworkAccessManager(this);
+    connect(m_nam, &QNetworkAccessManager::finished,
+            this, &QalcBridge::onCryptoReply);
+
+    // Fetch on startup, then refresh every hour
+    m_cryptoRefreshTimer = new QTimer(this);
+    m_cryptoRefreshTimer->setInterval(60 * 60 * 1000);
+    connect(m_cryptoRefreshTimer, &QTimer::timeout,
+            this, &QalcBridge::fetchCryptoRates);
+    m_cryptoRefreshTimer->start();
+
+    fetchCryptoRates();
 }
 
 QalcBridge::~QalcBridge() {
@@ -17,8 +62,285 @@ QalcBridge::~QalcBridge() {
     delete m_calc;
 }
 
+void QalcBridge::fetchCryptoRates() {
+    QStringList ids;
+    for (const auto &p : CRYPTO_LIST)
+        ids << p.first;
+
+    QString url = "https://api.coingecko.com/api/v3/simple/price?ids=" +
+                  ids.join(",") +
+                  "&vs_currencies=usd";
+    m_nam->get(QNetworkRequest(QUrl(url)));
+}
+
+void QalcBridge::onCryptoReply(QNetworkReply *reply) {
+    reply->deleteLater();
+    if (reply->error() != QNetworkReply::NoError)
+        return;
+
+    QJsonObject data = QJsonDocument::fromJson(reply->readAll()).object();
+    QJsonObject rates;
+    for (const auto &p : CRYPTO_LIST) {
+        if (data.contains(p.first)) {
+            double price = data[p.first].toObject()["usd"].toDouble();
+            if (price > 0)
+                rates[p.second] = price;
+        }
+    }
+    if (!rates.isEmpty()) {
+        applyCryptoRates(rates);
+        emit cryptoRatesUpdated();
+    }
+}
+
+void QalcBridge::applyCryptoRates(const QJsonObject &rates) {
+    Unit *usd = m_calc->getUnit("USD");
+    if (!usd) return;
+
+    for (const QString &symbol : rates.keys()) {
+        double price = rates[symbol].toDouble();
+        if (price <= 0) continue;
+        m_cryptoUsdRates.insert(symbol.toUpper(), price);
+
+        // 1 crypto = price USD  →  relation = price (as string)
+        auto *unit = new AliasUnit(
+            "Cryptocurrency",       // category
+            symbol.toStdString(),   // name
+            symbol.toStdString(),   // plural
+            symbol.toStdString(),   // singular
+            symbol.toStdString(),   // title
+            usd,                    // reference unit (USD)
+            std::to_string(price),  // 1 symbol = price USD
+            1,                      // exponent
+            "",                     // inverse (empty = linear)
+            false,                  // is_local
+            false,                  // is_builtin
+            true                    // is_active
+        );
+        m_calc->addUnit(unit, true); // true = replace if exists
+    }
+}
+
 void QalcBridge::setDecimalPlaces(int places) {
     m_decimalPlaces = places;
+}
+
+// Format a number: no trailing zeros for integers, max m_decimalPlaces otherwise.
+// Uses system locale for thousands separators.
+static QString smartFormat(double value, int maxDecimals) {
+    if (std::isinf(value) || std::isnan(value)) return QString::number(value);
+
+    QLocale locale;
+    // For whole numbers, we still want to avoid .000 if they are exactly integers
+    if (value == std::floor(value) && std::abs(value) < 1e15) {
+        return locale.toString(static_cast<long long>(value));
+    }
+
+    QString s = locale.toString(value, 'f', maxDecimals);
+
+    // Remove unnecessary trailing zeros and the decimal point if it becomes empty
+    if (s.contains(locale.decimalPoint())) {
+        while (s.endsWith(QLatin1Char('0'))) s.chop(1);
+        if (s.endsWith(locale.decimalPoint())) s.chop(1);
+    }
+    return s;
+}
+
+static QString pluralize(int value, const QString &one, const QString &many)
+{
+    return QStringLiteral("%1 %2").arg(value).arg(value == 1 ? one : many);
+}
+
+static QString formatDateSpan(QDate from, QDate to)
+{
+    bool negative = false;
+    if (from > to) {
+        std::swap(from, to);
+        negative = true;
+    }
+
+    int years = to.year() - from.year();
+    QDate anniversary = from.addYears(years);
+    if (anniversary > to) {
+        --years;
+        anniversary = from.addYears(years);
+    }
+
+    const int days = anniversary.daysTo(to);
+    QStringList parts;
+    if (years > 0)
+        parts << pluralize(years, QStringLiteral("year"), QStringLiteral("years"));
+    if (days > 0 || parts.isEmpty())
+        parts << pluralize(days, QStringLiteral("day"), QStringLiteral("days"));
+
+    const QString result = parts.join(QStringLiteral(", "));
+    return negative ? QStringLiteral("-%1").arg(result) : result;
+}
+
+static QDate parseUserDate(const QString &value)
+{
+    static const QStringList formats = {
+        QStringLiteral("d.M.yyyy"),
+        QStringLiteral("dd.MM.yyyy"),
+        QStringLiteral("d/M/yyyy"),
+        QStringLiteral("dd/MM/yyyy"),
+        QStringLiteral("d-M-yyyy"),
+        QStringLiteral("dd-MM-yyyy"),
+        QStringLiteral("yyyy-MM-dd"),
+    };
+
+    for (const QString &format : formats) {
+        const QDate date = QDate::fromString(value.trimmed(), format);
+        if (date.isValid())
+            return date;
+    }
+    return {};
+}
+
+static bool tryDateDifference(const QString &trimmed, QString *result)
+{
+    static QRegularExpression todayMinusDate(
+        "^\\s*(?:today|now)\\s*-\\s*(\\d{1,4}[./-]\\d{1,2}[./-]\\d{1,4})\\s*$",
+        QRegularExpression::CaseInsensitiveOption);
+    static QRegularExpression dateMinusToday(
+        "^\\s*(\\d{1,4}[./-]\\d{1,2}[./-]\\d{1,4})\\s*-\\s*(?:today|now)\\s*$",
+        QRegularExpression::CaseInsensitiveOption);
+
+    auto match = todayMinusDate.match(trimmed);
+    if (match.hasMatch()) {
+        const QDate date = parseUserDate(match.captured(1));
+        if (!date.isValid())
+            return false;
+        *result = formatDateSpan(date, QDate::currentDate());
+        return true;
+    }
+
+    match = dateMinusToday.match(trimmed);
+    if (match.hasMatch()) {
+        const QDate date = parseUserDate(match.captured(1));
+        if (!date.isValid())
+            return false;
+        *result = formatDateSpan(QDate::currentDate(), date);
+        return true;
+    }
+
+    return false;
+}
+
+static bool parseLeadingNumber(const QString &text, double *value)
+{
+    static QRegularExpression leadingNumber(
+        "^\\s*([+-]?(?:\\d{1,3}(?:[\\s.,'’]\\d{3})+|\\d+)(?:[.,]\\d+)?|[+-]?[.,]\\d+)");
+
+    const auto match = leadingNumber.match(text);
+    if (!match.hasMatch())
+        return false;
+
+    QString number = match.captured(1);
+    QLocale locale;
+    bool ok = false;
+    double parsed = locale.toDouble(number, &ok);
+    if (!ok) {
+        number.remove(QLatin1Char(' '));
+        number.remove(QLatin1Char('\''));
+        number.remove(QStringLiteral("’"));
+        const int lastDot = number.lastIndexOf(QLatin1Char('.'));
+        const int lastComma = number.lastIndexOf(QLatin1Char(','));
+        const int decimalIndex = std::max(lastDot, lastComma);
+        QString normalized;
+        for (int i = 0; i < number.size(); ++i) {
+            const QChar ch = number.at(i);
+            if (ch.isDigit() || ((ch == QLatin1Char('+') || ch == QLatin1Char('-')) && normalized.isEmpty())) {
+                normalized.append(ch);
+            } else if (i == decimalIndex && (ch == QLatin1Char('.') || ch == QLatin1Char(','))) {
+                normalized.append(QLatin1Char('.'));
+            }
+        }
+        parsed = normalized.toDouble(&ok);
+    }
+
+    if (!ok)
+        return false;
+    *value = parsed;
+    return true;
+}
+
+static bool isIncompleteExpression(const QString &trimmed)
+{
+    if (trimmed.isEmpty())
+        return false;
+
+    static QRegularExpression incompletePercent(
+        "^\\s*[+-]?(?:\\d+(?:[.,]\\d+)?|\\.\\d+)\\s*%\\s+(?:from|of)\\s*$",
+        QRegularExpression::CaseInsensitiveOption);
+    if (incompletePercent.match(trimmed).hasMatch())
+        return true;
+
+    static QRegularExpression trailingOperator(
+        "(?:\\b(?:to|in|as|from|of)|:=|[+*/^=(,-])\\s*$",
+        QRegularExpression::CaseInsensitiveOption);
+    return trailingOperator.match(trimmed).hasMatch();
+}
+
+static bool hasExplicitDivisionByZero(const QString &trimmed)
+{
+    static QRegularExpression divisionByZero(
+        "/\\s*[+-]?0+(?:[.,]0+)?(?=\\s*(?:$|[)+\\-*/^,]))");
+    return divisionByZero.match(trimmed).hasMatch();
+}
+
+static bool hasCalculationError(Calculator *calc)
+{
+    bool hasError = false;
+    for (CalculatorMessage *message = calc->message(); message; message = calc->nextMessage()) {
+        if (message->type() == MESSAGE_ERROR)
+            hasError = true;
+    }
+    calc->clearMessages();
+    return hasError;
+}
+
+QString QalcBridge::convertCryptoExpression(const QString &expression, bool *converted) const
+{
+    if (converted)
+        *converted = false;
+
+    static QRegularExpression cryptoConversionRegex(
+        "^\\s*([+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+))\\s+([A-Za-z]{2,5})\\s+to\\s+([A-Za-z]{2,5})\\s*$",
+        QRegularExpression::CaseInsensitiveOption);
+
+    const auto match = cryptoConversionRegex.match(expression);
+    if (!match.hasMatch())
+        return {};
+
+    const double amount = match.captured(1).toDouble();
+    const QString from = match.captured(2).toUpper();
+    const QString to = match.captured(3).toUpper();
+
+    auto rateFor = [this](const QString &symbol, bool *ok) -> double {
+        if (symbol == QStringLiteral("USD")) {
+            *ok = true;
+            return 1.0;
+        }
+        const auto it = m_cryptoUsdRates.constFind(symbol);
+        if (it == m_cryptoUsdRates.constEnd()) {
+            *ok = false;
+            return 0.0;
+        }
+        *ok = true;
+        return it.value();
+    };
+
+    bool fromOk = false;
+    bool toOk = false;
+    const double fromRate = rateFor(from, &fromOk);
+    const double toRate = rateFor(to, &toOk);
+    if (!fromOk || !toOk || toRate <= 0.0)
+        return {};
+
+    if (converted)
+        *converted = true;
+    return smartFormat(amount * fromRate / toRate, m_decimalPlaces);
 }
 
 QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
@@ -27,33 +349,37 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
 
     // First pass: collect variable names for highlighting
     QSet<QString> variables;
-    static QRegularExpression assignmentRegex("^([A-Za-z_π\\p{L}][\\wπ\\p{L}]*)\\s*(?::=|=)\\s*(.+)$", QRegularExpression::UseUnicodePropertiesOption);
+    static QRegularExpression assignmentRegex(
+        "^([A-Za-z_π\\p{L}][\\wπ\\p{L}]*)\\s*(?::=|=)\\s*(.+)$",
+        QRegularExpression::UseUnicodePropertiesOption);
     for (const QString &line : lines) {
         auto match = assignmentRegex.match(line.trimmed());
-        if (match.hasMatch()) {
+        if (match.hasMatch())
             variables.insert(match.captured(1));
-        }
     }
 
     EvaluationOptions eo;
     eo.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
     eo.structuring = STRUCTURING_SIMPLIFY;
+    eo.parse_options.unknowns_enabled = false;
 
     PrintOptions po;
     po.number_fraction_format = FRACTION_DECIMAL;
     po.base = 10;
+    po.min_decimals = 0;
     po.max_decimals = m_decimalPlaces;
-    po.min_decimals = m_decimalPlaces;
+    po.use_min_decimals = false;
     po.use_max_decimals = true;
-    po.use_min_decimals = true;
+    po.digit_grouping = DIGIT_GROUPING_LOCALE;
 
-    for (const QString &line : lines) {
+    for (const QString &rawLine : lines) {
         LineResult res;
         res.ok = false;
-        QString trimmed = line.trimmed();
+        QString trimmed = rawLine.trimmed();
 
-        res.highlightedHtml = m_highlighter->highlightLine(line, variables);
+        res.highlightedHtml = m_highlighter->highlightLine(rawLine, variables);
 
+        // Empty / comment lines
         if (trimmed.isEmpty() || trimmed.startsWith("//") || trimmed.startsWith("#")) {
             res.ok = true;
             res.result = "";
@@ -61,64 +387,169 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             continue;
         }
 
-        // Pre-process: libqalculate functional fixes
-        QString processedLine = line;
-        
-        // 1. Map "now" to "today()" to ensure date arithmetic works
-        static QRegularExpression nowRegex("\\bnow\\b", QRegularExpression::CaseInsensitiveOption);
-        processedLine.replace(nowRegex, "today()");
+        // Preprocess input for libqalculate compatibility
+        QString line = rawLine;
 
-        // 2. Map "to sq" to "to sqm" (Numi compatibility)
-        static QRegularExpression sqRegex("\\b(to|in)\\s+sq\\b", QRegularExpression::CaseInsensitiveOption);
-        processedLine.replace(sqRegex, "\\1 sqm");
-
-        // 3. Percentage fix: libqalculate prefers "X% of Y" over "X% from Y"
-        static QRegularExpression fromRegex("(\\d+%)\\s+from\\s+", QRegularExpression::CaseInsensitiveOption);
-        processedLine.replace(fromRegex, "\\1 of ");
-
-        // 4. Case-insensitive currency: Uppercase standalone 3-letter words
-        static QRegularExpression currencyRegex("\\b([a-z]{3})\\b");
-        auto currIt = currencyRegex.globalMatch(processedLine);
-        int offset = 0;
-        while (currIt.hasNext()) {
-            auto match = currIt.next();
-            QString replacement = match.captured(1).toUpper();
-            processedLine.replace(match.capturedStart(1) + offset, match.capturedLength(1), replacement);
-            // In this case offset is 0 because length of 3-letter currency doesn't change
+        if (isIncompleteExpression(trimmed)) {
+            res.ok = true;
+            res.result = "";
+            results.append(res);
+            continue;
         }
 
-        // 5. Variable assignment logic: Evaluate RHS then assign result to LHS
-        auto assignMatch = assignmentRegex.match(processedLine.trimmed());
+        if (hasExplicitDivisionByZero(trimmed)) {
+            res.ok = false;
+            res.error = "Error";
+            results.append(res);
+            continue;
+        }
+
+        if (trimmed.compare(QStringLiteral("time"), Qt::CaseInsensitive) == 0) {
+            res.ok = true;
+            res.result = QTime::currentTime().toString(QStringLiteral("HH:mm:ss"));
+            results.append(res);
+            continue;
+        }
+
+        if (trimmed.compare(QStringLiteral("now"), Qt::CaseInsensitive) == 0) {
+            res.ok = true;
+            res.result = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+            results.append(res);
+            continue;
+        }
+
+        QString dateDifferenceResult;
+        if (tryDateDifference(trimmed, &dateDifferenceResult)) {
+            res.ok = true;
+            res.result = dateDifferenceResult;
+            results.append(res);
+            continue;
+        }
+
+        bool cryptoConverted = false;
+        const QString cryptoResult = convertCryptoExpression(line, &cryptoConverted);
+        if (cryptoConverted) {
+            res.ok = true;
+            res.result = cryptoResult;
+            res.hasNumericValue = parseLeadingNumber(cryptoResult, &res.numericValue);
+            results.append(res);
+            continue;
+        }
+
+        // 1. "now" → "today()"
+        static QRegularExpression nowRegex("\\bnow\\b", QRegularExpression::CaseInsensitiveOption);
+        line.replace(nowRegex, "today()");
+
+        // 2. Case-insensitive currencies: uppercase standalone 3-letter words
+        //    Avoids converting natural-language words (to, in, of, as, from)
+        static QSet<QString> skipWords = {"the", "and", "but", "not", "for", "nor",
+                                           "yet", "has", "had", "was", "are", "its"};
+        static QRegularExpression currencyRegex("\\b([a-z]{3,5})\\b");
+        QRegularExpressionMatchIterator currIt = currencyRegex.globalMatch(line);
+        // Collect replacements backwards to preserve positions
+        struct Replacement { qsizetype start; qsizetype len; QString replacement; };
+        QList<Replacement> replacements;
+        while (currIt.hasNext()) {
+            auto m = currIt.next();
+            QString word = m.captured(1);
+            QString upper = word.toUpper();
+            if (!skipWords.contains(word) && m_calc->getUnit(upper.toStdString())) {
+                replacements.prepend({m.capturedStart(1), m.capturedLength(1), upper});
+            }
+        }
+        for (const auto &r : replacements)
+            line.replace(r.start, r.len, r.replacement);
+
+        // 3. Percentage patterns: "X% from Y" / "X% of Y" → "(X/100)*Y"
+        //    Applied to RHS for assignments, to the full line otherwise.
+        static QRegularExpression percentFromOf(
+            "([\\d.]+)\\s*%\\s+(?:from|of)\\s+(.+)$",
+            QRegularExpression::CaseInsensitiveOption);
+
+        auto applyPercentPreprocess = [&](QString expr) -> QString {
+            auto pfm = percentFromOf.match(expr.trimmed());
+            if (pfm.hasMatch())
+                return QString("(%1/100)*%2").arg(pfm.captured(1), pfm.captured(2));
+            return expr;
+        };
+
+        // 4. Variable assignment: detect first, then preprocess RHS
+        auto assignMatch = assignmentRegex.match(line.trimmed());
         if (assignMatch.hasMatch()) {
             QString varName = assignMatch.captured(1);
-            QString rhs = assignMatch.captured(2);
+            QString rhs = applyPercentPreprocess(assignMatch.captured(2));
             try {
-                // Evaluate RHS
+                m_calc->clearMessages();
                 MathStructure rhsResult = m_calc->calculate(rhs.toStdString(), eo);
-                QString rhsString = QString::fromStdString(m_calc->print(rhsResult, 2000, po));
-                
-                // Assign result to variable
-                m_calc->calculate(QString("%1 := %2").arg(varName, rhsString).toStdString(), eo);
-                
-                res.result = rhsString;
-                res.ok = true;
+                if (hasCalculationError(m_calc) || rhsResult.isUndefined() || rhsResult.isInfinite()) {
+                    res.ok = false;
+                    res.error = "Error";
+                } else if (rhsResult.isNumber()) {
+                    double v = rhsResult.number().floatValue();
+                    if (!std::isfinite(v)) {
+                        res.ok = false;
+                        res.error = "Error";
+                    } else {
+                        QString formatted = smartFormat(v, m_decimalPlaces);
+                        m_calc->clearMessages();
+                        m_calc->calculate(
+                            QString("%1 := %2").arg(varName, formatted).toStdString(), eo);
+                        res.result = formatted;
+                        res.hasNumericValue = true;
+                        res.numericValue = v;
+                        res.ok = !hasCalculationError(m_calc);
+                        if (!res.ok)
+                            res.error = "Error";
+                    }
+                } else {
+                    QString rhsStr = QString::fromStdString(m_calc->print(rhsResult, 2000, po));
+                    m_calc->clearMessages();
+                    m_calc->calculate(
+                        QString("%1 := %2").arg(varName, rhsStr).toStdString(), eo);
+                    res.result = rhsStr;
+                    res.ok = !hasCalculationError(m_calc);
+                    if (!res.ok)
+                        res.error = "Error";
+                }
             } catch (...) {
                 res.ok = false;
-                res.error = "Assignment error";
+                res.error = "Error";
             }
         } else {
+            line = applyPercentPreprocess(line);
             try {
-                MathStructure result = m_calc->calculate(processedLine.toStdString(), eo);
-                QString out = QString::fromStdString(m_calc->print(result, 2000, po));
-                // Strip quotes from dates/strings
-                if (out.startsWith('"') && out.endsWith('"')) {
-                    out = out.mid(1, out.length() - 2);
+                m_calc->clearMessages();
+                MathStructure result = m_calc->calculate(line.toStdString(), eo);
+                if (hasCalculationError(m_calc) || result.isUndefined() || result.isInfinite()) {
+                    res.ok = false;
+                    res.error = "Error";
+                } else if (result.isNumber()) {
+                    double v = result.number().floatValue();
+                    if (!std::isfinite(v)) {
+                        res.ok = false;
+                        res.error = "Error";
+                    } else {
+                        res.result = smartFormat(v, m_decimalPlaces);
+                        res.hasNumericValue = true;
+                        res.numericValue = v;
+                        res.ok = true;
+                    }
+                } else {
+                    QString out = QString::fromStdString(m_calc->print(result, 2000, po));
+                    // Strip surrounding quotes (dates, strings)
+                    if (out.startsWith('"') && out.endsWith('"'))
+                        out = out.mid(1, out.length() - 2);
+                    res.result = out;
+                    static QRegularExpression conversionWord(
+                        "\\b(?:to|in|as)\\b",
+                        QRegularExpression::CaseInsensitiveOption);
+                    if (conversionWord.match(trimmed).hasMatch())
+                        res.hasNumericValue = parseLeadingNumber(out, &res.numericValue);
+                    res.ok = true;
                 }
-                res.result = out;
-                res.ok = true;
             } catch (...) {
                 res.ok = false;
-                res.error = "Calculation error";
+                res.error = "Error";
             }
         }
 
@@ -134,7 +565,6 @@ QString QalcBridge::getCompletion(const QString &prefix) {
     QStringList matches;
     std::string p = prefix.toLower().toStdString();
 
-    // Check Units
     for (size_t i = 0; ; ++i) {
         Unit *u = m_calc->getUnit(i);
         if (!u) break;
@@ -143,8 +573,6 @@ QString QalcBridge::getCompletion(const QString &prefix) {
             if (name.find(p) == 0) matches << QString::fromStdString(name);
         }
     }
-
-    // Check Variables
     for (size_t i = 0; ; ++i) {
         Variable *v = m_calc->getVariable(i);
         if (!v) break;
@@ -153,8 +581,6 @@ QString QalcBridge::getCompletion(const QString &prefix) {
             if (name.find(p) == 0) matches << QString::fromStdString(name);
         }
     }
-
-    // Check Functions
     for (size_t i = 0; ; ++i) {
         MathFunction *f = m_calc->getFunction(i);
         if (!f) break;
@@ -164,8 +590,10 @@ QString QalcBridge::getCompletion(const QString &prefix) {
         }
     }
 
-    // Check custom keywords
-    QStringList keywords = {"today", "tomorrow", "yesterday", "now", "days", "weeks", "months", "years"};
+    static const QStringList keywords = {
+        "today", "tomorrow", "yesterday", "now",
+        "days", "weeks", "months", "years"
+    };
     for (const auto &kw : keywords) {
         if (kw.startsWith(prefix, Qt::CaseInsensitive)) matches << kw;
     }
@@ -174,16 +602,14 @@ QString QalcBridge::getCompletion(const QString &prefix) {
     if (matches.isEmpty()) return prefix;
     if (matches.size() == 1) return matches.first();
 
-    // Find longest common prefix
     QString common = matches.first();
     for (int i = 1; i < matches.size(); ++i) {
         const QString &s = matches.at(i);
         int j = 0;
-        while (j < common.length() && j < s.length() && common[j].toLower() == s[j].toLower()) {
+        while (j < common.length() && j < s.length() &&
+               common[j].toLower() == s[j].toLower())
             j++;
-        }
         common = common.left(j);
     }
-
     return common.isEmpty() ? prefix : common;
 }
