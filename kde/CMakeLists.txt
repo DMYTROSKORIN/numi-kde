@@ -10,6 +10,7 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(QALCULATE REQUIRED libqalculate)
+find_package(KF6WindowSystem REQUIRED)
 
 qt_policy(SET QTP0001 NEW)
 qt_policy(SET QTP0004 NEW)
@@ -42,6 +43,7 @@ target_link_libraries(numi-kde
     Qt6::Qml
     Qt6::Quick
     Qt6::QuickControls2
+    KF6::WindowSystem
     ${QALCULATE_LIBRARIES}
 )
 

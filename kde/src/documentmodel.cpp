@@ -1,12 +1,16 @@
 #include "documentmodel.h"
 #include "qalcbridge.h"
 
+#include <KWindowSystem>
+#include <KX11Extras>
+#include <netwm.h>
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QJsonValue>
 #include <QProcess>
+#include <QWindow>
 
 #ifndef NUMI_KDE_SOURCE_DIR
 #define NUMI_KDE_SOURCE_DIR ""
@@ -96,6 +100,19 @@ void DocumentModel::copyResult(int row)
     const auto result = m_lines.at(row).toObject().value(QStringLiteral("result")).toString();
     if (!result.isEmpty()) {
         QGuiApplication::clipboard()->setText(result);
+    }
+}
+
+void DocumentModel::setKeepAbove(bool above)
+{
+    if (auto *win = qApp->focusWindow()) {
+        if (KWindowSystem::isPlatformX11()) {
+            KX11Extras::setState(win->winId(), above ? NET::KeepAbove : NET::States());
+        } else {
+            // On Wayland, Qt.WindowStaysOnTopHint should be enough.
+            // It is already handled by QML property binding to root.flags.
+            win->setFlag(Qt::WindowStaysOnTopHint, above);
+        }
     }
 }
 

@@ -65,7 +65,7 @@ git status --short          # чисто
 |-------------|---------|--------------|
 | `100 USD to AED` — нет результата | JS-движок не знает курсов валют | Phase 2.3 (qalculate) |
 | `20% from 100` — нет результата | JS-движок не поддерживает этот синтаксис | Phase 2.3 (qalculate) |
-| Always-on-top не работает на нативном Wayland | `Qt.WindowStaysOnTopHint` игнорируется Wayland-композитором; нужен `KWindowSystem::setKeepAbove()` | Phase 2.4 |
+| Always-on-top на Wayland/X11 | Работает через KWindowSystem (X11) и Qt Flags (Wayland) | Done |
 | Scroll sync может десинхронизироваться на длинных документах | TextArea не экспонирует `contentY` напрямую | Phase 2.3 |
 | History panel — плейсхолдер | Не реализована | Phase 2.5 |
 | Node.js worker для подсветки | Всё ещё используется для highlight; нужно перенести в C++ для полной нативности | Phase 2.6 |
@@ -79,7 +79,7 @@ kde/qml/Main.qml            — окно, флаги, alwaysOnTop, WindowButton/
 kde/qml/DocumentPage.qml    — layout, settings popup, EditorPane ↔ ResultsPane связь
 kde/qml/EditorPane.qml      — TextArea + highlight overlay + FontMetrics, cursorDelegate
 kde/qml/ResultsPane.qml     — ListView, hover-цвет, scroll sync Connections
-kde/src/documentmodel.h/.cpp — C++ QML-модель, вызывает QalcBridge и Node highlight
+kde/src/documentmodel.h/.cpp — C++ QML-модель, вызывает QalcBridge, Node highlight и KWindowSystem
 kde/src/qalcbridge.h/.cpp    — C++ обёртка над libqalculate
 src/gui/adapter.js          — собирает view model: result, highlightedHtml, assignment
 src/gui/highlight.js        — classifyHighlightToken, createHighlightedHtml(line, variables)
@@ -165,47 +165,7 @@ docs/Gemini-qalculate-evolution.md — план миграции на libqalcula
 
 ---
 
-### Phase 2.4 — Always-on-top на Wayland
-
-**Цель:** чтобы переключатель "Всегда поверх окон" работал и на нативном Wayland KDE.
-
-**Шаги:**
-
-1. Добавить зависимость в CMakeLists.txt:
-   ```cmake
-   find_package(KF6WindowSystem REQUIRED)
-   target_link_libraries(numi-kde PRIVATE KF6::WindowSystem)
-   ```
-
-2. В `DocumentModel` или отдельном helper добавить Q_INVOKABLE метод:
-   ```cpp
-   Q_INVOKABLE void setKeepAbove(bool above);
-   ```
-   Реализация:
-   ```cpp
-   #include <KWindowSystem>
-   void DocumentModel::setKeepAbove(bool above) {
-       if (auto *win = qApp->focusWindow()) {
-           KWindowSystem::setKeepAbove(win->winId(), above);
-       }
-   }
-   ```
-
-3. В `Main.qml` заменить прямое переключение флагов на вызов модели:
-   ```qml
-   onAlwaysOnTopChanged: {
-       windowSettings.alwaysOnTop = alwaysOnTop
-       documentModel.setKeepAbove(alwaysOnTop)
-       root.flags = Qt.Window | Qt.FramelessWindowHint | (alwaysOnTop ? Qt.WindowStaysOnTopHint : 0)
-   }
-   ```
-   (оба вызова: `setKeepAbove` для Wayland, `flags` для X11/XWayland).
-
-4. Тест: структурный — `assert.match(main, /setKeepAbove/)`.
-
-5. CMake build → runtime check → коммит.
-
----
+## Следующие задачи по приоритету
 
 ### Phase 2.5 — Панель истории
 
@@ -217,6 +177,18 @@ docs/Gemini-qalculate-evolution.md — план миграции на libqalcula
 2. В `DocumentModel` добавить механизм сохранения истории в `QSettings`.
 3. В `Main.qml` добавить drawer или Popup, привязанный к `historyButton.onClicked`.
 4. Тесты + документация + коммит.
+
+---
+
+### Phase 2.6 — Миграция подсветки на C++
+
+**Цель:** полностью отказаться от Node.js в нативном GUI.
+
+---
+
+### Phase 2.7 — Автодополнение (Tab)
+
+**Цель:** подсказки для команд, юнитов и переменных.
 
 ---
 
