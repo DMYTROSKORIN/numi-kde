@@ -7,11 +7,11 @@ Window {
 
     property Window mainWindow: null
 
-    title: "Настройки"
+    title: "Settings"
     width: 320
-    height: 400
+    height: 500
     minimumWidth: 280
-    minimumHeight: 360
+    minimumHeight: 460
     color: "#22242a"
     flags: Qt.Dialog
 
@@ -21,7 +21,7 @@ Window {
         spacing: 15
 
         Text {
-            text: "Numi-KDE — Настройки"
+            text: "Numi-KDE — Settings"
             color: "#f0f0f3"
             font.pixelSize: 14
             font.bold: true
@@ -30,7 +30,7 @@ Window {
         Controls.CheckBox {
             id: alwaysOnTopCheck
 
-            text: "Всегда поверх окон"
+            text: "Always on top"
             checked: mainWindow ? mainWindow.alwaysOnTop : true
             onToggled: {
                 if (mainWindow) mainWindow.alwaysOnTop = checked
@@ -65,12 +65,88 @@ Window {
             }
         }
 
+        Controls.CheckBox {
+            id: autostartCheck
+
+            text: "Launch at login"
+            checked: documentModel ? documentModel.autostart : false
+            onToggled: {
+                if (documentModel) documentModel.autostart = checked
+            }
+
+            indicator: Rectangle {
+                implicitWidth: 16
+                implicitHeight: 16
+                x: autostartCheck.leftPadding
+                y: (autostartCheck.height - height) / 2
+                radius: 3
+                border.color: autostartCheck.checked ? "#6fc4e8" : "#6b6d76"
+                border.width: 1
+                color: autostartCheck.checked ? "#6fc4e8" : "transparent"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "✓"
+                    color: "#22242a"
+                    font.pixelSize: 11
+                    font.weight: Font.Bold
+                    visible: autostartCheck.checked
+                }
+            }
+
+            contentItem: Text {
+                leftPadding: autostartCheck.indicator.width + autostartCheck.spacing
+                text: autostartCheck.text
+                color: "#f0f0f3"
+                font.pixelSize: 13
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+
+        Controls.CheckBox {
+            id: resultsSeparatorCheck
+
+            text: "Show result separator"
+            checked: mainWindow ? mainWindow.showResultsSeparator : true
+            onToggled: {
+                if (mainWindow) mainWindow.showResultsSeparator = checked
+            }
+
+            indicator: Rectangle {
+                implicitWidth: 16
+                implicitHeight: 16
+                x: resultsSeparatorCheck.leftPadding
+                y: (resultsSeparatorCheck.height - height) / 2
+                radius: 3
+                border.color: resultsSeparatorCheck.checked ? "#6fc4e8" : "#6b6d76"
+                border.width: 1
+                color: resultsSeparatorCheck.checked ? "#6fc4e8" : "transparent"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "✓"
+                    color: "#22242a"
+                    font.pixelSize: 11
+                    font.weight: Font.Bold
+                    visible: resultsSeparatorCheck.checked
+                }
+            }
+
+            contentItem: Text {
+                leftPadding: resultsSeparatorCheck.indicator.width + resultsSeparatorCheck.spacing
+                text: resultsSeparatorCheck.text
+                color: "#f0f0f3"
+                font.pixelSize: 13
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 5
 
             Text {
-                text: "Размер шрифта: " + (mainWindow ? mainWindow.fontSize : 16) + " px"
+                text: "Font size: " + (mainWindow ? mainWindow.fontSize : 16) + " px"
                 color: "#f0f0f3"
                 font.pixelSize: 13
             }
@@ -92,15 +168,15 @@ Window {
             spacing: 5
 
             Text {
-                text: "Ширина колонки результатов: " + (mainWindow ? mainWindow.resultWidth : 124) + " px"
+                text: "Result column width: " + (mainWindow ? mainWindow.resultWidth : 124) + " px"
                 color: "#f0f0f3"
                 font.pixelSize: 13
             }
 
             Controls.Slider {
                 Layout.fillWidth: true
-                from: 80
-                to: 300
+                from: 96
+                to: 720
                 stepSize: 8
                 value: mainWindow ? mainWindow.resultWidth : 124
                 onMoved: {
@@ -114,7 +190,7 @@ Window {
             spacing: 5
 
             Text {
-                text: "Знаков после запятой: " + (mainWindow ? Math.round(mainWindow.decimalPlaces) : 3)
+                text: "Decimal places: " + (mainWindow ? Math.round(mainWindow.decimalPlaces) : 3)
                 color: "#f0f0f3"
                 font.pixelSize: 13
             }
@@ -131,10 +207,105 @@ Window {
             }
         }
 
+        ColumnLayout {
+            id: hotkeyColumn
+
+            Layout.fillWidth: true
+            spacing: 5
+
+            property bool recordingHotkey: false
+
+            function keyName(key, text) {
+                if (key >= Qt.Key_0 && key <= Qt.Key_9) {
+                    return String.fromCharCode("0".charCodeAt(0) + key - Qt.Key_0)
+                }
+                if (key >= Qt.Key_A && key <= Qt.Key_Z) {
+                    return String.fromCharCode("A".charCodeAt(0) + key - Qt.Key_A)
+                }
+                if (key >= Qt.Key_F1 && key <= Qt.Key_F12) {
+                    return "F" + (key - Qt.Key_F1 + 1)
+                }
+                if (key === Qt.Key_Space) return "Space"
+                if (text && text.length > 0) return text.toUpperCase()
+                return ""
+            }
+
+            Text {
+                text: "Global hotkey"
+                color: "#f0f0f3"
+                font.pixelSize: 13
+            }
+
+            Controls.TextField {
+                id: hotkeyField
+
+                Layout.fillWidth: true
+                text: hotkeyColumn.recordingHotkey ? "Press shortcut..." : (shortcutManager ? shortcutManager.sequence : "Ctrl+Alt+1")
+                readOnly: true
+                focus: hotkeyColumn.recordingHotkey
+                color: "#f0f0f3"
+                selectedTextColor: "#22242a"
+                selectionColor: "#6fc4e8"
+                font.pixelSize: 13
+                activeFocusOnPress: true
+
+                Keys.onPressed: (event) => {
+                    if (!hotkeyColumn.recordingHotkey) return
+                    if (event.key === Qt.Key_Escape) {
+                        hotkeyColumn.recordingHotkey = false
+                        event.accepted = true
+                        return
+                    }
+                    if (event.key === Qt.Key_Control || event.key === Qt.Key_Alt ||
+                        event.key === Qt.Key_Shift || event.key === Qt.Key_Meta) {
+                        event.accepted = true
+                        return
+                    }
+
+                    let parts = []
+                    if (event.modifiers & Qt.ControlModifier) parts.push("Ctrl")
+                    if (event.modifiers & Qt.AltModifier) parts.push("Alt")
+                    if (event.modifiers & Qt.ShiftModifier) parts.push("Shift")
+                    if (event.modifiers & Qt.MetaModifier) parts.push("Meta")
+
+                    let key = hotkeyColumn.keyName(event.key, event.text)
+                    if (key.length > 0 && parts.length > 0 && shortcutManager) {
+                        parts.push(key)
+                        shortcutManager.sequence = parts.join("+")
+                        hotkeyColumn.recordingHotkey = false
+                    }
+                    event.accepted = true
+                }
+
+                TapHandler {
+                    onTapped: {
+                        hotkeyColumn.recordingHotkey = true
+                        hotkeyField.forceActiveFocus()
+                    }
+                }
+
+                background: Rectangle {
+                    radius: 4
+                    color: "#1d1f25"
+                    border.color: "#343742"
+                    border.width: 1
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                visible: shortcutManager && shortcutManager.status.length > 0
+                text: shortcutManager ? shortcutManager.status : ""
+                color: text === "Shortcut saved" ? "#8fd14f" : "#ff5f57"
+                font.pixelSize: 11
+                elide: Text.ElideRight
+            }
+        }
+
         Item { Layout.fillHeight: true }
 
         Controls.Button {
-            text: "Закрыть"
+            text: "Close"
             Layout.alignment: Qt.AlignRight
 
             onClicked: root.close()

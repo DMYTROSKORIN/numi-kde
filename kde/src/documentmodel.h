@@ -4,7 +4,6 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
-#include <QProcess>
 #include <QVariantList>
 
 class QalcBridge;
@@ -17,6 +16,8 @@ class DocumentModel : public QAbstractListModel
     Q_PROPERTY(int resultCount READ resultCount NOTIFY linesChanged)
     Q_PROPERTY(QVariantList history READ history NOTIFY historyChanged)
     Q_PROPERTY(int decimalPlaces READ decimalPlaces WRITE setDecimalPlaces NOTIFY decimalPlacesChanged)
+    Q_PROPERTY(double total READ total NOTIFY linesChanged)
+    Q_PROPERTY(bool autostart READ autostart WRITE setAutostart NOTIFY autostartChanged)
 
 public:
     enum Roles {
@@ -37,12 +38,16 @@ public:
     QVariantList history() const;
     int decimalPlaces() const;
     void setDecimalPlaces(int places);
+    double total() const;
+    bool autostart() const;
+    void setAutostart(bool enable);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
     Q_INVOKABLE void copyResult(int row);
+    Q_INVOKABLE void copyText(const QString &text);
     Q_INVOKABLE void setKeepAbove(bool above);
     Q_INVOKABLE void saveSession();
     Q_INVOKABLE void restoreSession(int index);
@@ -54,10 +59,13 @@ signals:
     void linesChanged();
     void historyChanged();
     void decimalPlacesChanged();
+    void autostartChanged();
 
 private:
     void evaluate();
     static QString firstDiagnostic(const QJsonObject &line);
+    static void setKWinKeepAboveRule(bool enabled);
+    static void reloadKWinRules();
 
     QString m_source;
     QJsonArray m_lines;
@@ -66,4 +74,5 @@ private:
     QalcBridge *m_qalc;
     QVariantList m_history;
     int m_decimalPlaces = 3;
+    double m_total = 0.0;
 };

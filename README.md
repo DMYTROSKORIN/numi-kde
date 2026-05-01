@@ -1,50 +1,61 @@
 # numi-kde
 
-KDE/Linux-native clone of Numi: a natural language calculator with a text-document interface.
+KDE/Linux-native clone of Numi: a compact text-document calculator with expressions on the left and results on the right.
 
-## Goals
+## Current Status
 
-- Preserve Numi's text-document workflow: expressions on the left, results on the right.
-- **100% C++/Qt Backend**: Zero Node.js dependency during runtime for maximum speed and compatibility.
-- **libqalculate Engine**: Powerful calculation core with support for currencies, units, and complex math.
-- **KDE Integration**: Native Wayland/X11 support, persistent window geometry, and Always-on-Top mode.
-- **History & Sessions**: Persistent session management with quick recall via side panel.
-- **Tab Completion**: Terminal-like autocompletion for units, functions, and variables.
+- Runtime backend: C++/Qt 6 with `libqalculate`.
+- Desktop integration: tray icon/menu, global shortcut, clipboard, saved window geometry, launch-at-login, KDE/KWin keep-above integration.
+- Current local verification: native CMake build and native CTest pass.
 
 ## Features
 
-- **Math**: `2 + 2 * 3^2`, `sqrt(256)`, `sin(pi/2)`
-- **Units**: `10 meters in feet`, `50kg to lbs`, `200 m2 to sq`
-- **Currency**: `100 USD to EUR`, `50 EUR in JPY`
-- **Dates**: `today + 2 weeks`, `now - 256 days`
-- **Variables**: `A = 800 - 200`, `B := A * 2`
-- **UI**: English localization, adjustable font size and result column width, precise decimal control.
+- Math: `2 + 2 * 3^2`, `sqrt(256)`, `sin(pi/2)`.
+- Units: `10 meters in feet`, `50 kg to lbs`, `1 km to m`.
+- Currency and crypto: case-insensitive fiat units where libqalculate supports them, plus live CoinGecko-backed top-crypto conversion such as `400 USD to ETH`.
+- Dates/time: `today + 2 weeks`, `today - 26.08.1983`, `time`, `now`.
+- Variables: `A = 800 - 200`, `B := A * 2`.
+- Percentages: `20% of 300`, `20% from 300`; incomplete input like `20% from` stays quiet until finished.
+- `/help`: clear in-app usage guide with examples for math, variables, units, currency, dates and controls.
+- Total footer: sums numeric result rows, including converted unit/currency/crypto result values, and can copy the total.
+- History drawer: saves/restores recent sessions and can clear history.
+- Settings: always on top, launch at login, result separator, font size, result column width, decimal places, global hotkey.
+- Result column: auto-expands for long results and prevents the separator from covering visible result text.
+- Keyboard: `Ctrl+Alt+1` toggles the app globally by default; `Ctrl+N` clears the current document; `Tab` completes units/functions/variables.
+
+## KDE Notes
+
+On KDE Wayland, clients cannot directly force stacking above other windows. `numi-kde` therefore writes a managed KWin window rule when "Always on top" is enabled and asks KWin to reconfigure. On X11 it also uses `NET::KeepAbove`.
+
+The app and tray icons in `kde/resources/` are transparent PNGs. They are embedded into the Qt resource binary during build.
 
 ## Build and Run
 
-### Prerequisites
+### Fedora Dependencies
 
-- Qt 6.6+
-- KDE Frameworks 6 (KF6WindowSystem)
-- libqalculate
-- CMake
+```sh
+sudo dnf install -y \
+  cmake gcc-c++ libqalculate-devel \
+  qt6-qtbase-devel qt6-qtdeclarative-devel \
+  kf6-kwindowsystem-devel kf6-kglobalaccel-devel
+```
+
+Package names can vary by distro; the CMake requirements are Qt 6 Core/DBus/Gui/Widgets/Network/Qml/Quick/QuickControls2, KF6WindowSystem, optional KF6GlobalAccel, and libqalculate.
 
 ### Commands
 
 ```sh
-# Build
 cmake -S kde -B build/kde
-cmake --build build/kde
-
-# Run
+cmake --build build/kde --target numi-kde numi-kde-tests
+ctest --test-dir build/kde --output-on-failure
 ./build/kde/numi-kde
-
-# Test (legacy JS oracle + native skeleton tests)
-npm test
 ```
 
 ## Documentation
 
-- `docs/implementation-plan.md`: Detailed roadmap and completion status.
-- `docs/handoff.md`: Project status and architectural overview.
-- `docs/Gemini-qalculate-evolution.md`: Strategy for libqalculate integration.
+- `docs/AI_HANDOFF.md`: current handoff for the next agent.
+- `docs/handoff.md`: concise operational project handoff.
+- `docs/kde-native.md`: native KDE build/runtime notes.
+- `docs/implementation-plan.md`: roadmap and current phase status.
+- `docs/architecture.md`: current layer boundaries.
+- `CHANGELOG.md`: release notes.

@@ -8,7 +8,7 @@ SyntaxHighlighter::SyntaxHighlighter(Calculator *calc) : m_calc(calc) {
         QRegularExpression::CaseInsensitiveOption | QRegularExpression::UseUnicodePropertiesOption
     );
 
-    m_operatorWords = {"as", "from", "in", "of", "to"};
+    m_operatorWords = {"as", "from", "in", "of", "now", "time", "to"};
     m_operatorSymbols = {":=", "+", "-", "^", "(", ")", ",", ";", "="};
 }
 
@@ -67,9 +67,12 @@ QString SyntaxHighlighter::classify(const QString &token, const QSet<QString> &v
         return "entity";
     }
 
-    // Check for unit using libqalculate
-    if (m_calc && m_calc->getUnit(token.toStdString())) {
-        return "entity";
+    // Check for unit using libqalculate (try original and uppercase for lowercase currency tokens)
+    if (m_calc) {
+        if (m_calc->getUnit(token.toStdString()) ||
+            (!m_operatorWords.contains(lower) && m_calc->getUnit(token.toUpper().toStdString()))) {
+            return "entity";
+        }
     }
 
     return "";

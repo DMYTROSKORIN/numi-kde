@@ -1,70 +1,98 @@
 # numi-kde Handoff
 
 Last updated: 2026-05-01.
-Last completed commit: `feat: functional fixes and settings window`.
 
----
+## Project Goal
 
-## Цель проекта
+Build a KDE/Linux-native Numi-like calculator: a plain-text document editor with live results, persistent scratchpad behavior, and Plasma integration.
 
-Сделать KDE/Linux-native клон Numi: текстовый интерфейс для вычислений,
-минималистичный UX, полная интеграция с плазмой.
-Математическое ядро перенесено на **libqalculate** для 100% точности и поддержки
-валют/единиц измерения.
+The app is C++/Qt/QML backed by `libqalculate`. The repository is scoped to the native KDE project only.
 
----
+## Current Native App State
 
-### Что работает в GUI прямо сейчас
+Works now:
 
-- Frameless тёмное окно, compact Numi-стиль.
-- Linux/KDE controls: history (↺) слева, minimize/maximize/close справа.
-- Шестерёнка внизу слева — открывает отдельное нативное окно настроек.
-- Настройки: "Always on top", "Font size", "Result width", "Decimal places".
-- Все вычисления и подсветка синтаксиса на C++ (libqalculate).
-- Поддержка переменных (`A = 100`), юнитов (`200 m2 to sq`), дат (`now - 2 days`).
-- Always-on-top работает на Wayland и X11 через KWindowSystem.
-- Окно resizable, геометрия сохраняется.
-- Скролл-синк между редакторами и результатами.
+- Frameless compact dark window with KDE-style title controls.
+- Editable source document on the left, synced result column on the right.
+- C++ syntax highlighting and C++ evaluation through `libqalculate`.
+- Variables, units, percentages, dates/time keywords, explicit date differences, `/help`, decimal precision setting.
+- Live CoinGecko crypto rates for top crypto symbols, with manual crypto conversion fallback in `QalcBridge`.
+- History drawer with persisted sessions and clear action.
+- Settings window:
+  - always on top;
+  - launch at login;
+  - show result separator;
+  - font size;
+  - result column width;
+  - decimal places;
+  - global hotkey recorder.
+- Tray icon and menu.
+- App/tray icons are transparent PNG resources.
+- Global shortcut defaults to `Ctrl+Alt+1` and uses KDE `KGlobalAccel` when available.
+- `Ctrl+N` clears the current document.
+- `Tab` completes units, functions, variables, and date keywords.
+- Result click copies the result; Total footer click copies the numeric total.
+- Total includes numeric values from converted unit/currency/crypto result rows.
+- Result column expands to fit long result text and the separator cannot be dragged over existing result content.
+- `/help` shows a readable instruction panel with examples.
+- Invalid explicit math such as `500/0` shows compact `Error`; incomplete input such as `20% from` stays blank.
 
-### Известные ограничения
+## Wayland Always-on-Top
 
-| Ограничение | Причина | Когда чинить |
-|-------------|---------|--------------|
-| Scroll sync может десинхронизироваться на длинных документах | TextArea не экспонирует `contentY` напрямую | Phase 2.3 |
-| History panel | Полностью реализована: сохранение сессий в QSettings, Drawer сбоку | Done |
-| Tab completion — нет | Не реализована | Phase 2.7 |
-| Зависимость от Node.js в GUI | Полностью удалена. | Done |
+On KDE Wayland, clients cannot directly set "keep above" for themselves. The app now handles this by writing a managed KWin rule to `~/.config/kwinrulesrc` when "Always on top" is enabled:
 
----
+- match: `wmclass` substring `numi-kde`, title `Numi`;
+- action: `keepabove=true`, `keepaboverule=2`;
+- then DBus call: `org.kde.KWin /KWin org.kde.KWin.reconfigure`.
 
-## Важные файлы
+On X11, `DocumentModel::setKeepAbove()` also uses `KX11Extras::setState(..., NET::KeepAbove)`.
 
+## Important Files
+
+```text
+kde/CMakeLists.txt
+kde/src/main.cpp                 QApplication, QML engine, tray, global shortcut context
+kde/src/documentmodel.{h,cpp}    QML model, history, clipboard, settings helpers, KWin rule
+kde/src/qalcbridge.{h,cpp}       libqalculate bridge, preprocessing, crypto conversion, date spans
+kde/src/shortcutmanager.{h,cpp}  KGlobalAccel hotkey registration and conflict handling
+kde/src/syntaxhighlighter.*      C++ syntax highlighting
+kde/qml/Main.qml                 main window, flags, drawer, persisted geometry
+kde/qml/DocumentPage.qml         editor/result layout, Ctrl+N, help panel, adaptive result width, Total footer
+kde/qml/EditorPane.qml           TextArea overlay and Tab completion
+kde/qml/ResultsPane.qml          result rendering/copy interaction
+kde/qml/HistoryPane.qml          history list and clear button
+kde/qml/SettingsWindow.qml       settings UI
+kde/resources/*.png              app/tray icons
+kde/tests/qalc_test.cpp          native test suite
 ```
-kde/qml/Main.qml            — главное окно + Drawer (история)
-kde/qml/SettingsWindow.qml  — окно настроек
-kde/qml/HistoryPane.qml     — список сохранённых сессий
-kde/qml/DocumentPage.qml    — основная рабочая область
-kde/qml/EditorPane.qml      — редактор
-kde/qml/ResultsPane.qml     — результаты
-kde/src/documentmodel.h/.cpp — модель данных (вкл. логику истории)
-kde/src/qalcbridge.h/.cpp    — мост к libqalculate
-kde/src/syntaxhighlighter.h/.cpp — подсветка синтаксиса
+
+## Verification
+
+Run from repo root:
+
+```sh
+cmake --build build/kde --target numi-kde numi-kde-tests
+ctest --test-dir build/kde --output-on-failure
+./build/kde/numi-kde
 ```
 
----
+Latest local result: build passes, `ctest` passes 2/2.
 
-## Следующие задачи по приоритету
+## Current Git State
 
-### Phase 2.7 — Автодополнение (Tab)
+The worktree is intentionally not clean. It contains the current implementation changes and new files:
 
-**Цель:** подсказки для команд, юнитов и переменных.
+- modified KDE CMake/QML/C++ files;
+- new `kde/src/shortcutmanager.*`;
+- new `kde/tests/qalc_test.cpp`;
+- new transparent icons in `kde/resources/`;
+- new/updated handoff docs.
 
+Do not discard local changes unless the user explicitly asks.
 
----
+## Known Follow-Ups
 
-## Архитектурные решения
-
-- **100% C++ для GUI** — Node.js удалён из runtime зависимостей для скорости и совместимости.
-- **libqalculate** — единственный движок расчётов.
-- **Custom SyntaxHighlighter** — нативный C++ класс для раскраски TextArea.
-- **KWindowSystem** — используется для управления состоянием окна на разных дисплейных серверах.
+- Manually validate KWin keep-above rule on an actual KDE Wayland session after toggling the setting.
+- Consider using KConfig if the project later adds KF6Config; current KWin rule writer is manual to avoid `QSettings` escaping `[General]`.
+- Add packaged-install smoke test so desktop file/app id/portal behavior is tested after install, not only from the dev binary.
+- Expand native tests for `DocumentModel::setKeepAbove()` with a temp config path if the implementation is refactored to inject config location.
