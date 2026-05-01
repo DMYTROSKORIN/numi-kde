@@ -13,6 +13,10 @@ SyntaxHighlighter::SyntaxHighlighter(Calculator *calc) : m_calc(calc) {
 }
 
 QString SyntaxHighlighter::highlightLine(const QString &line, const QSet<QString> &variables) {
+    if (line.trimmed().startsWith("#")) {
+        return QString("<span style=\"color:#ffd35a\">%1</span>").arg(escapeHtml(line));
+    }
+
     QString result;
     auto it = m_tokenRegex.globalMatch(line);
 

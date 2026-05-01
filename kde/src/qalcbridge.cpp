@@ -61,44 +61,65 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             continue;
         }
 
-        if (trimmed == "/help") {
-            res.ok = true;
-            res.result = "Math, Units, Currencies, Dates, Variables. See Settings -> Help";
-            results.append(res);
-            continue;
-        }
-
         // Pre-process: libqalculate functional fixes
         QString processedLine = line;
         
-        // 1. Convert "A=..." to "A:=..." for variable assignments
-        static QRegularExpression nassignRegex("^([A-Za-z_π\\p{L}][\\wπ\\p{L}]*)\\s*=\\s*(.+)$", QRegularExpression::UseUnicodePropertiesOption);
-        processedLine.replace(nassignRegex, "\\1 := \\2");
+        // 1. Map "now" to "today()" to ensure date arithmetic works
+        static QRegularExpression nowRegex("\\bnow\\b", QRegularExpression::CaseInsensitiveOption);
+        processedLine.replace(nowRegex, "today()");
 
         // 2. Map "to sq" to "to sqm" (Numi compatibility)
         static QRegularExpression sqRegex("\\b(to|in)\\s+sq\\b", QRegularExpression::CaseInsensitiveOption);
         processedLine.replace(sqRegex, "\\1 sqm");
 
-        // 3. Map "now" to "today()" to ensure date arithmetic works
-        static QRegularExpression nowRegex("\\bnow\\b", QRegularExpression::CaseInsensitiveOption);
-        processedLine.replace(nowRegex, "today()");
-
-        // 4. Percentage fix: libqalculate prefers "X% of Y" over "X% from Y"
+        // 3. Percentage fix: libqalculate prefers "X% of Y" over "X% from Y"
         static QRegularExpression fromRegex("(\\d+%)\\s+from\\s+", QRegularExpression::CaseInsensitiveOption);
         processedLine.replace(fromRegex, "\\1 of ");
 
-        try {
-            MathStructure result = m_calc->calculate(processedLine.toStdString(), eo);
-            QString out = QString::fromStdString(m_calc->print(result, 2000, po));
-            // Strip quotes from dates/strings
-            if (out.startsWith('"') && out.endsWith('"')) {
-                out = out.mid(1, out.length() - 2);
+        // 4. Case-insensitive currency: Uppercase standalone 3-letter words
+        static QRegularExpression currencyRegex("\\b([a-z]{3})\\b");
+        auto currIt = currencyRegex.globalMatch(processedLine);
+        int offset = 0;
+        while (currIt.hasNext()) {
+            auto match = currIt.next();
+            QString replacement = match.captured(1).toUpper();
+            processedLine.replace(match.capturedStart(1) + offset, match.capturedLength(1), replacement);
+            // In this case offset is 0 because length of 3-letter currency doesn't change
+        }
+
+        // 5. Variable assignment logic: Evaluate RHS then assign result to LHS
+        auto assignMatch = assignmentRegex.match(processedLine.trimmed());
+        if (assignMatch.hasMatch()) {
+            QString varName = assignMatch.captured(1);
+            QString rhs = assignMatch.captured(2);
+            try {
+                // Evaluate RHS
+                MathStructure rhsResult = m_calc->calculate(rhs.toStdString(), eo);
+                QString rhsString = QString::fromStdString(m_calc->print(rhsResult, 2000, po));
+                
+                // Assign result to variable
+                m_calc->calculate(QString("%1 := %2").arg(varName, rhsString).toStdString(), eo);
+                
+                res.result = rhsString;
+                res.ok = true;
+            } catch (...) {
+                res.ok = false;
+                res.error = "Assignment error";
             }
-            res.result = out;
-            res.ok = true;
-        } catch (...) {
-            res.ok = false;
-            res.error = "Calculation error";
+        } else {
+            try {
+                MathStructure result = m_calc->calculate(processedLine.toStdString(), eo);
+                QString out = QString::fromStdString(m_calc->print(result, 2000, po));
+                // Strip quotes from dates/strings
+                if (out.startsWith('"') && out.endsWith('"')) {
+                    out = out.mid(1, out.length() - 2);
+                }
+                res.result = out;
+                res.ok = true;
+            } catch (...) {
+                res.ok = false;
+                res.error = "Calculation error";
+            }
         }
 
         results.append(res);

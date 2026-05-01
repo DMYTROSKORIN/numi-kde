@@ -16,6 +16,7 @@ class DocumentModel : public QAbstractListModel
     Q_PROPERTY(int errorCount READ errorCount NOTIFY linesChanged)
     Q_PROPERTY(int resultCount READ resultCount NOTIFY linesChanged)
     Q_PROPERTY(QVariantList history READ history NOTIFY historyChanged)
+    Q_PROPERTY(int decimalPlaces READ decimalPlaces WRITE setDecimalPlaces NOTIFY decimalPlacesChanged)
 
 public:
     enum Roles {
@@ -34,6 +35,8 @@ public:
     int errorCount() const;
     int resultCount() const;
     QVariantList history() const;
+    int decimalPlaces() const;
+    void setDecimalPlaces(int places);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;
@@ -50,6 +53,7 @@ signals:
     void sourceChanged();
     void linesChanged();
     void historyChanged();
+    void decimalPlacesChanged();
 
 private:
     void evaluate();
@@ -61,4 +65,5 @@ private:
     int m_resultCount = 0;
     QalcBridge *m_qalc;
     QVariantList m_history;
+    int m_decimalPlaces = 3;
 };
