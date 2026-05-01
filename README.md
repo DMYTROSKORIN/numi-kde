@@ -17,7 +17,7 @@ KDE/Linux-native clone of Numi: a compact text-document calculator with expressi
 - Variables: `A = 800 - 200`, `B := A * 2`.
 - Percentages: `20% of 300`, `20% from 300`; incomplete input like `20% from` stays quiet until finished.
 - `/help`: clear in-app usage guide with examples for math, variables, units, currency, dates and controls.
-- Total footer: sums numeric result rows, including converted unit/currency/crypto result values, and can copy the total.
+- Total footer: sums only compatible numeric result rows; mixed units or currencies do not show a total.
 - History drawer: saves/restores recent sessions and can clear history.
 - Settings: always on top, launch at login, result separator, font size, result column width, decimal places, global hotkey.
 - Result column: auto-expands for long results and prevents the separator from covering visible result text.
@@ -53,8 +53,6 @@ ctest --test-dir build/kde --output-on-failure
 
 ## Documentation
 
-- `docs/AI_HANDOFF.md`: current handoff for the next agent.
-- `docs/handoff.md`: concise operational project handoff.
 - `docs/kde-native.md`: native KDE build/runtime notes.
 - `docs/implementation-plan.md`: roadmap and current phase status.
 - `docs/architecture.md`: current layer boundaries.

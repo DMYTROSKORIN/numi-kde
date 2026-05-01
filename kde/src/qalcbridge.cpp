@@ -310,6 +310,19 @@ static bool isCryptoSymbol(const QHash<QString, double> &rates, const QString &s
     return rates.contains(symbol.toUpper());
 }
 
+static QString totalKeyForExpression(const QString &trimmed)
+{
+    static QRegularExpression conversionTarget(
+        "\\b(?:to|in|as)\\s+([A-Za-z_π\\p{L}][\\wπ\\p{L}]*)\\s*$",
+        QRegularExpression::CaseInsensitiveOption | QRegularExpression::UseUnicodePropertiesOption);
+
+    const auto match = conversionTarget.match(trimmed);
+    if (match.hasMatch())
+        return match.captured(1).toUpper();
+
+    return QStringLiteral("number");
+}
+
 static bool isIncompleteExpression(const QString &trimmed)
 {
     if (trimmed.isEmpty())
@@ -459,6 +472,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         LineResult res;
         res.ok = false;
         QString trimmed = rawLine.trimmed();
+        const QString totalKey = totalKeyForExpression(trimmed);
 
         res.highlightedHtml = m_highlighter->highlightLine(rawLine, variables);
 
@@ -523,6 +537,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             res.ok = true;
             res.result = cryptoResult;
             res.hasNumericValue = parseDisplayNumber(cryptoResult, &res.numericValue);
+            res.totalKey = totalKey;
             results.append(res);
             continue;
         }
@@ -588,6 +603,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                         res.result = formatted;
                         res.hasNumericValue = true;
                         res.numericValue = v;
+                        res.totalKey = totalKey;
                         res.ok = !hasCalculationError(m_calc);
                         if (!res.ok)
                             res.error = "Error";
@@ -623,6 +639,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                         res.result = smartFormat(v, m_decimalPlaces);
                         res.hasNumericValue = true;
                         res.numericValue = v;
+                        res.totalKey = totalKey;
                         res.ok = true;
                     }
                 } else {
@@ -636,6 +653,8 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                         QRegularExpression::CaseInsensitiveOption);
                     if (conversionWord.match(trimmed).hasMatch())
                         res.hasNumericValue = parseDisplayNumber(out, &res.numericValue);
+                    if (res.hasNumericValue)
+                        res.totalKey = totalKey;
                     res.ok = true;
                 }
             } catch (...) {
