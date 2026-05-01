@@ -153,6 +153,11 @@ void DocumentModel::clearHistory()
     emit historyChanged();
 }
 
+QString DocumentModel::completeWord(const QString &prefix)
+{
+    return m_qalc->getCompletion(prefix);
+}
+
 void DocumentModel::setKeepAbove(bool above)
 {
     if (auto *win = qApp->focusWindow()) {

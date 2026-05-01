@@ -106,3 +106,63 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
 
     return results;
 }
+
+QString QalcBridge::getCompletion(const QString &prefix) {
+    if (prefix.isEmpty()) return prefix;
+
+    QStringList matches;
+    std::string p = prefix.toLower().toStdString();
+
+    // Check Units
+    for (size_t i = 0; ; ++i) {
+        Unit *u = m_calc->getUnit(i);
+        if (!u) break;
+        for (size_t j = 0; j < u->countNames(); ++j) {
+            const std::string &name = u->getName(j).name;
+            if (name.find(p) == 0) matches << QString::fromStdString(name);
+        }
+    }
+
+    // Check Variables
+    for (size_t i = 0; ; ++i) {
+        Variable *v = m_calc->getVariable(i);
+        if (!v) break;
+        for (size_t j = 0; j < v->countNames(); ++j) {
+            const std::string &name = v->getName(j).name;
+            if (name.find(p) == 0) matches << QString::fromStdString(name);
+        }
+    }
+
+    // Check Functions
+    for (size_t i = 0; ; ++i) {
+        MathFunction *f = m_calc->getFunction(i);
+        if (!f) break;
+        for (size_t j = 0; j < f->countNames(); ++j) {
+            const std::string &name = f->getName(j).name;
+            if (name.find(p) == 0) matches << QString::fromStdString(name);
+        }
+    }
+
+    // Check custom keywords
+    QStringList keywords = {"today", "tomorrow", "yesterday", "now", "days", "weeks", "months", "years"};
+    for (const auto &kw : keywords) {
+        if (kw.startsWith(prefix, Qt::CaseInsensitive)) matches << kw;
+    }
+
+    matches.removeDuplicates();
+    if (matches.isEmpty()) return prefix;
+    if (matches.size() == 1) return matches.first();
+
+    // Find longest common prefix
+    QString common = matches.first();
+    for (int i = 1; i < matches.size(); ++i) {
+        const QString &s = matches.at(i);
+        int j = 0;
+        while (j < common.length() && j < s.length() && common[j].toLower() == s[j].toLower()) {
+            j++;
+        }
+        common = common.left(j);
+    }
+
+    return common.isEmpty() ? prefix : common;
+}

@@ -85,6 +85,29 @@ Controls.ScrollView {
             placeholderText: root.placeholderText
             placeholderTextColor: "#2a2c34"
 
+            Keys.onTabPressed: (event) => {
+                let pos = editor.cursorPosition
+                let text = editor.text
+                if (pos === 0) return
+                
+                // Match word characters backward from cursor
+                let start = pos
+                while (start > 0 && /[\w\p{L}π]/u.test(text[start - 1])) {
+                    start--
+                }
+                
+                let word = text.substring(start, pos)
+                if (word.length > 0) {
+                    let completion = documentModel.completeWord(word)
+                    if (completion.toLowerCase() !== word.toLowerCase()) {
+                        editor.remove(start, pos)
+                        editor.insert(start, completion)
+                        editor.cursorPosition = start + completion.length
+                    }
+                    event.accepted = true
+                }
+            }
+
             background: Rectangle {
                 color: "transparent"
             }

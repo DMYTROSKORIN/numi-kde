@@ -1,41 +1,50 @@
 # numi-kde
 
-Private clean-room implementation of a Numi-compatible natural language calculator for Linux/KDE.
-
-The project starts with a dependency-free calculation core and CLI. KDE UI, KRunner integration,
-plugin compatibility, and packaging will be layered on top of the same core.
+KDE/Linux-native clone of Numi: a natural language calculator with a text-document interface.
 
 ## Goals
 
 - Preserve Numi's text-document workflow: expressions on the left, results on the right.
-- Support `.numi` files as UTF-8 plain text.
-- Provide a CLI compatible with the common `numi-cli "20 inches in cm"` workflow.
-- Expose a local query endpoint compatible with the Alfred workflow contract:
-  `http://localhost:15055?q=...`.
-- Support JavaScript extensions using the public `numi.addUnit`, `numi.addFunction`,
-  and `numi.setVariable` API shape.
-- Build a KDE-native shell with Qt/Kirigami once the core behavior is stable.
+- **100% C++/Qt Backend**: Zero Node.js dependency during runtime for maximum speed and compatibility.
+- **libqalculate Engine**: Powerful calculation core with support for currencies, units, and complex math.
+- **KDE Integration**: Native Wayland/X11 support, persistent window geometry, and Always-on-Top mode.
+- **History & Sessions**: Persistent session management with quick recall via side panel.
+- **Tab Completion**: Terminal-like autocompletion for units, functions, and variables.
 
-## Current State
+## Features
 
-This is the first scaffold:
+- **Math**: `2 + 2 * 3^2`, `sqrt(256)`, `sin(pi/2)`
+- **Units**: `10 meters in feet`, `50kg to lbs`, `200 m2 to sq`
+- **Currency**: `100 USD to EUR`, `50 EUR in JPY`
+- **Dates**: `today + 2 weeks`, `now - 256 days`
+- **Variables**: `A = 800 - 200`, `B := A * 2`
+- **UI**: English localization, adjustable font size and result column width, precise decimal control.
 
-- `src/core/engine.js`: arithmetic evaluator, variables, multi-line context, basic units.
-- `src/cli.js`: one-shot CLI.
-- `src/server.js`: local `q` endpoint compatible with the Alfred workflow shape.
-- `test/core.test.js`: executable compatibility checks.
-- `docs/architecture.md`: implementation plan and boundaries.
-- `docs/implementation-plan.md`: detailed roadmap toward the KDE-native application.
-- `docs/extensions.md`: current JavaScript extension loading policy.
-- `docs/gui-prototype.md`: first runnable GUI prototype and native KDE requirements.
-- `docs/kde-native.md`: native Qt/KF6/Kirigami skeleton build notes.
+## Build and Run
 
-## Usage
+### Prerequisites
+
+- Qt 6.6+
+- KDE Frameworks 6 (KF6WindowSystem)
+- libqalculate
+- CMake
+
+### Commands
 
 ```sh
+# Build
+cmake -S kde -B build/kde
+cmake --build build/kde
+
+# Run
+./build/kde/numi-kde
+
+# Test (legacy JS oracle + native skeleton tests)
 npm test
-node ./src/cli.js "20 inches in cm"
-node ./src/cli.js "x = 10\nx * 2"
-npm run server
-npm run gui
 ```
+
+## Documentation
+
+- `docs/implementation-plan.md`: Detailed roadmap and completion status.
+- `docs/handoff.md`: Project status and architectural overview.
+- `docs/Gemini-qalculate-evolution.md`: Strategy for libqalculate integration.

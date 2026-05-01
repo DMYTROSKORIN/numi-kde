@@ -52,6 +52,8 @@ test("native KDE QML skeleton contains editor and result panes", () => {
   assert.match(editorPane, /cursorDelegate:/);
   assert.match(editorPane, /property int monoSize/);
   assert.match(editorPane, /placeholderText:/);
+  assert.match(editorPane, /Keys\.onTabPressed/);
+  assert.match(editorPane, /documentModel\.completeWord/);
   assert.doesNotMatch(editorPane, /onCursorPositionChanged/);
   assert.match(resultsPane, /ListView/);
   assert.match(resultsPane, /property Item syncFlickable/);

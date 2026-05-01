@@ -24,6 +24,7 @@ public:
 
     QList<LineResult> evaluateDocument(const QString &source);
     void setDecimalPlaces(int places);
+    QString getCompletion(const QString &prefix);
 
 private:
     Calculator *m_calc;
