@@ -78,6 +78,7 @@ test("native KDE QML uses Numi reference visual tokens", () => {
   const main = fs.readFileSync("kde/qml/Main.qml", "utf8");
   const documentPage = fs.readFileSync("kde/qml/DocumentPage.qml", "utf8");
   const resultsPane = fs.readFileSync("kde/qml/ResultsPane.qml", "utf8");
+  const settingsWindow = fs.readFileSync("kde/qml/SettingsWindow.qml", "utf8");
 
   assert.match(main, /width: windowSettings\.savedWidth/);
   assert.match(main, /height: windowSettings\.savedHeight/);
@@ -95,9 +96,9 @@ test("native KDE QML uses Numi reference visual tokens", () => {
   assert.match(main, /resultWidth/);
   assert.match(documentPage, /placeholderText:/);
   assert.match(documentPage, /\/help/);
-  assert.match(documentPage, /alwaysOnTop/);
-  assert.match(documentPage, /settingsPopup/);
-  assert.match(documentPage, /Slider/);
+  assert.match(documentPage, /settingsWindow\.show\(\)/);
+  assert.match(settingsWindow, /alwaysOnTop/);
+  assert.match(settingsWindow, /Slider/);
   assert.match(resultsPane, /horizontalAlignment: Text\.AlignRight/);
 });
 

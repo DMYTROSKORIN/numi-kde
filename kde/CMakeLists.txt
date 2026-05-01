@@ -35,6 +35,7 @@ qt_add_qml_module(numi-kde
     qml/DocumentPage.qml
     qml/EditorPane.qml
     qml/ResultsPane.qml
+    qml/SettingsWindow.qml
 )
 
 target_link_libraries(numi-kde

@@ -176,6 +176,11 @@ Controls.ApplicationWindow {
             anchors.bottom: parent.bottom
         }
 
+        SettingsWindow {
+            id: settingsWindow
+            visible: false
+        }
+
         ResizeHandle {
             edge: Qt.TopEdge
             anchors.top: parent.top
