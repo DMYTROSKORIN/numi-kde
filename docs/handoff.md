@@ -1,167 +1,54 @@
 # numi-kde Handoff
 
-Last updated: 2026-04-30.
-Last completed commit: `fix: Phase 2.1.1 cursor, hover and highlight fixes`.
-Last functional GUI commit: current HEAD.
+Last updated: 2026-05-01.
+Last completed commit: `feat: functional fixes and settings window`.
 
 ---
 
 ## Цель проекта
 
-Сделать KDE/Linux-native клон Numi: текстовый документ слева, результаты справа,
-мгновенный пересчёт, синтаксическая подсветка, компактное всегда-доступное окно,
-нативное поведение KDE.
-
-**GUI quality — P0.** Всё должно ощущаться как Numi, а не как калькулятор.
-
----
-
-## Обязательные правила работы
-
-1. Каждое новое поведение — тест перед коммитом.
-2. После каждого функционального шага: `npm test`.
-3. После любых QML/C++ изменений:
-   ```sh
-   cmake -S kde -B build/kde
-   cmake --build build/kde
-   ./build/kde/numi-kde
-   ```
-4. Обновлять `docs/implementation-plan.md` и этот файл после каждого шага.
-5. Коммитить и делать `git push` только после зелёных тестов и чистого запуска.
-6. Никакого незакоммиченного прогресса.
+Сделать KDE/Linux-native клон Numi: текстовый интерфейс для вычислений,
+минималистичный UX, полная интеграция с плазмой.
+Математическое ядро перенесено на **libqalculate** для 100% точности и поддержки
+валют/единиц измерения.
 
 ---
-
-## Текущее состояние (проверено)
-
-```sh
-npm test          # 54/54 pass
-cmake -S kde -B build/kde   # pass
-cmake --build build/kde     # pass
-./build/kde/numi-kde        # запускается без stderr
-git status --short          # чисто
-```
 
 ### Что работает в GUI прямо сейчас
 
 - Frameless тёмное окно, compact Numi-стиль.
 - Linux/KDE controls: history (↺) слева, minimize/maximize/close справа.
-- Шестерёнка внизу слева — открывает Popup с настройками.
-- Настройки: "Всегда поверх окон", "Размер шрифта" (slider), "Ширина результатов" (slider).
-- Always-on-top, fontSize и resultWidth сохраняются в Qt Settings.
-- Окно resizable со всех сторон, геометрия сохраняется между запусками.
-- Редактор слева — активный, editable TextArea с синтаксическим overlay.
-- Подсветка: операторы жёлтые (`+−^:=...`), единицы/валюта синие, определённые переменные
-  неоновый зелёный `#39ff14`, `%`/`*`/`/` синие.
-- Placeholder `/help` (тёмно-серый), пропадает при фокусе.
-- Команда `/help` возвращает краткую русскоязычную подсказку в правую колонку.
-- Правая колонка: результаты; hover → текст результата становится ярко-жёлтым `#ffd35a`;
-  клик копирует в буфер обмена.
-- Скролл-синк между редактором и результатами через `Connections`.
+- Шестерёнка внизу слева — открывает отдельное нативное окно настроек.
+- Настройки: "Always on top", "Font size", "Result width", "Decimal places".
+- Все вычисления и подсветка синтаксиса на C++ (libqalculate).
+- Поддержка переменных (`A = 100`), юнитов (`200 m2 to sq`), дат (`now - 2 days`).
+- Always-on-top работает на Wayland и X11 через KWindowSystem.
+- Окно resizable, геометрия сохраняется.
+- Скролл-синк между редакторами и результатами.
 
 ### Известные ограничения
 
 | Ограничение | Причина | Когда чинить |
 |-------------|---------|--------------|
-| `100 USD to AED` — нет результата | JS-движок не знает курсов валют | Phase 2.3 (qalculate) |
-| `20% from 100` — нет результата | JS-движок не поддерживает этот синтаксис | Phase 2.3 (qalculate) |
-| Always-on-top на Wayland/X11 | Работает через KWindowSystem (X11) и Qt Flags (Wayland) | Done |
-| Scroll sync может десинхронизироваться на длинных документах | TextArea не экспонирует `contentY` напрямую | Phase 2.3 |
+| Scroll sync может десинхронизироваться | TextArea не экспонирует `contentY` напрямую | Phase 2.3 |
 | History panel — плейсхолдер | Не реализована | Phase 2.5 |
-| Зависимость от Node.js в GUI | Полностью удалена. Подсветка и расчёты на C++. | Done |
+| Tab completion — нет | Не реализована | Phase 2.7 |
+| Зависимость от Node.js в GUI | Полностью удалена. | Done |
 
 ---
 
 ## Важные файлы
 
 ```
-kde/qml/Main.qml            — окно, флаги, alwaysOnTop, WindowButton/ResizeHandle компоненты
-kde/qml/DocumentPage.qml    — layout, settings popup, EditorPane ↔ ResultsPane связь
-kde/qml/EditorPane.qml      — TextArea + highlight overlay + FontMetrics, cursorDelegate
-kde/qml/ResultsPane.qml     — ListView, hover-цвет, scroll sync Connections
-kde/src/documentmodel.h/.cpp — C++ QML-модель, вызывает QalcBridge и KWindowSystem
-kde/src/qalcbridge.h/.cpp    — C++ обёртка над libqalculate
-kde/src/syntaxhighlighter.h/.cpp — Нативная подсветка синтаксиса на C++
-src/gui/adapter.js          — [LEGACY] Собирал view model для веб-прототипа
-src/gui/highlight.js        — [LEGACY] Логика подсветки на JS (портатирована в C++)
-src/gui/evaluate-document.js — [LEGACY] Node worker entry point
-src/core/engine.js          — [LEGACY] Движок на JS (заменён на libqalculate в GUI)
-src/core/syntax.js          — [LEGACY] Токенайзер на JS
-test/kde-skeleton.test.js   — структурные тесты QML/CMake/C++ backend
-docs/Gemini-qalculate-evolution.md — план миграции на libqalculate
+kde/qml/Main.qml            — главное окно
+kde/qml/SettingsWindow.qml  — окно настроек
+kde/qml/DocumentPage.qml    — основная рабочая область
+kde/qml/EditorPane.qml      — редактор
+kde/qml/ResultsPane.qml     — результаты
+kde/src/documentmodel.h/.cpp — модель данных
+kde/src/qalcbridge.h/.cpp    — мост к libqalculate
+kde/src/syntaxhighlighter.h/.cpp — подсветка синтаксиса
 ```
-
----
-
-## Следующие задачи по приоритету
-
-### Phase 2.4 — Always-on-top на Wayland
-
-**Цель:** чтобы переключатель "Всегда поверх окон" работал и на нативном Wayland KDE.
-
-**Контекст:**
-- `libqalculate-devel 5.7.0` уже установлен на Fedora 43.
-- Текущий `DocumentModel` (`kde/src/documentmodel.cpp`) запускает Node worker через `QProcess`.
-- После миграции Node.js не нужен для работы GUI.
-
-**Шаги:**
-
-1. **Добавить find_package в CMakeLists.txt:**
-   ```cmake
-   find_package(PkgConfig REQUIRED)
-   pkg_check_modules(QALCULATE REQUIRED libqalculate)
-   target_include_directories(numi-kde PRIVATE ${QALCULATE_INCLUDE_DIRS})
-   target_link_libraries(numi-kde PRIVATE ${QALCULATE_LIBRARIES})
-   ```
-   Проверить: `cmake -S kde -B build/kde` проходит с найденным libqalculate.
-
-2. **Создать `kde/src/qalcbridge.h` / `qalcbridge.cpp`** — тонкая обёртка:
-   ```cpp
-   #include <libqalculate/qalculate.h>
-   struct LineResult { bool ok; QString result; QString error; };
-   class QalcBridge : public QObject {
-       Q_OBJECT
-   public:
-       explicit QalcBridge(QObject *parent = nullptr);
-       QList<LineResult> evaluateDocument(const QString &source);
-   private:
-       Calculator *m_calc;
-   };
-   ```
-   - В конструкторе: `new Calculator(true)`, `m_calc->loadGlobalDefinitions()`.
-   - `evaluateDocument` разбивает по `\n`, для каждой строки вызывает
-     `m_calc->calculate(line.toStdString(), EvaluationOptions())`, преобразует
-     `MathStructure` в строку через `m_calc->print(result, PrintOptions())`.
-
-3. **Переписать `DocumentModel::setSource`** — убрать `QProcess`, вызывать `QalcBridge`:
-   - Построчно заполнять `m_lines` из `QalcBridge::evaluateDocument(source)`.
-   - Для поля `highlightedHtml` пока оставить вызов к JS highlight через `QProcess`
-     (или временно убрать подсветку и добавить вслед за шагом 4).
-
-4. **Перенести логику highlight в C++** (опционально на этом шаге, можно позже):
-   - Либо портировать `highlight.js` в Qt QML (вызывать JS прямо из C++ через `QJSEngine`).
-   - Либо реализовать упрощённый токенайзер на C++ прямо в `DocumentModel`.
-
-5. **Добавить тесты** в новый файл `test/qalc-bridge.test.js` (или через QTest в C++):
-   - `100 + 200 = 300`
-   - `100 USD to AED` — должен дать числовой результат (не пустую строку)
-   - `20% of 100 = 20`
-   - `10 km in miles`
-   - Тест что `/help` всё ещё работает (обрабатывается до qalculate)
-
-6. `npm test` → CMake build → runtime check.
-
-7. Обновить документацию, коммит, push.
-
-**Важные предупреждения для qalculate:**
-- `Calculator` — синглтон; создавать один раз в `QalcBridge`, не пересоздавать.
-- `loadGlobalDefinitions()` медленная — вызывать один раз при старте.
-- Потокобезопасность: `m_calc->calculate()` не thread-safe; если DocumentModel
-  работает в другом потоке — нужен мьютекс.
-- Результат `MathStructure` может быть символьным (не числом) — проверять
-  `result.isNumber()` перед форматированием.
-- Для валют нужно загрузить курсы: `m_calc->loadExchangeRates()` — делать асинхронно
-  при первом обращении к валютному выражению.
 
 ---
 
@@ -169,20 +56,7 @@ docs/Gemini-qalculate-evolution.md — план миграции на libqalcula
 
 ### Phase 2.5 — Панель истории
 
-**Цель:** кнопка ↺ (historyButton) открывает боковую панель с историей расчётов.
-
-**Шаги (когда дойдёт очередь):**
-
-1. Добавить `kde/qml/HistoryPane.qml` — список сессий/строк с результатами.
-2. В `DocumentModel` добавить механизм сохранения истории в `QSettings`.
-3. В `Main.qml` добавить drawer или Popup, привязанный к `historyButton.onClicked`.
-4. Тесты + документация + коммит.
-
----
-
-### Phase 2.6 — Миграция подсветки на C++
-
-**Цель:** полностью отказаться от Node.js в нативном GUI.
+**Цель:** кнопка ↺ (historyButton) открывает боковую панель или окно с историей сессий.
 
 ---
 
@@ -192,33 +66,9 @@ docs/Gemini-qalculate-evolution.md — план миграции на libqalcula
 
 ---
 
-## Архитектурные решения, принятые в проекте
+## Архитектурные решения
 
-- **JS core (`src/core/`)** — главный источник правды для вычислений. Все фиксируется
-  тестами, потом подключается к GUI. UI не содержит математическую логику.
-- **`cursorColor` не использовать** — падает с `Controls.TextArea` в Qt 6.10. Вместо него
-  `cursorDelegate: Rectangle`.
-- **`lineHeight`/`lineHeightMode` не использовать на TextArea** — свойства типа `Text`,
-  на TextArea вызывают silent crash.
-- **`FontMetrics.height`** — единственный источник `lineH`; overlay и results синхронизируются
-  через него.
-- **Kirigami не импортировать** в текущем скелете — портит configure/launch на чистой Fedora.
-  Вернуть только для settings drawer или навигации.
-- **Flags при изменении always-on-top** — нельзя полагаться только на QML binding;
-  нужен явный `root.flags = ...` в `onAlwaysOnTopChanged`.
-- **Переменные в highlight** — передавать как `Set` в `createHighlightedHtml(line, variables)`;
-  проверка переменных идёт раньше entity/operator.
-- **`/help` как спецслучай** — обрабатывается в `engine.js` до `parseLine`, возвращает
-  `formatted` строку; остаётся актуальным и после qalculate-миграции.
-
----
-
-## Отказ от кастомного JS-движка
-
-Пользователь принял решение: **заменить JS-математику на libqalculate**. JS-тесты остаются
-как compatibility oracle на переходный период. JS core (`src/core/`) не удалять до тех пор,
-пока qalculate не покрывает все тестовые случаи. После полной миграции JS core можно
-заморозить или убрать из GUI пайплайна.
-
-Концепт приложения сохраняется: минималистичный UX без классического интерфейса
-калькулятора. libqalculate — только вычислительный бэкенд, не UI-компонент.
+- **100% C++ для GUI** — Node.js удалён из runtime зависимостей для скорости и совместимости.
+- **libqalculate** — единственный движок расчётов.
+- **Custom SyntaxHighlighter** — нативный C++ класс для раскраски TextArea.
+- **KWindowSystem** — используется для управления состоянием окна на разных дисплейных серверах.

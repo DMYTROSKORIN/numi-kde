@@ -43,6 +43,9 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     po.number_fraction_format = FRACTION_DECIMAL;
     po.base = 10;
     po.max_decimals = m_decimalPlaces;
+    po.min_decimals = m_decimalPlaces;
+    po.use_max_decimals = true;
+    po.use_min_decimals = true;
 
     for (const QString &line : lines) {
         LineResult res;
@@ -60,19 +63,27 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
 
         if (trimmed == "/help") {
             res.ok = true;
-            res.result = "Numi-KDE Help:\n"
-                         "• Math: 2 + 2 * 3^2, sqrt(256), sin(pi/2)\n"
-                         "• Units: 10 meters in feet, 50kg to lbs\n"
-                         "• Currency: 100 USD to EUR, 50 EUR in JPY\n"
-                         "• Dates: today + 2 weeks, 2026-05-15 - today\n"
-                         "• Variables: x = 10, y := x * 2\n"
-                         "• Percentages: 20% of 200, 20% from 200";
+            res.result = "Math, Units, Currencies, Dates, Variables. See Settings -> Help";
             results.append(res);
             continue;
         }
 
-        // Pre-process: libqalculate prefers "X% of Y" over "X% from Y"
+        // Pre-process: libqalculate functional fixes
         QString processedLine = line;
+        
+        // 1. Convert "A=..." to "A:=..." for variable assignments
+        static QRegularExpression nassignRegex("^([A-Za-z_π\\p{L}][\\wπ\\p{L}]*)\\s*=\\s*(.+)$", QRegularExpression::UseUnicodePropertiesOption);
+        processedLine.replace(nassignRegex, "\\1 := \\2");
+
+        // 2. Map "to sq" to "to sqm" (Numi compatibility)
+        static QRegularExpression sqRegex("\\b(to|in)\\s+sq\\b", QRegularExpression::CaseInsensitiveOption);
+        processedLine.replace(sqRegex, "\\1 sqm");
+
+        // 3. Map "now" to "today()" to ensure date arithmetic works
+        static QRegularExpression nowRegex("\\bnow\\b", QRegularExpression::CaseInsensitiveOption);
+        processedLine.replace(nowRegex, "today()");
+
+        // 4. Percentage fix: libqalculate prefers "X% of Y" over "X% from Y"
         static QRegularExpression fromRegex("(\\d+%)\\s+from\\s+", QRegularExpression::CaseInsensitiveOption);
         processedLine.replace(fromRegex, "\\1 of ");
 

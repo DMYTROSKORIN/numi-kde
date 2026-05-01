@@ -74,7 +74,7 @@ Item {
         text: "⚙"
         hoverEnabled: true
 
-        onClicked: settingsPopup.open()
+        onClicked: settingsWindow.show()
 
         contentItem: Text {
             text: settingsButton.text
@@ -88,126 +88,6 @@ Item {
         background: Rectangle {
             radius: 5
             color: settingsButton.down ? Window.window.controlPressed : settingsButton.hovered ? Window.window.controlHover : "transparent"
-        }
-    }
-
-    Controls.Popup {
-        id: settingsPopup
-
-        parent: settingsButton
-        y: -height - 6
-        x: 0
-        padding: 14
-
-        background: Rectangle {
-            color: "#2a2c34"
-            radius: 6
-            border.color: "#1a1b20"
-            border.width: 1
-        }
-
-        Column {
-            spacing: 10
-
-            Controls.CheckBox {
-                id: alwaysOnTopCheck
-
-                text: qsTr("Always on top")
-                checked: Window.window ? !!Window.window.alwaysOnTop : true
-                onToggled: {
-                    if (Window.window) {
-                        Window.window.alwaysOnTop = checked
-                    }
-                }
-
-                indicator: Rectangle {
-                    implicitWidth: 16
-                    implicitHeight: 16
-                    x: alwaysOnTopCheck.leftPadding
-                    y: (alwaysOnTopCheck.height - height) / 2
-                    radius: 3
-                    border.color: alwaysOnTopCheck.checked ? "#6fc4e8" : "#6b6d76"
-                    border.width: 1
-                    color: alwaysOnTopCheck.checked ? "#6fc4e8" : "transparent"
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "✓"
-                        color: "#22242a"
-                        font.pixelSize: 11
-                        font.weight: Font.Bold
-                        visible: alwaysOnTopCheck.checked
-                    }
-                }
-
-                contentItem: Text {
-                    leftPadding: alwaysOnTopCheck.indicator.width + alwaysOnTopCheck.spacing
-                    text: alwaysOnTopCheck.text
-                    color: "#f0f0f3"
-                    font.pixelSize: 13
-                    verticalAlignment: Text.AlignVCenter
-                }
-            }
-
-            Column {
-                spacing: 4
-                width: parent.width
-
-                Text {
-                    text: qsTr("Font size")
-                    color: "#f0f0f3"
-                    font.pixelSize: 11
-                }
-
-                Controls.Slider {
-                    width: parent.width
-                    from: 11
-                    to: 24
-                    stepSize: 1
-                    value: Window.window ? Window.window.fontSize : 16
-                    onMoved: if (Window.window) Window.window.fontSize = value
-                }
-            }
-
-            Column {
-                spacing: 4
-                width: parent.width
-
-                Text {
-                    text: qsTr("Result width")
-                    color: "#f0f0f3"
-                    font.pixelSize: 11
-                }
-
-                Controls.Slider {
-                    width: parent.width
-                    from: 80
-                    to: 300
-                    stepSize: 8
-                    value: Window.window ? Window.window.resultWidth : 124
-                    onMoved: if (Window.window) Window.window.resultWidth = value
-                }
-            }
-
-            Column {
-                spacing: 4
-                width: parent.width
-
-                Text {
-                    text: qsTr("Decimal places")
-                    color: "#f0f0f3"
-                    font.pixelSize: 11
-                }
-
-                Controls.Slider {
-                    width: parent.width
-                    from: 0
-                    to: 10
-                    stepSize: 1
-                    value: Window.window ? Window.window.decimalPlaces : 3
-                    onMoved: if (Window.window) Window.window.decimalPlaces = value
-                }
-            }
         }
     }
 }
