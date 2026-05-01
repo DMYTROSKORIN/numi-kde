@@ -41,7 +41,7 @@ Item {
                 }
             }
 
-            Controls.HoverHandler {
+            HoverHandler {
                 id: itemMouse
             }
 
