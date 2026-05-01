@@ -13,6 +13,8 @@ const requiredFiles = [
   "kde/resources/org.skorin.numi-kde.metainfo.xml",
   "kde/src/qalcbridge.h",
   "kde/src/qalcbridge.cpp",
+  "kde/src/syntaxhighlighter.h",
+  "kde/src/syntaxhighlighter.cpp",
 ];
 
 test("native KDE skeleton files exist", () => {

@@ -21,9 +21,10 @@ qt_add_executable(numi-kde
   src/documentmodel.h
   src/qalcbridge.cpp
   src/qalcbridge.h
+  src/syntaxhighlighter.cpp
+  src/syntaxhighlighter.h
 )
 
-target_compile_definitions(numi-kde PRIVATE NUMI_KDE_SOURCE_DIR="${CMAKE_SOURCE_DIR}/..")
 target_include_directories(numi-kde PRIVATE ${QALCULATE_INCLUDE_DIRS})
 
 qt_add_qml_module(numi-kde

@@ -1,15 +1,19 @@
 #include "qalcbridge.h"
+#include "syntaxhighlighter.h"
 #include <libqalculate/qalculate.h>
 #include <QStringList>
 #include <QRegularExpression>
+#include <QSet>
 
 QalcBridge::QalcBridge(QObject *parent) : QObject(parent) {
     m_calc = new Calculator();
     m_calc->loadGlobalDefinitions();
     m_calc->loadExchangeRates();
+    m_highlighter = new SyntaxHighlighter(m_calc);
 }
 
 QalcBridge::~QalcBridge() {
+    delete m_highlighter;
     delete m_calc;
 }
 
@@ -20,6 +24,16 @@ void QalcBridge::setDecimalPlaces(int places) {
 QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     QList<LineResult> results;
     QStringList lines = source.split('\n');
+
+    // First pass: collect variable names for highlighting
+    QSet<QString> variables;
+    static QRegularExpression assignmentRegex("^([A-Za-z_π\\p{L}][\\wπ\\p{L}]*)\\s*(?::=|=)\\s*(.+)$", QRegularExpression::UseUnicodePropertiesOption);
+    for (const QString &line : lines) {
+        auto match = assignmentRegex.match(line.trimmed());
+        if (match.hasMatch()) {
+            variables.insert(match.captured(1));
+        }
+    }
 
     EvaluationOptions eo;
     eo.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
@@ -34,6 +48,8 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         LineResult res;
         res.ok = false;
         QString trimmed = line.trimmed();
+
+        res.highlightedHtml = m_highlighter->highlightLine(line, variables);
 
         if (trimmed.isEmpty() || trimmed.startsWith("//") || trimmed.startsWith("#")) {
             res.ok = true;
