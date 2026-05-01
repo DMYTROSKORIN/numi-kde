@@ -20,6 +20,7 @@ DocumentModel::DocumentModel(QObject *parent)
     m_qalc = new QalcBridge(this);
     QSettings settings("skorin", "numi-kde");
     m_history = settings.value("history").value<QVariantList>();
+    m_decimalPlaces = settings.value("decimalPlaces", 3).toInt();
 }
 
 DocumentModel::~DocumentModel()
@@ -33,11 +34,25 @@ QString DocumentModel::source() const
 
 void DocumentModel::setSource(const QString &source)
 {
-    if (m_source == source) {
+    QString s = source;
+    if (s.trimmed() == "/help") {
+        s = "Numi-KDE Help\n"
+            "=============\n\n"
+            "Math: 2 + 2 * 3^2, sqrt(256), sin(pi/2)\n"
+            "Units: 10 meters in feet, 50kg to lbs, 200 m2 to sq\n"
+            "Currency: 100 USD to EUR, 50 EUR in JPY (Case-insensitive: usd, eur...)\n"
+            "Dates: today + 2 weeks, now - 256 days\n"
+            "Variables: A = 800-200, B := A * 2\n"
+            "Percentages: 20% of 200, 20% from 200\n"
+            "Comments: # This is a comment\n\n"
+            "Use Tab for autocompletion of units and functions.";
+    }
+
+    if (m_source == s) {
         return;
     }
 
-    m_source = source;
+    m_source = s;
     emit sourceChanged();
     evaluate();
 }
@@ -55,6 +70,21 @@ int DocumentModel::resultCount() const
 QVariantList DocumentModel::history() const
 {
     return m_history;
+}
+
+int DocumentModel::decimalPlaces() const
+{
+    return m_decimalPlaces;
+}
+
+void DocumentModel::setDecimalPlaces(int places)
+{
+    if (m_decimalPlaces == places) return;
+    m_decimalPlaces = places;
+    QSettings settings("skorin", "numi-kde");
+    settings.setValue("decimalPlaces", m_decimalPlaces);
+    emit decimalPlacesChanged();
+    evaluate();
 }
 
 int DocumentModel::rowCount(const QModelIndex &parent) const
@@ -110,7 +140,7 @@ void DocumentModel::copyResult(int row)
 
 void DocumentModel::saveSession()
 {
-    if (m_source.trimmed().isEmpty()) {
+    if (m_source.trimmed().isEmpty() || m_source.contains("Numi-KDE Help")) {
         return;
     }
 
@@ -173,7 +203,7 @@ void DocumentModel::setKeepAbove(bool above)
 
 void DocumentModel::evaluate()
 {
-    m_qalc->setDecimalPlaces(m_qalc->parent()->property("decimalPlaces").toInt());
+    m_qalc->setDecimalPlaces(m_decimalPlaces);
     const auto qalcResults = m_qalc->evaluateDocument(m_source);
 
     beginResetModel();

@@ -30,7 +30,12 @@ Controls.ApplicationWindow {
     onResultWidthChanged: windowSettings.resultWidth = resultWidth
 
     property int decimalPlaces: windowSettings.decimalPlaces
-    onDecimalPlacesChanged: windowSettings.decimalPlaces = decimalPlaces
+    onDecimalPlacesChanged: {
+        windowSettings.decimalPlaces = decimalPlaces
+        if (typeof documentModel !== "undefined") {
+            documentModel.decimalPlaces = decimalPlaces
+        }
+    }
 
     readonly property color numiWindow: "#22242a"
     readonly property color numiTitle: "#5d5f69"
@@ -63,6 +68,7 @@ Controls.ApplicationWindow {
         }
         if (typeof documentModel !== "undefined") {
             documentModel.setKeepAbove(alwaysOnTop)
+            documentModel.decimalPlaces = decimalPlaces
         }
     }
 
@@ -194,6 +200,7 @@ Controls.ApplicationWindow {
             width: 250
             height: parent.height
             edge: Qt.LeftEdge
+            z: 100
             background: Rectangle {
                 color: "#22242a"
                 border.color: "#1a1b20"

@@ -90,22 +90,22 @@ Controls.ScrollView {
                 let text = editor.text
                 if (pos === 0) return
                 
-                // Match word characters backward from cursor
+                // Match word characters backward from cursor (simplified regex for speed and compatibility)
                 let start = pos
-                while (start > 0 && /[\w\p{L}π]/u.test(text[start - 1])) {
+                while (start > 0 && /[A-Za-z0-9_π]/.test(text[start - 1])) {
                     start--
                 }
                 
                 let word = text.substring(start, pos)
                 if (word.length > 0) {
                     let completion = documentModel.completeWord(word)
-                    if (completion.toLowerCase() !== word.toLowerCase()) {
+                    if (completion && completion.toLowerCase() !== word.toLowerCase()) {
                         editor.remove(start, pos)
                         editor.insert(start, completion)
                         editor.cursorPosition = start + completion.length
                     }
-                    event.accepted = true
                 }
+                event.accepted = true
             }
 
             background: Rectangle {

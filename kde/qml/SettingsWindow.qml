@@ -1,20 +1,31 @@
 import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Layouts
+import QtCore
 
-Controls.ApplicationWindow {
+Controls.Window {
     id: root
     title: qsTr("Settings")
     width: 320
-    height: 380
+    height: 420
     minimumWidth: 280
-    minimumHeight: 340
+    minimumHeight: 380
     color: "#22242a"
+    visible: false
+
+    Settings {
+        id: localSettings
+        category: "Window"
+        property int fontSize: 16
+        property int resultWidth: 124
+        property int decimalPlaces: 3
+        property bool alwaysOnTop: true
+    }
 
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 20
-        spacing: 20
+        spacing: 15
 
         Text {
             text: qsTr("General Settings")
@@ -26,12 +37,9 @@ Controls.ApplicationWindow {
         Controls.CheckBox {
             id: alwaysOnTopCheck
             text: qsTr("Always on top")
-            checked: Window.window ? !!Window.window.alwaysOnTop : true
-            onToggled: {
-                if (Window.window) {
-                    Window.window.alwaysOnTop = checked
-                }
-            }
+            checked: localSettings.alwaysOnTop
+            onToggled: localSettings.alwaysOnTop = checked
+            
             contentItem: Text {
                 leftPadding: alwaysOnTopCheck.indicator.width + alwaysOnTopCheck.spacing
                 text: alwaysOnTopCheck.text
@@ -51,13 +59,11 @@ Controls.ApplicationWindow {
                 font.pixelSize: 13
             }
 
-            Controls.Slider {
+            Controls.ComboBox {
                 Layout.fillWidth: true
-                from: 11
-                to: 24
-                stepSize: 1
-                value: Window.window ? Window.window.fontSize : 16
-                onMoved: if (Window.window) Window.window.fontSize = value
+                model: [9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24]
+                currentIndex: model.indexOf(localSettings.fontSize)
+                onActivated: (index) => localSettings.fontSize = model[index]
             }
         }
 
@@ -76,8 +82,8 @@ Controls.ApplicationWindow {
                 from: 80
                 to: 300
                 stepSize: 8
-                value: Window.window ? Window.window.resultWidth : 124
-                onMoved: if (Window.window) Window.window.resultWidth = value
+                value: localSettings.resultWidth
+                onMoved: localSettings.resultWidth = value
             }
         }
 
@@ -86,7 +92,7 @@ Controls.ApplicationWindow {
             spacing: 5
 
             Text {
-                text: qsTr("Number of decimal places")
+                text: qsTr("Decimal places")
                 color: "#f0f0f3"
                 font.pixelSize: 13
             }
@@ -96,12 +102,12 @@ Controls.ApplicationWindow {
                 from: 0
                 to: 10
                 stepSize: 1
-                value: Window.window ? Window.window.decimalPlaces : 3
-                onMoved: if (Window.window) Window.window.decimalPlaces = value
+                value: localSettings.decimalPlaces
+                onMoved: localSettings.decimalPlaces = value
             }
 
             Text {
-                text: qsTr("Default is 3")
+                text: qsTr("Current: %1 (Default 3)").arg(Math.floor(localSettings.decimalPlaces))
                 color: "#6b6d76"
                 font.pixelSize: 11
             }
@@ -113,6 +119,16 @@ Controls.ApplicationWindow {
             text: qsTr("Close")
             Layout.alignment: Qt.AlignRight
             onClicked: root.close()
+            
+            background: Rectangle {
+                radius: 4
+                color: parent.down ? "#3a3d45" : parent.hovered ? "#30333b" : "#2a2c34"
+            }
+            contentItem: Text {
+                text: parent.text
+                color: "#f0f0f3"
+                horizontalAlignment: Text.AlignHCenter
+            }
         }
     }
 }
