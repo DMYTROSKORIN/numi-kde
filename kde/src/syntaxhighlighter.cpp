@@ -8,7 +8,7 @@ SyntaxHighlighter::SyntaxHighlighter(Calculator *calc) : m_calc(calc) {
         QRegularExpression::CaseInsensitiveOption | QRegularExpression::UseUnicodePropertiesOption
     );
 
-    m_operatorWords = {"as", "from", "in", "of", "now", "time", "to"};
+    m_operatorWords = {"as", "from", "in", "of", "now", "time", "today", "to"};
     m_operatorSymbols = {":=", "+", "-", "^", "(", ")", ",", ";", "="};
 }
 

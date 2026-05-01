@@ -183,6 +183,18 @@ static void runSuite(QalcBridge &bridge) {
               r.ok && r.result == "2 years, 5 days",
               r.result, "2 years, 5 days");
     }
+    {
+        auto r = eval("26.08.1983 + 42 years");
+        check("date plus years returns date",
+              r.ok && r.result == "26.08.2025",
+              r.result, "26.08.2025");
+    }
+    {
+        auto r = eval("today - 26.08.1983");
+        check("today is highlighted as an operator",
+              r.highlightedHtml.contains("#ffd35a") && r.highlightedHtml.contains("today"),
+              r.highlightedHtml, "highlighted today");
+    }
 
     // ── Unit conversion ───────────────────────────────────────────────────────
     // Results include the target unit (e.g. "1,000 m"), which is correct behavior.
@@ -208,6 +220,12 @@ static void runSuite(QalcBridge &bridge) {
         auto r = eval("100 usd to USD");
         check("lowercase 'usd' preprocessed", r.ok, r.result, "(non-empty)");
     }
+    {
+        auto r = eval("500 AED to USD");
+        check("fiat conversion exposes numeric value",
+              r.ok && r.hasNumericValue && r.numericValue > 0.0,
+              QString("%1 (%2)").arg(r.result, QString::number(r.numericValue)), "numeric conversion");
+    }
 
     // ── Cryptocurrency conversion ───────────────────────────────────────────
     {
@@ -230,6 +248,24 @@ static void runSuite(QalcBridge &bridge) {
         check("crypto conversion exposes numeric value",
               ethToUsd.hasNumericValue && ethToUsd.numericValue == 2500.0,
               QString::number(ethToUsd.numericValue), "2500");
+
+        auto btcToUah = eval("1 BTC to UAH");
+        check("1 BTC to UAH supports fiat target",
+              btcToUah.ok && btcToUah.hasNumericValue && btcToUah.numericValue > 0.0,
+              QString("%1 (%2)").arg(btcToUah.result, QString::number(btcToUah.numericValue)),
+              "numeric UAH value");
+
+        auto mixed = bridge.evaluateDocument("500 AED to USD\n1 BTC to UAH");
+        bool ok = mixed.size() == 2
+               && mixed[0].ok && mixed[0].hasNumericValue && mixed[0].numericValue > 0.0
+               && mixed[1].ok && mixed[1].hasNumericValue && mixed[1].numericValue > 0.0;
+        check("mixed fiat and crypto conversion rows expose totals",
+              ok,
+              mixed.size() >= 2
+                ? QString("%1 + %2").arg(QString::number(mixed[0].numericValue),
+                                         QString::number(mixed[1].numericValue))
+                : "size<2",
+              "two numeric conversion rows");
     }
 
     // ── Math functions ────────────────────────────────────────────────────────
@@ -310,6 +346,15 @@ static void runDocumentModelSuite() {
                && model.total() == 3000.0;
         check("DocumentModel total includes converted unit results", ok,
               QString::number(model.total()), "3000");
+    }
+    {
+        model.setSource("500 AED to USD\n100");
+        bool ok = model.rowCount() == 2
+               && model.resultCount() == 2
+               && model.errorCount() == 0
+               && model.total() > 100.0;
+        check("DocumentModel total includes fiat conversion results", ok,
+              QString::number(model.total()), ">100");
     }
     {
         const QString date = QDate::currentDate().addYears(-2).addDays(-5).toString("dd.MM.yyyy");

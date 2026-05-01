@@ -13,7 +13,7 @@ KDE/Linux-native clone of Numi: a compact text-document calculator with expressi
 - Math: `2 + 2 * 3^2`, `sqrt(256)`, `sin(pi/2)`.
 - Units: `10 meters in feet`, `50 kg to lbs`, `1 km to m`.
 - Currency and crypto: case-insensitive fiat units where libqalculate supports them, plus live CoinGecko-backed top-crypto conversion such as `400 USD to ETH`.
-- Dates/time: `today + 2 weeks`, `today - 26.08.1983`, `time`, `now`.
+- Dates/time: `today + 2 weeks`, `today - 26.08.1983`, `26.08.1983 + 42 years`, `time`, `now`.
 - Variables: `A = 800 - 200`, `B := A * 2`.
 - Percentages: `20% of 300`, `20% from 300`; incomplete input like `20% from` stays quiet until finished.
 - `/help`: clear in-app usage guide with examples for math, variables, units, currency, dates and controls.
