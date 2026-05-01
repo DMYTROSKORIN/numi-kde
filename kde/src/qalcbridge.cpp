@@ -177,6 +177,11 @@ static QString formatDateSpan(QDate from, QDate to)
     return negative ? QStringLiteral("-%1").arg(result) : result;
 }
 
+static QString formatUserDate(const QDate &date)
+{
+    return date.toString(QStringLiteral("dd.MM.yyyy"));
+}
+
 static QDate parseUserDate(const QString &value)
 {
     static const QStringList formats = {
@@ -227,12 +232,47 @@ static bool tryDateDifference(const QString &trimmed, QString *result)
     return false;
 }
 
-static bool parseLeadingNumber(const QString &text, double *value)
+static bool tryDateArithmetic(const QString &trimmed, QString *result)
 {
-    static QRegularExpression leadingNumber(
-        "^\\s*([+-]?(?:\\d{1,3}(?:[\\s.,'’]\\d{3})+|\\d+)(?:[.,]\\d+)?|[+-]?[.,]\\d+)");
+    static QRegularExpression dateMath(
+        "^\\s*(\\d{1,4}[./-]\\d{1,2}[./-]\\d{1,4})\\s*([+-])\\s*(\\d+)\\s*(day|days|week|weeks|month|months|year|years)\\s*$",
+        QRegularExpression::CaseInsensitiveOption);
 
-    const auto match = leadingNumber.match(text);
+    const auto match = dateMath.match(trimmed);
+    if (!match.hasMatch())
+        return false;
+
+    QDate date = parseUserDate(match.captured(1));
+    if (!date.isValid())
+        return false;
+
+    int amount = match.captured(3).toInt();
+    if (match.captured(2) == QStringLiteral("-"))
+        amount = -amount;
+
+    const QString unit = match.captured(4).toLower();
+    if (unit == QStringLiteral("day") || unit == QStringLiteral("days")) {
+        date = date.addDays(amount);
+    } else if (unit == QStringLiteral("week") || unit == QStringLiteral("weeks")) {
+        date = date.addDays(amount * 7);
+    } else if (unit == QStringLiteral("month") || unit == QStringLiteral("months")) {
+        date = date.addMonths(amount);
+    } else if (unit == QStringLiteral("year") || unit == QStringLiteral("years")) {
+        date = date.addYears(amount);
+    } else {
+        return false;
+    }
+
+    *result = formatUserDate(date);
+    return true;
+}
+
+static bool parseDisplayNumber(const QString &text, double *value)
+{
+    static QRegularExpression firstNumber(
+        "([+-]?(?:\\d{1,3}(?:[\\s.,'’]\\d{3})+|\\d+)(?:[.,]\\d+)?|[+-]?[.,]\\d+)");
+
+    const auto match = firstNumber.match(text);
     if (!match.hasMatch())
         return false;
 
@@ -263,6 +303,11 @@ static bool parseLeadingNumber(const QString &text, double *value)
         return false;
     *value = parsed;
     return true;
+}
+
+static bool isCryptoSymbol(const QHash<QString, double> &rates, const QString &symbol)
+{
+    return rates.contains(symbol.toUpper());
 }
 
 static bool isIncompleteExpression(const QString &trimmed)
@@ -324,8 +369,42 @@ QString QalcBridge::convertCryptoExpression(const QString &expression, bool *con
         }
         const auto it = m_cryptoUsdRates.constFind(symbol);
         if (it == m_cryptoUsdRates.constEnd()) {
-            *ok = false;
-            return 0.0;
+            if (!m_calc->getUnit(symbol.toStdString())) {
+                *ok = false;
+                return 0.0;
+            }
+
+            EvaluationOptions eo;
+            eo.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
+            eo.structuring = STRUCTURING_SIMPLIFY;
+            eo.parse_options.unknowns_enabled = false;
+
+            PrintOptions po;
+            po.number_fraction_format = FRACTION_DECIMAL;
+            po.base = 10;
+            po.min_decimals = 0;
+            po.max_decimals = 12;
+            po.use_min_decimals = false;
+            po.use_max_decimals = true;
+            po.digit_grouping = DIGIT_GROUPING_LOCALE;
+
+            m_calc->clearMessages();
+            MathStructure rateResult = m_calc->calculate(
+                QStringLiteral("1 %1 to USD").arg(symbol).toStdString(), eo);
+            if (hasCalculationError(m_calc) || rateResult.isUndefined() || rateResult.isInfinite()) {
+                *ok = false;
+                return 0.0;
+            }
+            if (rateResult.isNumber()) {
+                const double value = rateResult.number().floatValue();
+                *ok = std::isfinite(value) && value > 0.0;
+                return *ok ? value : 0.0;
+            }
+
+            const QString out = QString::fromStdString(m_calc->print(rateResult, 2000, po));
+            double value = 0.0;
+            *ok = parseDisplayNumber(out, &value) && value > 0.0;
+            return *ok ? value : 0.0;
         }
         *ok = true;
         return it.value();
@@ -333,6 +412,10 @@ QString QalcBridge::convertCryptoExpression(const QString &expression, bool *con
 
     bool fromOk = false;
     bool toOk = false;
+    const bool includesCrypto = isCryptoSymbol(m_cryptoUsdRates, from) || isCryptoSymbol(m_cryptoUsdRates, to);
+    if (!includesCrypto)
+        return {};
+
     const double fromRate = rateFor(from, &fromOk);
     const double toRate = rateFor(to, &toOk);
     if (!fromOk || !toOk || toRate <= 0.0)
@@ -426,12 +509,20 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             continue;
         }
 
+        QString dateArithmeticResult;
+        if (tryDateArithmetic(trimmed, &dateArithmeticResult)) {
+            res.ok = true;
+            res.result = dateArithmeticResult;
+            results.append(res);
+            continue;
+        }
+
         bool cryptoConverted = false;
         const QString cryptoResult = convertCryptoExpression(line, &cryptoConverted);
         if (cryptoConverted) {
             res.ok = true;
             res.result = cryptoResult;
-            res.hasNumericValue = parseLeadingNumber(cryptoResult, &res.numericValue);
+            res.hasNumericValue = parseDisplayNumber(cryptoResult, &res.numericValue);
             results.append(res);
             continue;
         }
@@ -544,7 +635,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                         "\\b(?:to|in|as)\\b",
                         QRegularExpression::CaseInsensitiveOption);
                     if (conversionWord.match(trimmed).hasMatch())
-                        res.hasNumericValue = parseLeadingNumber(out, &res.numericValue);
+                        res.hasNumericValue = parseDisplayNumber(out, &res.numericValue);
                     res.ok = true;
                 }
             } catch (...) {

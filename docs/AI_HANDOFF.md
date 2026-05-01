@@ -1,6 +1,6 @@
 # AI Handoff — numi-kde
 
-Last updated: 2026-05-01 (v3 - Test Feedback Release).
+Last updated: 2026-05-01 (v4 - Inline Help and Conversion Totals).
 
 Read this before touching the repository.
 
@@ -34,12 +34,13 @@ Latest result:
 The worktree has active implementation changes. Do not reset or checkout files unless the user explicitly asks.
 Recent updates (2026-05-01) include:
 - Refined `Always on Top` logic (no window re-centering).
-- Reworked `/help` into a clear in-app guide, not a low-opacity hint.
+- Reworked `/help` into clear inline editor text, not a modal/card overlay.
 - Result column auto-expands to fit long result text.
-- Result separator drag uses page coordinates and clamps to the current visible result width.
+- Result separator drag uses page coordinates, clamps to the current visible result width, and remains visibly present.
 - Locale-aware thousands separators in results.
-- `Total` now includes numeric values from converted unit/currency/crypto results.
+- `Total` now includes numeric values from converted unit/currency/crypto results, including fiat-target crypto conversions.
 - `today - DD.MM.YYYY` returns a year/day date span.
+- `DD.MM.YYYY + N years/months/weeks/days` returns the resulting date.
 
 ## Key Technical Decisions
 
@@ -50,15 +51,15 @@ Recent updates (2026-05-01) include:
 - **X11:** Uses `KX11Extras` for `NET::KeepAbove` and `NET::SkipTaskbar`.
 
 ### UX Polish
-- **Help Overlay:** Triggered by `/help`. It is now an opaque, readable guide with examples for app features and controls.
+- **Help Text:** Triggered by `/help`. It renders as inline mono text in the editor area below the typed `/help` line.
 - **Result Width:** `DocumentPage.qml` measures rendered result text and total text, then uses that as the minimum result width. The window minimum width grows when needed for very long results.
 - **Splitter:** Vertical line between editor and results. Dragging uses page-space coordinates, updates `Window.resultWidth`, and clamps to the measured visible content width.
 - **Formatting:** `QalcBridge` uses `QLocale` for system-specific thousands separators. `libqalculate` is configured with `DIGIT_GROUPING_LOCALE`.
-- **Totals:** `LineResult` carries an explicit numeric value when a result is numeric or a conversion result. `DocumentModel` uses that value instead of parsing display text.
-- **Date Difference:** `QalcBridge` handles `today - DD.MM.YYYY` and related slash/dash date formats before passing expressions to `libqalculate`.
+- **Totals:** `LineResult` carries an explicit numeric value when a result is numeric or a conversion result. `DocumentModel` uses that value instead of parsing display text. Display-number parsing finds numbers even after currency symbols.
+- **Date Handling:** `QalcBridge` handles `today - DD.MM.YYYY` and `DD.MM.YYYY + N years/months/weeks/days` before passing expressions to `libqalculate`.
 
 ### Help Feature
-- `/help` command in the editor triggers a QML overlay in `DocumentPage.qml`.
+- `/help` command in the editor triggers inline help text in `DocumentPage.qml`.
 - `DocumentModel` clears the result role for `/help` so the right column stays clean.
 
 ## Files To Know

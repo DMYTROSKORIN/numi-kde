@@ -51,8 +51,9 @@ Latest local status:
 - C++ syntax highlighting.
 - Result hover/click behavior.
 - Total footer for numeric rows, including converted unit/currency/crypto values.
-- `/help` opens a readable in-app guide.
+- `/help` shows readable inline editor help.
 - `today - DD.MM.YYYY` returns a year/day date span.
+- `DD.MM.YYYY + N years/months/weeks/days` returns a date.
 - History drawer with persisted sessions.
 - Settings window for display, behavior, precision, autostart and hotkey.
 - Tray icon and tray menu.

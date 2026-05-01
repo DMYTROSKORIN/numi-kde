@@ -40,6 +40,7 @@ Preprocessing currently handles:
 - explicit division-by-zero error;
 - `time` and `now`;
 - explicit date spans such as `today - 26.08.1983`;
+- explicit date arithmetic such as `26.08.1983 + 42 years`;
 - manual crypto conversion for top CoinGecko symbols.
 
 `LineResult::hasNumericValue` is the boundary between display formatting and totals. `DocumentModel` should sum this explicit numeric value instead of reparsing formatted result strings with units, currencies, or locale separators.

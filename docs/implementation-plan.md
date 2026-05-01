@@ -27,9 +27,10 @@ Completed:
 - History drawer.
 - Result copy and Total copy.
 - Total includes converted unit/currency/crypto numeric values.
-- Readable `/help` guide.
+- Readable inline `/help` guide.
 - Adaptive result column width with separator clamped to visible content.
 - Explicit date difference support such as `today - 26.08.1983`.
+- Explicit date arithmetic support such as `26.08.1983 + 42 years`.
 - App/tray transparent PNG resources.
 - Tray menu.
 - Global shortcut via `KGlobalAccel`, default `Ctrl+Alt+1`.
@@ -75,6 +76,7 @@ Current native tests cover:
 - `/help`;
 - `time` and `now`;
 - explicit date differences;
+- explicit date arithmetic;
 - unit conversion;
 - lowercase fiat preprocessing;
 - mocked crypto conversion;
@@ -129,6 +131,7 @@ Done:
 
 - arithmetic, variables, units, percentages, dates/time keywords;
 - explicit `today - date` spans;
+- explicit `date + duration` arithmetic;
 - `20% from/of`;
 - incomplete input stays quiet;
 - explicit invalid math shows `Error`;
@@ -156,7 +159,7 @@ Done:
 - history drawer;
 - configurable font/result width/precision;
 - `Ctrl+N`;
-- readable `/help` guide.
+- readable inline `/help` guide.
 
 Remaining:
 

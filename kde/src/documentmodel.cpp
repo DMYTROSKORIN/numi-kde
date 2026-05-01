@@ -23,6 +23,10 @@ DocumentModel::DocumentModel(QObject *parent)
     : QAbstractListModel(parent)
 {
     m_qalc = new QalcBridge(this);
+    connect(m_qalc, &QalcBridge::cryptoRatesUpdated, this, [this]() {
+        if (!m_source.trimmed().isEmpty() && m_source.trimmed() != QStringLiteral("/help"))
+            evaluate();
+    });
     QSettings settings("skorin", "numi-kde");
     m_history = settings.value("history").value<QVariantList>();
     m_decimalPlaces = settings.value("decimalPlaces", 3).toInt();

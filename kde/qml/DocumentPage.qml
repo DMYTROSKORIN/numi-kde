@@ -120,76 +120,46 @@ Item {
                     documentModel.source = text
                 }
 
-                Controls.ScrollView {
-                    anchors.fill: parent
+                Column {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.topMargin: editor.lineH + 10
                     z: 30
                     visible: (page.sourceText || "").trim() === "/help"
-                    clip: true
+                    spacing: 3
 
-                    background: Rectangle {
-                        radius: 6
-                        color: "#282b33"
-                        border.color: "#3b3f4b"
-                        border.width: 1
-                    }
+                    Repeater {
+                        model: [
+                            { label: "Math", text: "2 + 2    3^2    sqrt(16)    sin(pi/2)" },
+                            { label: "Variables", text: "A = 800 - 200    B := A * 2    B + 50" },
+                            { label: "Units", text: "10 m to ft    1 hour in min    50 kg to lbs" },
+                            { label: "Money", text: "500 AED to USD    1 BTC to UAH    400 USD to ETH" },
+                            { label: "Dates", text: "today + 2 weeks    today - 26.08.1983    26.08.1983 + 42 years" },
+                            { label: "Percent", text: "20% of 500    10% from 200" },
+                            { label: "Keys", text: "Tab completes    Ctrl+N clears    click result to copy" }
+                        ]
+                        delegate: Row {
+                            width: parent.width
+                            spacing: 12
 
-                    Column {
-                        width: Math.max(0, editor.availableWidth - 2)
-                        padding: 16
-                        spacing: 14
+                            Text {
+                                width: Math.max(86, editor.monoSize * 6)
+                                text: modelData.label
+                                color: Window.window.numiBlue
+                                font.family: editor.monoFont
+                                font.pixelSize: editor.monoSize
+                                font.weight: Font.DemiBold
+                            }
 
-                        Text {
-                            width: parent.width - parent.padding * 2
-                            text: "Numi-KDE Help"
-                            color: Window.window.numiText
-                            font.family: editor.monoFont
-                            font.pixelSize: Math.max(18, editor.monoSize + 3)
-                            font.weight: Font.DemiBold
-                        }
-
-                        Text {
-                            width: parent.width - parent.padding * 2
-                            text: "Type one expression per line. Results appear on the right, variables can be reused below, and clicking a result copies it."
-                            color: Window.window.numiMuted
-                            wrapMode: Text.WordWrap
-                            lineHeight: 1.15
-                            font.family: editor.monoFont
-                            font.pixelSize: Math.max(12, editor.monoSize - 2)
-                        }
-
-                        Repeater {
-                            model: [
-                                { category: "Math", examples: "2 + 2\n3^2\nsqrt(16)\nsin(pi/2)" },
-                                { category: "Variables", examples: "A = 800 - 200\nB := A * 2\nB + 50" },
-                                { category: "Units", examples: "10 m to ft\n1 hour in min\n50 kg to lbs" },
-                                { category: "Currency & Crypto", examples: "500 AED to USD\n1 BTC to UAH\n400 USD to ETH" },
-                                { category: "Date & Time", examples: "today + 2 weeks\ntoday - 26.08.1983\ntime\nnow" },
-                                { category: "Percentages", examples: "20% of 500\n10% from 200" },
-                                { category: "Controls", examples: "Ctrl+N clears the document\nTab completes units, functions and variables\nUse Settings for font, decimals and global hotkey" }
-                            ]
-                            delegate: Row {
-                                width: parent.width - parent.padding * 2
-                                spacing: 18
-
-                                Text {
-                                    width: Math.min(160, parent.width * 0.42)
-                                    text: modelData.category
-                                    color: Window.window.numiBlue
-                                    font.family: editor.monoFont
-                                    font.pixelSize: Math.max(12, editor.monoSize - 2)
-                                    font.weight: Font.DemiBold
-                                    wrapMode: Text.WordWrap
-                                }
-
-                                Text {
-                                    width: parent.width - x
-                                    text: modelData.examples
-                                    color: Window.window.numiText
-                                    wrapMode: Text.WordWrap
-                                    lineHeight: 1.15
-                                    font.family: editor.monoFont
-                                    font.pixelSize: Math.max(12, editor.monoSize - 2)
-                                }
+                            Text {
+                                width: parent.width - x
+                                text: modelData.text
+                                color: Window.window.numiText
+                                wrapMode: Text.WordWrap
+                                lineHeight: 1.05
+                                font.family: editor.monoFont
+                                font.pixelSize: editor.monoSize
                             }
                         }
                     }
@@ -208,8 +178,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 1
                     height: parent.height - 24
-                    color: splitterMouse.pressed ? Window.window.numiBlue : (splitterMouse.containsMouse ? Window.window.numiMuted : "#2a2c34")
-                    opacity: splitterMouse.pressed ? 0.8 : (splitterMouse.containsMouse ? 0.5 : 0.2)
+                    color: splitterMouse.pressed ? Window.window.numiBlue : (splitterMouse.containsMouse ? Window.window.numiText : "#565a66")
+                    opacity: splitterMouse.pressed ? 1.0 : (splitterMouse.containsMouse ? 0.9 : 0.7)
                     antialiasing: false
                 }
 

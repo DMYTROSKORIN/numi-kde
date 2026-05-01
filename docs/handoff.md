@@ -15,7 +15,7 @@ Works now:
 - Frameless compact dark window with KDE-style title controls.
 - Editable source document on the left, synced result column on the right.
 - C++ syntax highlighting and C++ evaluation through `libqalculate`.
-- Variables, units, percentages, dates/time keywords, explicit date differences, `/help`, decimal precision setting.
+- Variables, units, percentages, dates/time keywords, explicit date differences, explicit date arithmetic, `/help`, decimal precision setting.
 - Live CoinGecko crypto rates for top crypto symbols, with manual crypto conversion fallback in `QalcBridge`.
 - History drawer with persisted sessions and clear action.
 - Settings window:
@@ -32,9 +32,9 @@ Works now:
 - `Ctrl+N` clears the current document.
 - `Tab` completes units, functions, variables, and date keywords.
 - Result click copies the result; Total footer click copies the numeric total.
-- Total includes numeric values from converted unit/currency/crypto result rows.
+- Total includes numeric values from converted unit/currency/crypto result rows, including `500 AED to USD` and `1 BTC to UAH`.
 - Result column expands to fit long result text and the separator cannot be dragged over existing result content.
-- `/help` shows a readable instruction panel with examples.
+- `/help` shows readable inline editor help text with examples.
 - Invalid explicit math such as `500/0` shows compact `Error`; incomplete input such as `20% from` stays blank.
 
 ## Wayland Always-on-Top
@@ -53,11 +53,11 @@ On X11, `DocumentModel::setKeepAbove()` also uses `KX11Extras::setState(..., NET
 kde/CMakeLists.txt
 kde/src/main.cpp                 QApplication, QML engine, tray, global shortcut context
 kde/src/documentmodel.{h,cpp}    QML model, history, clipboard, settings helpers, KWin rule
-kde/src/qalcbridge.{h,cpp}       libqalculate bridge, preprocessing, crypto conversion, date spans
+kde/src/qalcbridge.{h,cpp}       libqalculate bridge, preprocessing, crypto conversion, date spans/arithmetic
 kde/src/shortcutmanager.{h,cpp}  KGlobalAccel hotkey registration and conflict handling
 kde/src/syntaxhighlighter.*      C++ syntax highlighting
 kde/qml/Main.qml                 main window, flags, drawer, persisted geometry
-kde/qml/DocumentPage.qml         editor/result layout, Ctrl+N, help panel, adaptive result width, Total footer
+kde/qml/DocumentPage.qml         editor/result layout, Ctrl+N, inline help, adaptive result width, Total footer
 kde/qml/EditorPane.qml           TextArea overlay and Tab completion
 kde/qml/ResultsPane.qml          result rendering/copy interaction
 kde/qml/HistoryPane.qml          history list and clear button
