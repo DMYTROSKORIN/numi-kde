@@ -44,6 +44,7 @@ public:
     Q_INVOKABLE void saveSession();
     Q_INVOKABLE void restoreSession(int index);
     Q_INVOKABLE void clearHistory();
+    Q_INVOKABLE QString completeWord(const QString &prefix);
 
 signals:
     void sourceChanged();
