@@ -18,6 +18,9 @@ Controls.ApplicationWindow {
     onAlwaysOnTopChanged: {
         windowSettings.alwaysOnTop = alwaysOnTop
         root.flags = Qt.Window | Qt.FramelessWindowHint | (alwaysOnTop ? Qt.WindowStaysOnTopHint : 0)
+        if (typeof documentModel !== "undefined") {
+            documentModel.setKeepAbove(alwaysOnTop)
+        }
     }
 
     property int fontSize: windowSettings.fontSize
@@ -57,6 +60,9 @@ Controls.ApplicationWindow {
         if (windowSettings.savedX >= 0 && windowSettings.savedY >= 0) {
             root.x = windowSettings.savedX
             root.y = windowSettings.savedY
+        }
+        if (typeof documentModel !== "undefined") {
+            documentModel.setKeepAbove(alwaysOnTop)
         }
     }
 

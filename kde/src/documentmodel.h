@@ -37,6 +37,7 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     Q_INVOKABLE void copyResult(int row);
+    Q_INVOKABLE void setKeepAbove(bool above);
 
 signals:
     void sourceChanged();

@@ -26,7 +26,8 @@ test("native KDE CMake skeleton declares required Qt packages and libqalculate",
 
   assert.match(cmake, /find_package\(Qt6 6\.6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2\)/);
   assert.match(cmake, /pkg_check_modules\(QALCULATE REQUIRED libqalculate\)/);
-  assert.match(cmake, /target_link_libraries\(numi-kde\n\s+PRIVATE\n\s+Qt6::Core\n\s+Qt6::Gui\n\s+Qt6::Qml\n\s+Qt6::Quick\n\s+Qt6::QuickControls2\n\s+\$\{QALCULATE_LIBRARIES\}/);
+  assert.match(cmake, /find_package\(KF6WindowSystem REQUIRED\)/);
+  assert.match(cmake, /target_link_libraries\(numi-kde\n\s+PRIVATE\n\s+Qt6::Core\n\s+Qt6::Gui\n\s+Qt6::Qml\n\s+Qt6::Quick\n\s+Qt6::QuickControls2\n\s+KF6::WindowSystem\n\s+\$\{QALCULATE_LIBRARIES\}/);
   assert.match(cmake, /qt_add_qml_module/);
   assert.doesNotMatch(cmake, /KF6Kirigami/);
 });
@@ -56,7 +57,7 @@ test("native KDE QML skeleton contains editor and result panes", () => {
   assert.match(resultsPane, /width: root\.availableWidth/);
 });
 
-test("native KDE backend uses libqalculate bridge", () => {
+test("native KDE backend uses libqalculate bridge and KWindowSystem", () => {
   const modelH = fs.readFileSync("kde/src/documentmodel.h", "utf8");
   const modelCpp = fs.readFileSync("kde/src/documentmodel.cpp", "utf8");
   const bridgeH = fs.readFileSync("kde/src/qalcbridge.h", "utf8");
@@ -65,6 +66,8 @@ test("native KDE backend uses libqalculate bridge", () => {
   assert.match(modelH, /QalcBridge \*m_qalc;/);
   assert.match(modelCpp, /m_qalc = new QalcBridge\(this\);/);
   assert.match(modelCpp, /m_qalc->evaluateDocument\(m_source\)/);
+  assert.match(modelCpp, /KX11Extras::setState/);
+  assert.match(modelCpp, /win->setFlag\(Qt::WindowStaysOnTopHint/);
   assert.match(bridgeH, /class Calculator;/);
   assert.match(bridgeH, /evaluateDocument/);
 });
@@ -118,6 +121,7 @@ test("native KDE QML wires live input and result copy behavior", () => {
   assert.match(resultsPane, /hoverEnabled: true/);
   assert.match(resultsPane, /copyRequested\(index\)/);
   assert.match(main, /WindowStaysOnTopHint/);
+  assert.match(main, /documentModel\.setKeepAbove/);
   assert.match(main, /savedWidth/);
   assert.match(main, /startSystemResize/);
 });
