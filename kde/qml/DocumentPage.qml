@@ -6,6 +6,7 @@ Item {
     id: page
 
     property string sourceText: ""
+    property var settingsWindow: null
 
     Component.onCompleted: documentModel.source = sourceText
 
@@ -74,7 +75,7 @@ Item {
         text: "⚙"
         hoverEnabled: true
 
-        onClicked: settingsWindow.show()
+        onClicked: { if (settingsWindow) settingsWindow.show() }
 
         contentItem: Text {
             text: settingsButton.text

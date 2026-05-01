@@ -184,34 +184,12 @@ Controls.ApplicationWindow {
         }
 
         DocumentPage {
+            id: documentPage
             anchors.top: titleBar.bottom
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-        }
-
-        SettingsWindow {
-            id: settingsWindow
-            visible: false
-        }
-
-        Controls.Drawer {
-            id: historyDrawer
-            width: 250
-            height: parent.height
-            edge: Qt.LeftEdge
-            z: 100
-            background: Rectangle {
-                color: "#22242a"
-                border.color: "#1a1b20"
-                border.width: 1
-            }
-
-            HistoryPane {
-                anchors.fill: parent
-                anchors.margins: 10
-                onSessionSelected: historyDrawer.close()
-            }
+            settingsWindow: settingsWindow
         }
 
         ResizeHandle {
@@ -318,6 +296,31 @@ Controls.ApplicationWindow {
             acceptedButtons: Qt.LeftButton
             z: 10
             onPressed: root.startSystemResize(edge)
+        }
+    }
+
+    SettingsWindow {
+        id: settingsWindow
+        visible: false
+        mainWindow: root
+    }
+
+    Controls.Drawer {
+        id: historyDrawer
+        width: 250
+        height: root.height
+        edge: Qt.LeftEdge
+        z: 100
+        background: Rectangle {
+            color: "#22242a"
+            border.color: "#1a1b20"
+            border.width: 1
+        }
+
+        HistoryPane {
+            anchors.fill: parent
+            anchors.margins: 10
+            onSessionSelected: historyDrawer.close()
         }
     }
 }

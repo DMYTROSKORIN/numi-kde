@@ -1,26 +1,19 @@
 import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Layouts
-import QtCore
 
-Controls.Window {
+Window {
     id: root
-    title: qsTr("Settings")
-    width: 320
-    height: 420
-    minimumWidth: 280
-    minimumHeight: 380
-    color: "#22242a"
-    visible: false
 
-    Settings {
-        id: localSettings
-        category: "Window"
-        property int fontSize: 16
-        property int resultWidth: 124
-        property int decimalPlaces: 3
-        property bool alwaysOnTop: true
-    }
+    property Window mainWindow: null
+
+    title: "Настройки"
+    width: 320
+    height: 400
+    minimumWidth: 280
+    minimumHeight: 360
+    color: "#22242a"
+    flags: Qt.Dialog
 
     ColumnLayout {
         anchors.fill: parent
@@ -28,18 +21,41 @@ Controls.Window {
         spacing: 15
 
         Text {
-            text: qsTr("General Settings")
+            text: "Numi-KDE — Настройки"
             color: "#f0f0f3"
-            font.pixelSize: 16
+            font.pixelSize: 14
             font.bold: true
         }
 
         Controls.CheckBox {
             id: alwaysOnTopCheck
-            text: qsTr("Always on top")
-            checked: localSettings.alwaysOnTop
-            onToggled: localSettings.alwaysOnTop = checked
-            
+
+            text: "Всегда поверх окон"
+            checked: mainWindow ? mainWindow.alwaysOnTop : true
+            onToggled: {
+                if (mainWindow) mainWindow.alwaysOnTop = checked
+            }
+
+            indicator: Rectangle {
+                implicitWidth: 16
+                implicitHeight: 16
+                x: alwaysOnTopCheck.leftPadding
+                y: (alwaysOnTopCheck.height - height) / 2
+                radius: 3
+                border.color: alwaysOnTopCheck.checked ? "#6fc4e8" : "#6b6d76"
+                border.width: 1
+                color: alwaysOnTopCheck.checked ? "#6fc4e8" : "transparent"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "✓"
+                    color: "#22242a"
+                    font.pixelSize: 11
+                    font.weight: Font.Bold
+                    visible: alwaysOnTopCheck.checked
+                }
+            }
+
             contentItem: Text {
                 leftPadding: alwaysOnTopCheck.indicator.width + alwaysOnTopCheck.spacing
                 text: alwaysOnTopCheck.text
@@ -54,16 +70,20 @@ Controls.Window {
             spacing: 5
 
             Text {
-                text: qsTr("Font size")
+                text: "Размер шрифта: " + (mainWindow ? mainWindow.fontSize : 16) + " px"
                 color: "#f0f0f3"
                 font.pixelSize: 13
             }
 
-            Controls.ComboBox {
+            Controls.Slider {
                 Layout.fillWidth: true
-                model: [9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24]
-                currentIndex: model.indexOf(localSettings.fontSize)
-                onActivated: (index) => localSettings.fontSize = model[index]
+                from: 11
+                to: 24
+                stepSize: 1
+                value: mainWindow ? mainWindow.fontSize : 16
+                onMoved: {
+                    if (mainWindow) mainWindow.fontSize = Math.round(value)
+                }
             }
         }
 
@@ -72,7 +92,7 @@ Controls.Window {
             spacing: 5
 
             Text {
-                text: qsTr("Result width")
+                text: "Ширина колонки результатов: " + (mainWindow ? mainWindow.resultWidth : 124) + " px"
                 color: "#f0f0f3"
                 font.pixelSize: 13
             }
@@ -82,8 +102,10 @@ Controls.Window {
                 from: 80
                 to: 300
                 stepSize: 8
-                value: localSettings.resultWidth
-                onMoved: localSettings.resultWidth = value
+                value: mainWindow ? mainWindow.resultWidth : 124
+                onMoved: {
+                    if (mainWindow) mainWindow.resultWidth = Math.round(value)
+                }
             }
         }
 
@@ -92,7 +114,7 @@ Controls.Window {
             spacing: 5
 
             Text {
-                text: qsTr("Decimal places")
+                text: "Знаков после запятой: " + (mainWindow ? Math.round(mainWindow.decimalPlaces) : 3)
                 color: "#f0f0f3"
                 font.pixelSize: 13
             }
@@ -102,32 +124,34 @@ Controls.Window {
                 from: 0
                 to: 10
                 stepSize: 1
-                value: localSettings.decimalPlaces
-                onMoved: localSettings.decimalPlaces = value
-            }
-
-            Text {
-                text: qsTr("Current: %1 (Default 3)").arg(Math.floor(localSettings.decimalPlaces))
-                color: "#6b6d76"
-                font.pixelSize: 11
+                value: mainWindow ? mainWindow.decimalPlaces : 3
+                onMoved: {
+                    if (mainWindow) mainWindow.decimalPlaces = Math.round(value)
+                }
             }
         }
 
         Item { Layout.fillHeight: true }
 
         Controls.Button {
-            text: qsTr("Close")
+            text: "Закрыть"
             Layout.alignment: Qt.AlignRight
+
             onClicked: root.close()
-            
+
             background: Rectangle {
                 radius: 4
                 color: parent.down ? "#3a3d45" : parent.hovered ? "#30333b" : "#2a2c34"
+                border.color: "#1a1b20"
+                border.width: 1
             }
+
             contentItem: Text {
                 text: parent.text
                 color: "#f0f0f3"
                 horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                font.pixelSize: 13
             }
         }
     }
