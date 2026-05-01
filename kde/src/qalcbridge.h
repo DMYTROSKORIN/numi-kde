@@ -11,7 +11,10 @@ struct LineResult {
     bool ok;
     QString result;
     QString error;
+    QString highlightedHtml;
 };
+
+class SyntaxHighlighter;
 
 class QalcBridge : public QObject {
     Q_OBJECT
@@ -24,6 +27,7 @@ public:
 
 private:
     Calculator *m_calc;
+    SyntaxHighlighter *m_highlighter;
     int m_decimalPlaces = 3;
 };
 

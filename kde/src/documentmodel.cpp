@@ -12,10 +12,6 @@
 #include <QProcess>
 #include <QWindow>
 
-#ifndef NUMI_KDE_SOURCE_DIR
-#define NUMI_KDE_SOURCE_DIR ""
-#endif
-
 DocumentModel::DocumentModel(QObject *parent)
     : QAbstractListModel(parent)
 {
@@ -118,10 +114,6 @@ void DocumentModel::setKeepAbove(bool above)
 
 void DocumentModel::evaluate()
 {
-    const auto highlightOutput = runHighlightWorker(m_source);
-    const auto highlightDoc = QJsonDocument::fromJson(highlightOutput.toUtf8());
-    const auto highlightLines = highlightDoc.object().value(QStringLiteral("lines")).toArray();
-
     m_qalc->setDecimalPlaces(m_qalc->parent()->property("decimalPlaces").toInt());
     const auto qalcResults = m_qalc->evaluateDocument(m_source);
 
@@ -135,6 +127,8 @@ void DocumentModel::evaluate()
         const auto &res = qalcResults.at(i);
         lineObj.insert(QStringLiteral("ok"), res.ok);
         lineObj.insert(QStringLiteral("result"), res.result);
+        lineObj.insert(QStringLiteral("highlightedHtml"), res.highlightedHtml);
+        
         if (!res.ok) {
             m_errorCount++;
             QJsonArray diags;
@@ -146,31 +140,11 @@ void DocumentModel::evaluate()
             m_resultCount++;
         }
 
-        if (i < highlightLines.size()) {
-            lineObj.insert(QStringLiteral("highlightedHtml"), highlightLines.at(i).toObject().value(QStringLiteral("highlightedHtml")));
-        }
-
         m_lines.append(lineObj);
     }
 
     endResetModel();
     emit linesChanged();
-}
-
-QString DocumentModel::runHighlightWorker(const QString &source)
-{
-    QProcess process;
-    process.setProgram(QStringLiteral("node"));
-    process.setArguments({QStringLiteral(NUMI_KDE_SOURCE_DIR) + QStringLiteral("/src/gui/evaluate-document.js")});
-    process.start();
-    if (!process.waitForStarted(1000)) {
-        return QStringLiteral("{\"lines\":[]}");
-    }
-
-    process.write(source.toUtf8());
-    process.closeWriteChannel();
-    process.waitForFinished(2000);
-    return QString::fromUtf8(process.readAllStandardOutput());
 }
 
 QString DocumentModel::firstDiagnostic(const QJsonObject &line)

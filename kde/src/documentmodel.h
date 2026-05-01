@@ -45,7 +45,6 @@ signals:
 
 private:
     void evaluate();
-    static QString runHighlightWorker(const QString &source);
     static QString firstDiagnostic(const QJsonObject &line);
 
     QString m_source;

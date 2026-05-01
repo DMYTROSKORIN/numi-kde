@@ -68,7 +68,7 @@ git status --short          # чисто
 | Always-on-top на Wayland/X11 | Работает через KWindowSystem (X11) и Qt Flags (Wayland) | Done |
 | Scroll sync может десинхронизироваться на длинных документах | TextArea не экспонирует `contentY` напрямую | Phase 2.3 |
 | History panel — плейсхолдер | Не реализована | Phase 2.5 |
-| Node.js worker для подсветки | Всё ещё используется для highlight; нужно перенести в C++ для полной нативности | Phase 2.6 |
+| Зависимость от Node.js в GUI | Полностью удалена. Подсветка и расчёты на C++. | Done |
 
 ---
 
@@ -79,14 +79,14 @@ kde/qml/Main.qml            — окно, флаги, alwaysOnTop, WindowButton/
 kde/qml/DocumentPage.qml    — layout, settings popup, EditorPane ↔ ResultsPane связь
 kde/qml/EditorPane.qml      — TextArea + highlight overlay + FontMetrics, cursorDelegate
 kde/qml/ResultsPane.qml     — ListView, hover-цвет, scroll sync Connections
-kde/src/documentmodel.h/.cpp — C++ QML-модель, вызывает QalcBridge, Node highlight и KWindowSystem
+kde/src/documentmodel.h/.cpp — C++ QML-модель, вызывает QalcBridge и KWindowSystem
 kde/src/qalcbridge.h/.cpp    — C++ обёртка над libqalculate
-src/gui/adapter.js          — собирает view model: result, highlightedHtml, assignment
-src/gui/highlight.js        — classifyHighlightToken, createHighlightedHtml(line, variables)
-src/gui/evaluate-document.js — Node worker entry point (теперь только для highlight)
-src/core/engine.js          — evaluateDocument, evaluateLine, /help спецслучай
-src/core/syntax.js          — токенайзер с \p{L} Unicode
-test/gui.test.js            — тесты adapter и highlight
+kde/src/syntaxhighlighter.h/.cpp — Нативная подсветка синтаксиса на C++
+src/gui/adapter.js          — [LEGACY] Собирал view model для веб-прототипа
+src/gui/highlight.js        — [LEGACY] Логика подсветки на JS (портатирована в C++)
+src/gui/evaluate-document.js — [LEGACY] Node worker entry point
+src/core/engine.js          — [LEGACY] Движок на JS (заменён на libqalculate в GUI)
+src/core/syntax.js          — [LEGACY] Токенайзер на JS
 test/kde-skeleton.test.js   — структурные тесты QML/CMake/C++ backend
 docs/Gemini-qalculate-evolution.md — план миграции на libqalculate
 ```
