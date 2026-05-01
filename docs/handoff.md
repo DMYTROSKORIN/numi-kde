@@ -30,8 +30,8 @@ Last completed commit: `feat: functional fixes and settings window`.
 
 | Ограничение | Причина | Когда чинить |
 |-------------|---------|--------------|
-| Scroll sync может десинхронизироваться | TextArea не экспонирует `contentY` напрямую | Phase 2.3 |
-| History panel — плейсхолдер | Не реализована | Phase 2.5 |
+| Scroll sync может десинхронизироваться на длинных документах | TextArea не экспонирует `contentY` напрямую | Phase 2.3 |
+| History panel | Полностью реализована: сохранение сессий в QSettings, Drawer сбоку | Done |
 | Tab completion — нет | Не реализована | Phase 2.7 |
 | Зависимость от Node.js в GUI | Полностью удалена. | Done |
 
@@ -40,12 +40,13 @@ Last completed commit: `feat: functional fixes and settings window`.
 ## Важные файлы
 
 ```
-kde/qml/Main.qml            — главное окно
+kde/qml/Main.qml            — главное окно + Drawer (история)
 kde/qml/SettingsWindow.qml  — окно настроек
+kde/qml/HistoryPane.qml     — список сохранённых сессий
 kde/qml/DocumentPage.qml    — основная рабочая область
 kde/qml/EditorPane.qml      — редактор
 kde/qml/ResultsPane.qml     — результаты
-kde/src/documentmodel.h/.cpp — модель данных
+kde/src/documentmodel.h/.cpp — модель данных (вкл. логику истории)
 kde/src/qalcbridge.h/.cpp    — мост к libqalculate
 kde/src/syntaxhighlighter.h/.cpp — подсветка синтаксиса
 ```
@@ -54,15 +55,10 @@ kde/src/syntaxhighlighter.h/.cpp — подсветка синтаксиса
 
 ## Следующие задачи по приоритету
 
-### Phase 2.5 — Панель истории
-
-**Цель:** кнопка ↺ (historyButton) открывает боковую панель или окно с историей сессий.
-
----
-
 ### Phase 2.7 — Автодополнение (Tab)
 
 **Цель:** подсказки для команд, юнитов и переменных.
+
 
 ---
 

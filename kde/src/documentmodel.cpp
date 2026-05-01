@@ -11,11 +11,15 @@
 #include <QJsonValue>
 #include <QProcess>
 #include <QWindow>
+#include <QDateTime>
+#include <QSettings>
 
 DocumentModel::DocumentModel(QObject *parent)
     : QAbstractListModel(parent)
 {
     m_qalc = new QalcBridge(this);
+    QSettings settings("skorin", "numi-kde");
+    m_history = settings.value("history").value<QVariantList>();
 }
 
 DocumentModel::~DocumentModel()
@@ -46,6 +50,11 @@ int DocumentModel::errorCount() const
 int DocumentModel::resultCount() const
 {
     return m_resultCount;
+}
+
+QVariantList DocumentModel::history() const
+{
+    return m_history;
 }
 
 int DocumentModel::rowCount(const QModelIndex &parent) const
@@ -97,6 +106,51 @@ void DocumentModel::copyResult(int row)
     if (!result.isEmpty()) {
         QGuiApplication::clipboard()->setText(result);
     }
+}
+
+void DocumentModel::saveSession()
+{
+    if (m_source.trimmed().isEmpty()) {
+        return;
+    }
+
+    if (!m_history.isEmpty()) {
+        const auto last = m_history.first().toMap();
+        if (last.value("text").toString() == m_source) {
+            return;
+        }
+    }
+
+    QVariantMap entry;
+    entry["text"] = m_source;
+    entry["timestamp"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    
+    m_history.prepend(entry);
+    if (m_history.size() > 50) {
+        m_history.removeLast();
+    }
+
+    QSettings settings("skorin", "numi-kde");
+    settings.setValue("history", m_history);
+    emit historyChanged();
+}
+
+void DocumentModel::restoreSession(int index)
+{
+    if (index < 0 || index >= m_history.size()) {
+        return;
+    }
+
+    const auto entry = m_history.at(index).toMap();
+    setSource(entry.value("text").toString());
+}
+
+void DocumentModel::clearHistory()
+{
+    m_history.clear();
+    QSettings settings("skorin", "numi-kde");
+    settings.remove("history");
+    emit historyChanged();
 }
 
 void DocumentModel::setKeepAbove(bool above)
