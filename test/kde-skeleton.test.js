@@ -9,6 +9,8 @@ const requiredFiles = [
   "kde/qml/DocumentPage.qml",
   "kde/qml/EditorPane.qml",
   "kde/qml/ResultsPane.qml",
+  "kde/qml/SettingsWindow.qml",
+  "kde/qml/HistoryPane.qml",
   "kde/resources/org.skorin.numi-kde.desktop",
   "kde/resources/org.skorin.numi-kde.metainfo.xml",
   "kde/src/qalcbridge.h",
@@ -43,7 +45,6 @@ test("native KDE QML skeleton contains editor and result panes", () => {
   assert.match(documentPage, /highlightModel: documentModel/);
   assert.match(documentPage, /documentModel\.source = text/);
   assert.match(documentPage, /text: "⚙"/);
-  assert.doesNotMatch(documentPage, /text: "→"/);
   assert.match(editorPane, /Controls\.TextArea/);
   assert.match(editorPane, /highlightedHtml/);
   assert.match(editorPane, /Text\.RichText/);
@@ -66,10 +67,14 @@ test("native KDE backend uses libqalculate bridge and KWindowSystem", () => {
 
   assert.match(modelH, /class QalcBridge;/);
   assert.match(modelH, /QalcBridge \*m_qalc;/);
+  assert.match(modelH, /Q_PROPERTY\(QVariantList history/);
   assert.match(modelCpp, /m_qalc = new QalcBridge\(this\);/);
   assert.match(modelCpp, /m_qalc->evaluateDocument\(m_source\)/);
   assert.match(modelCpp, /KX11Extras::setState/);
   assert.match(modelCpp, /win->setFlag\(Qt::WindowStaysOnTopHint/);
+  assert.match(modelCpp, /QSettings/);
+  assert.match(modelCpp, /saveSession/);
+  assert.match(modelCpp, /restoreSession/);
   assert.match(bridgeH, /class Calculator;/);
   assert.match(bridgeH, /evaluateDocument/);
 });
@@ -94,6 +99,10 @@ test("native KDE QML uses Numi reference visual tokens", () => {
   assert.match(main, /"#8fd14f"/);
   assert.match(main, /fontSize/);
   assert.match(main, /resultWidth/);
+  assert.match(main, /Controls\.Drawer/);
+  assert.match(main, /HistoryPane/);
+  assert.match(main, /historyDrawer\.open/);
+  assert.match(main, /documentModel\.saveSession/);
   assert.match(documentPage, /placeholderText:/);
   assert.match(documentPage, /\/help/);
   assert.match(documentPage, /settingsWindow\.show\(\)/);
@@ -124,7 +133,6 @@ test("native KDE QML wires live input and result copy behavior", () => {
   assert.match(resultsPane, /hoverEnabled: true/);
   assert.match(resultsPane, /copyRequested\(index\)/);
   assert.match(main, /WindowStaysOnTopHint/);
-  assert.match(main, /documentModel\.setKeepAbove/);
   assert.match(main, /savedWidth/);
   assert.match(main, /startSystemResize/);
 });

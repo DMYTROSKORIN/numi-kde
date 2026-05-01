@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QString>
 #include <QProcess>
+#include <QVariantList>
 
 class QalcBridge;
 
@@ -14,6 +15,7 @@ class DocumentModel : public QAbstractListModel
     Q_PROPERTY(QString source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(int errorCount READ errorCount NOTIFY linesChanged)
     Q_PROPERTY(int resultCount READ resultCount NOTIFY linesChanged)
+    Q_PROPERTY(QVariantList history READ history NOTIFY historyChanged)
 
 public:
     enum Roles {
@@ -31,6 +33,7 @@ public:
     void setSource(const QString &source);
     int errorCount() const;
     int resultCount() const;
+    QVariantList history() const;
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;
@@ -38,10 +41,14 @@ public:
 
     Q_INVOKABLE void copyResult(int row);
     Q_INVOKABLE void setKeepAbove(bool above);
+    Q_INVOKABLE void saveSession();
+    Q_INVOKABLE void restoreSession(int index);
+    Q_INVOKABLE void clearHistory();
 
 signals:
     void sourceChanged();
     void linesChanged();
+    void historyChanged();
 
 private:
     void evaluate();
@@ -52,4 +59,5 @@ private:
     int m_errorCount = 0;
     int m_resultCount = 0;
     QalcBridge *m_qalc;
+    QVariantList m_history;
 };

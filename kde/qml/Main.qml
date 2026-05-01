@@ -66,6 +66,12 @@ Controls.ApplicationWindow {
         }
     }
 
+    Component.onDestruction: {
+        if (typeof documentModel !== "undefined") {
+            documentModel.saveSession()
+        }
+    }
+
     onWidthChanged: windowSettings.savedWidth = width
     onHeightChanged: windowSettings.savedHeight = height
     onXChanged: windowSettings.savedX = x
@@ -114,6 +120,8 @@ Controls.ApplicationWindow {
                 text: "↺"
                 font.pixelSize: 20
                 hoverEnabled: true
+
+                onClicked: historyDrawer.open()
 
                 contentItem: Text {
                     text: historyButton.text
@@ -179,6 +187,24 @@ Controls.ApplicationWindow {
         SettingsWindow {
             id: settingsWindow
             visible: false
+        }
+
+        Controls.Drawer {
+            id: historyDrawer
+            width: 250
+            height: parent.height
+            edge: Qt.LeftEdge
+            background: Rectangle {
+                color: "#22242a"
+                border.color: "#1a1b20"
+                border.width: 1
+            }
+
+            HistoryPane {
+                anchors.fill: parent
+                anchors.margins: 10
+                onSessionSelected: historyDrawer.close()
+            }
         }
 
         ResizeHandle {
