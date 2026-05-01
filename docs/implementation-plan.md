@@ -11,7 +11,7 @@ Last updated: 2026-05-01.
 - compact scratchpad window;
 - native KDE integration for tray, global shortcut, clipboard, autostart and window behavior;
 - strong math/unit/currency/date support through `libqalculate`;
-- no Node.js or web-prototype code in the repository.
+- only native KDE application code, resources, tests and current documentation in the repository.
 
 ## Current State
 
@@ -26,7 +26,7 @@ Completed:
 - Settings window.
 - History drawer.
 - Result copy and Total copy.
-- Total includes converted unit/currency/crypto numeric values.
+- Total sums only compatible numeric values and stays hidden for mixed units/currencies.
 - Readable inline `/help` guide.
 - Adaptive result column width with separator clamped to visible content.
 - Explicit date difference support such as `today - 26.08.1983`.
@@ -60,7 +60,7 @@ Latest local result: build passes, CTest passes 2/2, offscreen dev GUI starts wi
 - Run `cmake --build build/kde --target numi-kde numi-kde-tests`.
 - Run `ctest --test-dir build/kde --output-on-failure`.
 - Update docs when behavior changes.
-- Do not reintroduce Node.js, JavaScript runtime code, or the old web prototype.
+- Keep the repository scoped to native KDE application code, resources, tests and current documentation.
 
 ## Native Test Coverage
 
@@ -81,7 +81,7 @@ Current native tests cover:
 - lowercase fiat preprocessing;
 - mocked crypto conversion;
 - functions;
-- totals, including converted unit rows;
+- totals for compatible numeric and converted rows, plus mixed-unit rejection;
 - completion;
 - DocumentModel history, total, autostart and `/help`.
 
@@ -152,9 +152,9 @@ Done:
 
 - settings window;
 - result separator setting;
-- faded vertical result separator;
+- visible vertical result separator matched to the app's divider brightness;
 - Total footer;
-- converted-result totals;
+- compatible-result totals;
 - adaptive result width;
 - history drawer;
 - configurable font/result width/precision;

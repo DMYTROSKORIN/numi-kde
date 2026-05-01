@@ -13,7 +13,7 @@ The native KDE application lives in `kde/` and is the primary runtime target.
 - KF6GlobalAccel for global shortcuts when available.
 - Qt DBus for KWin reconfiguration.
 
-The repository is scoped to the native KDE application. It does not include the old JavaScript/web prototype.
+The repository is scoped to the native KDE application.
 
 ## Fedora Dependencies
 
@@ -50,7 +50,7 @@ Latest local status:
 - Live C++ evaluation while typing.
 - C++ syntax highlighting.
 - Result hover/click behavior.
-- Total footer for numeric rows, including converted unit/currency/crypto values.
+- Total footer for compatible numeric rows; mixed units/currencies hide the total.
 - `/help` shows readable inline editor help.
 - `today - DD.MM.YYYY` returns a year/day date span.
 - `DD.MM.YYYY + N years/months/weeks/days` returns a date.

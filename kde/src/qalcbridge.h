@@ -20,6 +20,7 @@ struct LineResult {
     QString highlightedHtml;
     bool hasNumericValue = false;
     double numericValue = 0.0;
+    QString totalKey;
 };
 
 class SyntaxHighlighter;

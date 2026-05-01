@@ -43,7 +43,7 @@ Preprocessing currently handles:
 - explicit date arithmetic such as `26.08.1983 + 42 years`;
 - manual crypto conversion for top CoinGecko symbols.
 
-`LineResult::hasNumericValue` is the boundary between display formatting and totals. `DocumentModel` should sum this explicit numeric value instead of reparsing formatted result strings with units, currencies, or locale separators.
+`LineResult::hasNumericValue` and `LineResult::totalKey` are the boundary between display formatting and totals. `DocumentModel` sums only when every numeric result row has the same total key, so mixed units or currencies do not produce a misleading total.
 
 ## KDE Integration Boundaries
 
@@ -67,7 +67,7 @@ Behavior should be covered by tests before being considered stable.
 ## Design Constraints
 
 - Keep calculation logic out of QML.
-- Do not reintroduce Node.js or the old web prototype.
+- Keep the repository scoped to the native KDE application.
 - Keep QML small and focused on layout/interaction.
 - Prefer KDE-native integration points over ad hoc platform hacks.
 - On Wayland, compositor-owned behavior must go through supported KDE/KWin mechanisms.

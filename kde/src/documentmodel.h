@@ -14,6 +14,7 @@ class DocumentModel : public QAbstractListModel
     Q_PROPERTY(QString source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(int errorCount READ errorCount NOTIFY linesChanged)
     Q_PROPERTY(int resultCount READ resultCount NOTIFY linesChanged)
+    Q_PROPERTY(bool hasTotal READ hasTotal NOTIFY linesChanged)
     Q_PROPERTY(QVariantList history READ history NOTIFY historyChanged)
     Q_PROPERTY(int decimalPlaces READ decimalPlaces WRITE setDecimalPlaces NOTIFY decimalPlacesChanged)
     Q_PROPERTY(double total READ total NOTIFY linesChanged)
@@ -35,6 +36,7 @@ public:
     void setSource(const QString &source);
     int errorCount() const;
     int resultCount() const;
+    bool hasTotal() const;
     QVariantList history() const;
     int decimalPlaces() const;
     void setDecimalPlaces(int places);
@@ -71,6 +73,7 @@ private:
     QJsonArray m_lines;
     int m_errorCount = 0;
     int m_resultCount = 0;
+    bool m_hasTotal = false;
     QalcBridge *m_qalc;
     QVariantList m_history;
     int m_decimalPlaces = 3;

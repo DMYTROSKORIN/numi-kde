@@ -16,6 +16,7 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <QVector>
+#include <QHash>
 
 #include <utility>
 
@@ -43,7 +44,7 @@ QString DocumentModel::source() const
 
 void DocumentModel::setSource(const QString &source)
 {
-    // /help: show empty results, help is handled by QML overlay
+    // /help: show empty results; inline help text is rendered in QML.
     if (source.trimmed() == "/help") {
         if (m_source == source) return;
         m_source = source;
@@ -59,6 +60,7 @@ void DocumentModel::setSource(const QString &source)
         m_errorCount = 0;
         m_resultCount = 0; // Don't count /help as a result
         m_total = 0.0;
+        m_hasTotal = false;
         endResetModel();
         emit linesChanged();
         return;
@@ -72,6 +74,7 @@ void DocumentModel::setSource(const QString &source)
 
 int DocumentModel::errorCount() const { return m_errorCount; }
 int DocumentModel::resultCount() const { return m_resultCount; }
+bool DocumentModel::hasTotal() const { return m_hasTotal; }
 QVariantList DocumentModel::history() const { return m_history; }
 int DocumentModel::decimalPlaces() const { return m_decimalPlaces; }
 double DocumentModel::total() const { return m_total; }
@@ -371,6 +374,8 @@ void DocumentModel::evaluate()
     m_errorCount = 0;
     m_resultCount = 0;
     m_total = 0.0;
+    m_hasTotal = false;
+    QHash<QString, QPair<int, double>> totalsByKey;
 
     for (int i = 0; i < qalcResults.size(); ++i) {
         QJsonObject lineObj;
@@ -380,6 +385,8 @@ void DocumentModel::evaluate()
         lineObj.insert(QStringLiteral("highlightedHtml"), res.highlightedHtml);
         if (res.hasNumericValue)
             lineObj.insert(QStringLiteral("numericValue"), res.numericValue);
+        if (!res.totalKey.isEmpty())
+            lineObj.insert(QStringLiteral("totalKey"), res.totalKey);
 
         if (!res.ok) {
             m_errorCount++;
@@ -390,11 +397,23 @@ void DocumentModel::evaluate()
             lineObj.insert(QStringLiteral("diagnostics"), diags);
         } else if (!res.result.isEmpty()) {
             m_resultCount++;
-            if (res.hasNumericValue)
-                m_total += res.numericValue;
+            if (res.hasNumericValue && !res.totalKey.isEmpty()) {
+                auto entry = totalsByKey.value(res.totalKey, qMakePair(0, 0.0));
+                entry.first += 1;
+                entry.second += res.numericValue;
+                totalsByKey.insert(res.totalKey, entry);
+            }
         }
 
         m_lines.append(lineObj);
+    }
+
+    if (totalsByKey.size() == 1) {
+        const auto entry = totalsByKey.cbegin().value();
+        if (entry.first >= 2) {
+            m_total = entry.second;
+            m_hasTotal = true;
+        }
     }
 
     endResetModel();

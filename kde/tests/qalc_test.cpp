@@ -223,7 +223,7 @@ static void runSuite(QalcBridge &bridge) {
     {
         auto r = eval("500 AED to USD");
         check("fiat conversion exposes numeric value",
-              r.ok && r.hasNumericValue && r.numericValue > 0.0,
+              r.ok && r.hasNumericValue && r.numericValue > 0.0 && r.totalKey == "USD",
               QString("%1 (%2)").arg(r.result, QString::number(r.numericValue)), "numeric conversion");
     }
 
@@ -251,7 +251,7 @@ static void runSuite(QalcBridge &bridge) {
 
         auto btcToUah = eval("1 BTC to UAH");
         check("1 BTC to UAH supports fiat target",
-              btcToUah.ok && btcToUah.hasNumericValue && btcToUah.numericValue > 0.0,
+              btcToUah.ok && btcToUah.hasNumericValue && btcToUah.numericValue > 0.0 && btcToUah.totalKey == "UAH",
               QString("%1 (%2)").arg(btcToUah.result, QString::number(btcToUah.numericValue)),
               "numeric UAH value");
 
@@ -259,7 +259,7 @@ static void runSuite(QalcBridge &bridge) {
         bool ok = mixed.size() == 2
                && mixed[0].ok && mixed[0].hasNumericValue && mixed[0].numericValue > 0.0
                && mixed[1].ok && mixed[1].hasNumericValue && mixed[1].numericValue > 0.0;
-        check("mixed fiat and crypto conversion rows expose totals",
+        check("mixed fiat and crypto conversion rows expose numeric values",
               ok,
               mixed.size() >= 2
                 ? QString("%1 + %2").arg(QString::number(mixed[0].numericValue),
@@ -334,6 +334,7 @@ static void runDocumentModelSuite() {
         bool ok = model.rowCount() == 3
                && model.resultCount() == 3
                && model.errorCount() == 0
+               && model.hasTotal()
                && model.total() == 600.0;
         check("DocumentModel total = 600", ok,
               QString::number(model.total()), "600");
@@ -343,6 +344,7 @@ static void runDocumentModelSuite() {
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
+               && model.hasTotal()
                && model.total() == 3000.0;
         check("DocumentModel total includes converted unit results", ok,
               QString::number(model.total()), "3000");
@@ -352,9 +354,18 @@ static void runDocumentModelSuite() {
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
-               && model.total() > 100.0;
-        check("DocumentModel total includes fiat conversion results", ok,
-              QString::number(model.total()), ">100");
+               && !model.hasTotal();
+        check("DocumentModel total rejects mixed dimensions", ok,
+              model.hasTotal() ? QString::number(model.total()) : "no total", "no total");
+    }
+    {
+        model.setSource("500 AED to USD\n100 USD to UAH");
+        bool ok = model.rowCount() == 2
+               && model.resultCount() == 2
+               && model.errorCount() == 0
+               && !model.hasTotal();
+        check("DocumentModel total rejects different currency targets", ok,
+              model.hasTotal() ? QString::number(model.total()) : "no total", "no total");
     }
     {
         const QString date = QDate::currentDate().addYears(-2).addDays(-5).toString("dd.MM.yyyy");
@@ -362,9 +373,9 @@ static void runDocumentModelSuite() {
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
-               && model.total() == 100.0;
+               && !model.hasTotal();
         check("DocumentModel total ignores date span text", ok,
-              QString::number(model.total()), "100");
+              model.hasTotal() ? QString::number(model.total()) : "no total", "no total");
     }
 
     // ── History persistence behavior ────────────────────────────────────────
