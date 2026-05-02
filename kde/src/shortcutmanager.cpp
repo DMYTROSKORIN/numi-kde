@@ -14,11 +14,19 @@ ShortcutManager::ShortcutManager(QAction *action, QObject *parent)
     : QObject(parent)
     , m_action(action)
 {
-    QSettings settings("numi-kde", "numi-kde");
-    m_sequence = settings.value(QStringLiteral("globalShortcut"), QStringLiteral("Ctrl+Alt+1")).toString();
-    if (!registerShortcut(m_sequence, false)) {
-        qWarning() << "Failed to register global shortcut" << m_sequence;
+#ifdef NUMI_KDE_HAVE_GLOBAL_ACCEL
+    // This loads the shortcut from kglobalshortcutsrc automatically
+    KGlobalAccel::self()->setGlobalShortcut(m_action, QKeySequence(QStringLiteral("Ctrl+Alt+1")));
+    
+    QList<QKeySequence> shortcuts = KGlobalAccel::self()->shortcut(m_action);
+    if (!shortcuts.isEmpty()) {
+        m_sequence = shortcuts.first().toString(QKeySequence::PortableText);
+    } else {
+        m_sequence = QStringLiteral("Ctrl+Alt+1");
     }
+#else
+    m_sequence = QStringLiteral("Ctrl+Alt+1");
+#endif
     updateActionText();
 }
 
@@ -45,8 +53,6 @@ void ShortcutManager::setSequence(const QString &sequence)
     }
 
     m_sequence = normalized;
-    QSettings settings("numi-kde", "numi-kde");
-    settings.setValue(QStringLiteral("globalShortcut"), m_sequence);
     setStatus(QStringLiteral("Shortcut saved"));
     updateActionText();
     emit sequenceChanged();
@@ -61,6 +67,8 @@ bool ShortcutManager::registerShortcut(const QString &sequence, bool promptForCo
     if (shortcut.isEmpty())
         return false;
 
+    m_action->setShortcut(shortcut);
+
 #ifdef NUMI_KDE_HAVE_GLOBAL_ACCEL
     auto *globalAccel = KGlobalAccel::self();
     if (promptForConflicts && !KGlobalAccel::isGlobalShortcutAvailable(shortcut)) {
@@ -72,8 +80,8 @@ bool ShortcutManager::registerShortcut(const QString &sequence, bool promptForCo
         KGlobalAccel::stealShortcutSystemwide(shortcut);
     }
 
-    globalAccel->setDefaultShortcut(m_action, {shortcut}, KGlobalAccel::NoAutoloading);
-    const bool ok = globalAccel->setShortcut(m_action, {shortcut}, KGlobalAccel::NoAutoloading);
+    // This commits the shortcut to kglobalshortcutsrc
+    const bool ok = globalAccel->setShortcut(m_action, {shortcut});
     setStatus(ok ? QString() : QStringLiteral("Shortcut is not available"));
     return ok;
 #else

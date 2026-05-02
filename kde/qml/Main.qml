@@ -102,7 +102,7 @@ Controls.ApplicationWindow {
 
     onClosing: (close) => {
         close.accepted = false
-        root.showMinimized()
+        root.hide()
     }
 
     background: Rectangle {
@@ -244,7 +244,7 @@ Controls.ApplicationWindow {
                     color: root.numiMuted
                     hoverColor: "#5c2a2d"
                     pressedColor: "#743236"
-                    onClicked: root.showMinimized()
+                    onClicked: root.hide()
                 }
             }
         }

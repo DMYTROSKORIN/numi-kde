@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.12 - 2026-05-03
+
+### Performance & Stability
+
+- **Emergency Fix: Window Visibility**: Reverted to using `hide()` instead of `showMinimized()` for window closing. This fixes a critical regression where the frameless window would become unreachable on some Wayland/X11 configurations. Implemented manual position restoration to ensure the window still remembers its last location.
+- **Emergency Fix: Global Shortcuts**: Completely rewrote the `ShortcutManager` to fix a regression where shortcuts failed to register or persist. The system now uses a hybrid approach of local `QAction` shortcuts and native `KGlobalAccel` registration, ensuring reliable triggering and persistent user preferences across restarts.
+
 ## 0.1.11 - 2026-05-03
 
 ### Performance & Stability

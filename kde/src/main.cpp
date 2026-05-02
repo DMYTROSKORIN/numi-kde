@@ -73,13 +73,12 @@ static void saveWindowPosition(QWindow *win)
 static void toggleWindow(QWindow *win)
 {
     if (!win) return;
-    if (win->isVisible() && win->windowState() != Qt::WindowMinimized) {
+    if (win->isVisible()) {
         saveWindowPosition(win);
-        win->showMinimized();
+        win->hide();
     } else {
-        win->showNormal();
-        // Restore position after show. X11 honours setPosition(); on Wayland
-        // the compositor controls placement, but the KWin rule handles it there.
+        win->show();
+        // Restore position after show.
         QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
         s.beginGroup(QStringLiteral("Window"));
         const int x = s.value(QStringLiteral("savedX"), -1).toInt();
