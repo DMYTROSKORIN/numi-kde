@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo/logo-numi-kde_clear.png" width="140" alt="numi-kde logo" />
+</p>
+
 # numi-kde
 
 `numi-kde` is a KDE-native document calculator inspired by Numi: you type a small text document on the left, and results appear line-by-line on the right.
