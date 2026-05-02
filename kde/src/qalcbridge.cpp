@@ -667,6 +667,32 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 res.error = "Error";
             }
         } else {
+            // "X% from/of NUMBER CURRENCY" — libqalculate always normalises
+            // currency results to USD when multiplying by a dimensionless fraction,
+            // so compute this pattern directly to preserve the original currency.
+            static QRegularExpression percentOfCurrencyRx(
+                "^([+-]?\\d+(?:[.,]\\d+)?)\\s*%\\s+(?:from|of)\\s+(\\d+(?:[.,]\\d+)?)\\s+([A-Za-z]{3,5})$",
+                QRegularExpression::CaseInsensitiveOption);
+            const auto pocm = percentOfCurrencyRx.match(line.trimmed());
+            if (pocm.hasMatch()) {
+                bool okP, okN;
+                const double pct = pocm.captured(1).toDouble(&okP);
+                QString numStr = pocm.captured(2);
+                numStr.replace(QLatin1Char(','), QLatin1Char('.'));
+                const double num = numStr.toDouble(&okN);
+                if (okP && okN) {
+                    const double value = pct / 100.0 * num;
+                    res.ok = true;
+                    res.result = pocm.captured(3).toUpper() + QLatin1Char(' ')
+                                 + smartFormat(value, m_decimalPlaces);
+                    res.hasNumericValue = true;
+                    res.numericValue = value;
+                    res.totalKey = totalKey;
+                    results.append(res);
+                    continue;
+                }
+            }
+
             line = applyPercentPreprocess(line);
             try {
                 m_calc->clearMessages();

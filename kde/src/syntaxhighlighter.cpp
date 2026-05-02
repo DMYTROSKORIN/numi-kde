@@ -14,7 +14,7 @@ SyntaxHighlighter::SyntaxHighlighter(Calculator *calc) : m_calc(calc) {
 
 QString SyntaxHighlighter::highlightLine(const QString &line, const QSet<QString> &variables) {
     if (line.trimmed().startsWith("#")) {
-        return QString("<span style=\"color:#ffd35a\">%1</span>").arg(escapeHtml(line));
+        return QString("<span style=\"color:#22d3ee\">%1</span>").arg(escapeHtml(line));
     }
 
     QString result;
