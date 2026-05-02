@@ -81,6 +81,9 @@ install(FILES resources/numi-kde.png
   DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
   RENAME org.skorin.numi-kde.png
 )
+install(FILES ../LICENSE ../NOTICE
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/numi-kde
+)
 
 # ── Math test suite ──────────────────────────────────────────────────────────
 enable_testing()
@@ -109,3 +112,30 @@ set_target_properties(numi-kde-tests PROPERTIES
 add_test(NAME qalc-math COMMAND numi-kde-tests qalc)
 add_test(NAME documentmodel COMMAND numi-kde-tests documentmodel)
 set_tests_properties(qalc-math documentmodel PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# ── Packaging ────────────────────────────────────────────────────────────────
+set(CPACK_PACKAGE_NAME "numi-kde")
+set(CPACK_PACKAGE_VENDOR "DMYTRO SKORIN")
+set(CPACK_PACKAGE_CONTACT "DMYTROSKORIN@users.noreply.github.com")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "KDE-native document calculator")
+set(CPACK_PACKAGE_DESCRIPTION "numi-kde is a KDE-native document-style calculator with support for unit conversion, currency exchange, date arithmetic, and variables.")
+set(CPACK_RPM_PACKAGE_DESCRIPTION "numi-kde is a KDE-native document-style calculator with support for unit conversion, currency exchange, date arithmetic, and variables.")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/DMYTROSKORIN/numi-kde")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/../LICENSE")
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-${CMAKE_SYSTEM_PROCESSOR}")
+
+set(CPACK_GENERATOR "RPM;DEB")
+
+set(CPACK_RPM_PACKAGE_LICENSE "Apache-2.0")
+set(CPACK_RPM_PACKAGE_GROUP "Applications/Productivity")
+set(CPACK_RPM_PACKAGE_REQUIRES "libqalculate, qt6-qtbase, qt6-qtbase-gui, qt6-qtdeclarative, kf6-kwindowsystem")
+if(KF6GlobalAccel_FOUND)
+  string(APPEND CPACK_RPM_PACKAGE_REQUIRES ", kf6-kglobalaccel")
+endif()
+
+set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
+set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "DMYTRO SKORIN <DMYTROSKORIN@users.noreply.github.com>")
+
+include(CPack)

@@ -1,0 +1,146 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  rpm:
+    name: Build RPM (Fedora)
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          dnf install -y \
+            git cmake ninja-build gcc-c++ \
+            qt6-qtbase-devel qt6-qtdeclarative-devel \
+            kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
+            libqalculate-devel \
+            rpm-build
+
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S kde -B build/release -GNinja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/release --target numi-kde numi-kde-tests
+
+      - name: Test
+        run: ctest --test-dir build/release --output-on-failure
+
+      - name: Package
+        run: cmake --build build/release --target package
+
+      - name: Inspect RPM
+        run: |
+          rpm -qpi build/release/*.rpm
+          rpm -qpl build/release/*.rpm
+          rpm -qpR build/release/*.rpm
+
+      - name: Install and probe RPM
+        run: |
+          dnf install -y ./build/release/*.rpm
+          numi-kde --version
+          numi-kde --probe
+          dnf remove -y numi-kde
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: build/release/*.rpm
+
+  deb:
+    name: Build DEB (Ubuntu)
+    runs-on: ubuntu-latest
+    # NOTE: Ubuntu package names need verification on a real Kubuntu/Ubuntu system.
+    # Build deps below are best-effort guesses — update after testing on Ubuntu.
+    # DEB Depends field (CPACK_DEBIAN_PACKAGE_DEPENDS) is not yet set;
+    # add it to kde/CMakeLists.txt after confirming runtime package names.
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build g++ \
+            qt6-base-dev qt6-declarative-dev \
+            libkf6windowsystem-dev libkf6globalaccel-dev \
+            libqalculate-dev \
+            dpkg-dev
+
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S kde -B build/release -GNinja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/release --target numi-kde numi-kde-tests
+
+      - name: Test
+        run: ctest --test-dir build/release --output-on-failure
+
+      - name: Package
+        run: cmake --build build/release --target package
+
+      - name: Inspect DEB
+        run: dpkg-deb -I build/release/*.deb && dpkg-deb -c build/release/*.deb
+
+      - name: Install and probe DEB
+        run: |
+          sudo apt-get install -y ./build/release/*.deb
+          numi-kde --version
+          numi-kde --probe
+          sudo apt-get remove -y numi-kde
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: build/release/*.deb
+
+  release:
+    name: Publish Release
+    needs: [rpm, deb]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download RPM
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm
+          path: dist/
+
+      - name: Download DEB
+        uses: actions/download-artifact@v4
+        with:
+          name: deb
+          path: dist/
+
+      - name: Copy installer scripts
+        run: cp packaging/install.sh packaging/uninstall.sh dist/
+
+      - name: Generate SHA256SUMS
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
