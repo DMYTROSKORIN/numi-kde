@@ -357,6 +357,34 @@ static void runSuite(QalcBridge &bridge) {
         check("assignment to unit name 'm' is now prevented", ok,
               results.size() >= 2 ? results[0].error : "no results", "Reserved name: m");
     }
+    {
+        auto results = bridge.evaluateDocument("2 : 4");
+        check("colon division support (2 : 4 = 0.5)",
+              results.size() == 1 && results[0].result == "0.5", results.size() >= 1 ? results[0].result : "error", "0.5");
+    }
+    {
+        auto results = bridge.evaluateDocument("asdasdasd");
+        QString actual = results.isEmpty() ? "empty list" : (results[0].ok ? results[0].result : "Error: " + results[0].error);
+        if (actual.isEmpty()) actual = "empty";
+        check("ignore pure text junk",
+              results.size() == 1 && results[0].result.isEmpty() && results[0].ok, actual, "empty");
+    }
+    {
+        auto results = bridge.evaluateDocument("500.42 , 599 58");
+        check("reject vector/list input with Error",
+              results.size() == 1 && !results[0].ok && results[0].error == "Error", "result shown", "Error");
+    }
+    {
+        auto results = bridge.evaluateDocument("/helpjunk");
+        check("ignore invalid /help commands",
+              results.size() == 1 && results[0].result.isEmpty() && results[0].ok, "junk shown", "empty");
+    }
+    {
+        auto results = bridge.evaluateDocument("7,486,332.414 + 1");
+        check("robust thousands separator removal",
+              results.size() == 1 && results[0].result == QLocale().toString(7486333.414, 'f', 3), 
+              results.size() >= 1 ? results[0].result : "error", "7,486,333.414");
+    }
 }
 
 #include <QSignalSpy>

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.11 - 2026-05-03
+
+### Performance & Stability
+
+- **Strict Input Noise Filter**: Implemented a heuristic to ignore arbitrary text and invalid commands (e.g., junk text or malformed `/help` calls). Only lines that contain digits, mathematical operators, assignments, or known symbols are now evaluated, keeping the result area clean from non-mathematical noise.
+- **Improved Currency & Large Number Parsing**: Fixed a critical issue where large numbers with thousands separators were being interpreted as vector lists. Reimplemented group separator removal using a robust backwards-iteration logic that handles multiple separators (e.g., `EUR 7,486,332.414`) correctly.
+- **Finalized Shortcut Persistence**: Resolved an issue where custom global shortcuts reset after application restart. The system now uses robust `QSettings` management combined with `KGlobalAccel::NoAutoloading` and explicit desktop file identification, ensuring user preferences are strictly honored by the KDE desktop.
+
+### Calculator
+
+- **Division Operator Alias**: Added support for `:` as a division operator (e.g., `2 : 4` now returns `0.5`), matching common notation in some regions.
+- **Vector Rejection**: Evaluated results that produce vectors or matrices (often caused by illogical or comma-heavy input) are now explicitly flagged as `Error` instead of showing confusing bracketed lists.
+
 ## 0.1.10 - 2026-05-03
 
 ### Performance & Stability

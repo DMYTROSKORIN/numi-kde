@@ -109,10 +109,7 @@ int main(int argc, char *argv[])
     // Component.onDestruction (stack is unwound in reverse: engine first, then model)
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("numi-kde"));
-    if (!QStandardPaths::locate(QStandardPaths::ApplicationsLocation,
-                                QStringLiteral("numi-kde.desktop")).isEmpty()) {
-        app.setDesktopFileName(QStringLiteral("numi-kde"));
-    }
+    app.setDesktopFileName(QStringLiteral("numi-kde"));
     app.setOrganizationName(QStringLiteral("numi-kde"));
     app.setQuitOnLastWindowClosed(false);   // stay alive in tray when window is closed
     const QIcon appIcon(QStringLiteral(":/icons/numi-kde.png"));

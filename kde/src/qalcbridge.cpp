@@ -560,17 +560,23 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
 
         // Safely strip thousands separators from numbers.
         // e.g. "22,045.00" -> "22045.00".
-        // We only strip if it's strictly a thousands separator followed by 3 digits.
+        // We only strip if it's strictly a thousands separator between two digits.
         QLocale locale;
         QString groupSep = locale.groupSeparator();
         QString decimalPoint = locale.decimalPoint();
         if (!groupSep.isEmpty() && groupSep != decimalPoint) {
-            QString escapedSep = QRegularExpression::escape(groupSep);
-            QRegularExpression regex(QStringLiteral("(\\d)%1(\\d{3}(?=\\D|$))").arg(escapedSep));
-            while (line.indexOf(regex) != -1) {
-                line.replace(regex, QStringLiteral("\\1\\2"));
+            for (int i = line.length() - (groupSep.length() + 1); i > 0; --i) {
+                if (line.mid(i, groupSep.length()) == groupSep 
+                    && line.at(i - 1).isDigit() 
+                    && line.at(i + groupSep.length()).isDigit()) {
+                    line.remove(i, groupSep.length());
+                }
             }
         }
+
+        // Support ':' as division operator (e.g. 2:4 -> 2/4)
+        static QRegularExpression colonDivRegex("(?<=\\d)\\s*:\\s*(?=\\d)");
+        line.replace(colonDivRegex, "/");
 
         if (isIncompleteExpression(trimmed)) {
             res.ok = true;
@@ -765,22 +771,58 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                         res.ok = true;
                     }
                 } else {
-                    QString out = QString::fromStdString(m_calc->print(result, 2000, po));
+                    MathStructure resVal = result;
+                    resVal.expand(eo);
+                    QString out = QString::fromStdString(m_calc->print(resVal, 2000, po));
                     // Strip surrounding quotes (dates, strings)
                     if (out.startsWith('"') && out.endsWith('"'))
                         out = out.mid(1, out.length() - 2);
-                    res.result = out;
-                    static QRegularExpression conversionWord(
-                        "\\b(?:to|in|as)\\b",
-                        QRegularExpression::CaseInsensitiveOption);
-                    if (conversionWord.match(trimmed).hasMatch())
-                        res.hasNumericValue = parseDisplayNumber(out, &res.numericValue);
-                    if (res.hasNumericValue)
-                        res.totalKey = totalKey;
-                    res.ok = true;
+
+                    // Disallow vectors/matrices - Numi doesn't use them and they confuse users
+                    if (out.startsWith('[') && out.endsWith(']')) {
+                        res.ok = false;
+                        res.error = "Error";
+                    } else {
+                        res.result = out;
+                        static QRegularExpression conversionWord(
+                            "\\b(?:to|in|as)\\b",
+                            QRegularExpression::CaseInsensitiveOption);
+                        if (conversionWord.match(trimmed).hasMatch())
+                            res.hasNumericValue = parseDisplayNumber(out, &res.numericValue);
+                        if (res.hasNumericValue)
+                            res.totalKey = totalKey;
+                        res.ok = !hasCalculationError(m_calc);
+                    }
+                    if (!res.ok) res.error = "Error";
                 }
             } catch (...) {
                 res.ok = false;
+                res.error = "Error";
+            }
+        }
+
+        if (res.ok && !res.hasNumericValue && !res.result.isEmpty()) {
+            bool containsDigits = trimmed.contains(QRegularExpression("\\d"));
+            bool isAssignment = trimmed.contains('=');
+            bool hasOperators = trimmed.contains(QRegularExpression("[+\\-*/^%]"));
+            bool isKnownSymbol = m_calc->getVariable(trimmed.toStdString()) 
+                              || m_calc->getUnit(trimmed.toStdString())
+                              || m_calc->getFunction(trimmed.toStdString());
+            
+            if (!containsDigits && !isAssignment && !hasOperators && !isKnownSymbol) {
+                res.ok = true;
+                res.result = "";
+                res.error = "";
+            }
+        }
+
+        if (!res.ok) {
+            // If the line fails and contains no digits, treat it as junk text/comment and hide result
+            if (!trimmed.contains(QRegularExpression("\\d"))) {
+                res.ok = true;
+                res.result = "";
+                res.error = "";
+            } else {
                 res.error = "Error";
             }
         }
