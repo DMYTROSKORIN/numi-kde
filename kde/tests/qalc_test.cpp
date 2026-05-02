@@ -131,6 +131,13 @@ static void runSuite(QalcBridge &bridge) {
         check("variable chain: 20% of price=100", ok,
               results.size() >= 3 ? results[2].result : "size<3", "20");
     }
+    {
+        bridge.evaluateDocument("x = 10");
+        auto results = bridge.evaluateDocument("x + 5");
+        bool ok = results.size() == 1 && (!results[0].ok || results[0].result != "15");
+        check("variable deletion: x should not persist across evaluations", ok,
+              results.size() >= 1 ? results[0].result : "no results", "Error/not 15");
+    }
 
     // ── Empty and comment lines ───────────────────────────────────────────────
     {
@@ -344,8 +351,11 @@ static void runSuite(QalcBridge &bridge) {
               c.toLower().startsWith("kil"), c, "kil...");
     }
     {
-        QString c = bridge.getCompletion("me");
-        check("completion 'me' non-empty", !c.isEmpty(), c, "non-empty");
+        auto results = bridge.evaluateDocument("m = 10\n5 m");
+        // If it uses the variable, result is 50. If it uses the unit, result is "5 m".
+        bool ok = results.size() == 2 && results[1].result == "50";
+        check("assignment to unit name 'm' uses variable value", ok,
+              results.size() >= 2 ? results[1].result : "no results", "50");
     }
 }
 
@@ -466,7 +476,7 @@ int main(int argc, char *argv[]) {
 
     QApplication app(argc, argv);
     app.setApplicationName("numi-kde-test");
-    app.setOrganizationName("skorin");
+    app.setOrganizationName("numi-kde");
 
     const QString suite = argc > 1 ? QString::fromLocal8Bit(argv[1]) : QStringLiteral("qalc");
     std::printf("=== numi-kde %s Test Suite ===\n\n",

@@ -77,11 +77,11 @@ if(KF6GlobalAccel_FOUND)
 endif()
 
 install(TARGETS numi-kde RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES resources/org.skorin.numi-kde.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-install(FILES resources/org.skorin.numi-kde.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
+install(FILES resources/numi-kde.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES resources/numi-kde.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
 install(FILES resources/numi-kde.png
   DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
-  RENAME org.skorin.numi-kde.png
+  RENAME numi-kde.png
 )
 install(FILES ../LICENSE ../NOTICE
   DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/numi-kde

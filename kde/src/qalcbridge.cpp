@@ -484,6 +484,20 @@ QString QalcBridge::highlightLine(const QString &line) const
 }
 
 QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
+    // Clear user-defined variables from previous evaluations.
+    // We collect names first to avoid iterator invalidation during removal.
+    std::vector<std::string> toRemove;
+    for (size_t i = 0; ; ++i) {
+        Variable *v = m_calc->getVariable(i);
+        if (!v) break;
+        if (!v->isBuiltin()) {
+            toRemove.push_back(v->name());
+        }
+    }
+    for (const auto &name : toRemove) {
+        m_calc->deleteName(name);
+    }
+
     QList<LineResult> results;
     QStringList lines = source.split('\n');
 

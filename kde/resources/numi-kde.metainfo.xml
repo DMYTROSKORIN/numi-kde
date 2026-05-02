@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>numi-kde</id>
+  <name>Numi</name>
+  <summary>A KDE-native document calculator for people who think in text</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <description>
+    <p>numi-kde is a document-style calculator for KDE, inspired by Numi. It treats calculations as a small live document where you type expressions like notes and get results instantly.</p>
+  </description>
+  <launchable type="desktop-id">numi-kde.desktop</launchable>
+  <url type="homepage">https://github.com/DMYTROSKORIN/numi-kde</url>
+</component>

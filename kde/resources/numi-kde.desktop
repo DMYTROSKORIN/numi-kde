@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=numi-kde
+Name=Numi
 GenericName=Document Calculator
-Comment=KDE-native Numi-compatible calculator
+Comment=A KDE-native document calculator for people who think in text
 Exec=numi-kde
-Icon=org.skorin.numi-kde
+Icon=numi-kde
 Terminal=false
 Categories=Qt;KDE;Utility;Calculator;

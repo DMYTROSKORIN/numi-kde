@@ -3,8 +3,8 @@
 This document outlines the roadmap for stabilizing and improving the `numi-kde` project.
 
 ## Phase 1: Stabilization & Core Logic (Priority: High)
-- [ ] **Fix Variable Persistence Bug**: Ensure that variables from deleted lines do not persist in the calculation engine.
-- [ ] **KWin Rules Safety**: Refactor `kwinrulesrc` modification to be more robust and prevent data loss from concurrent writes.
+- [x] **Fix Variable Persistence Bug**: Ensure that variables from deleted lines do not persist in the calculation engine.
+- [x] **KWin Rules Safety**: Refactor `kwinrulesrc` modification to be more robust and prevent data loss from concurrent writes.
 - [ ] **Variable Name Validation**: Improve regex for variable assignments to prevent edge-case collisions with units.
 
 ## Phase 2: Performance & Concurrency (Priority: Medium)
@@ -13,7 +13,7 @@ This document outlines the roadmap for stabilizing and improving the `numi-kde` 
 - [ ] **Highlighter Optimization**: Cache unit/keyword lookups in `SyntaxHighlighter` to reduce per-token overhead.
 
 ## Phase 3: UX & Polish (Priority: Medium)
-- [ ] **Organization Refactoring**: Rename the organization/app identity from `skorin/numi-kde` to a more formal `numi-kde`.
+- [x] **Organization Refactoring**: Rename the organization/app identity from `skorin/numi-kde` to a more formal `numi-kde`.
 - [ ] **Network Status Feedback**: Add a visual indicator for cryptocurrency rate update status.
 - [ ] **HiDPI Stability**: Verify and adjust editor overlay alignment for various scaling factors.
 

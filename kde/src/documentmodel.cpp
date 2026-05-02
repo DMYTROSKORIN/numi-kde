@@ -18,6 +18,7 @@
 #include <QVector>
 #include <QHash>
 
+#include <QSaveFile>
 #include <utility>
 
 DocumentModel::DocumentModel(QObject *parent)
@@ -28,7 +29,7 @@ DocumentModel::DocumentModel(QObject *parent)
         if (!m_source.trimmed().isEmpty() && m_source.trimmed() != QStringLiteral("/help"))
             evaluate();
     });
-    QSettings settings("skorin", "numi-kde");
+    QSettings settings("numi-kde", "numi-kde");
     m_history = settings.value("history").value<QVariantList>();
     m_decimalPlaces = settings.value("decimalPlaces", 3).toInt();
 }
@@ -83,7 +84,7 @@ void DocumentModel::setDecimalPlaces(int places)
 {
     if (m_decimalPlaces == places) return;
     m_decimalPlaces = places;
-    QSettings settings("skorin", "numi-kde");
+    QSettings settings("numi-kde", "numi-kde");
     settings.setValue("decimalPlaces", m_decimalPlaces);
     emit decimalPlacesChanged();
     evaluate();
@@ -179,7 +180,7 @@ void DocumentModel::saveSession()
     if (m_history.size() > 25)
         m_history.removeLast();
 
-    QSettings settings("skorin", "numi-kde");
+    QSettings settings("numi-kde", "numi-kde");
     settings.setValue("history", m_history);
     emit historyChanged();
 }
@@ -194,7 +195,7 @@ void DocumentModel::restoreSession(int index)
 void DocumentModel::clearHistory()
 {
     m_history.clear();
-    QSettings settings("skorin", "numi-kde");
+    QSettings settings("numi-kde", "numi-kde");
     settings.remove("history");
     emit historyChanged();
 }
@@ -321,7 +322,7 @@ void DocumentModel::setKWinKeepAboveRule(bool enabled)
     keptRules.append(RuleSection{QString(), ruleLines});
 
     QDir().mkpath(configDir);
-    QFile output(path);
+    QSaveFile output(path);
     if (!output.open(QIODevice::WriteOnly | QIODevice::Text))
         return;
 
@@ -345,7 +346,7 @@ void DocumentModel::setKWinKeepAboveRule(bool enabled)
         out << "\n";
     }
 
-    output.close();
+    output.commit();
 
     reloadKWinRules();
 }

@@ -40,7 +40,7 @@ static int runProbe(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("numi-kde"));
-    app.setOrganizationName(QStringLiteral("skorin"));
+    app.setOrganizationName(QStringLiteral("numi-kde"));
 
     QalcBridge bridge;
     const auto results = bridge.evaluateDocument(QStringLiteral("2 + 2\n1 km to m"));
@@ -62,7 +62,7 @@ static int runProbe(int argc, char *argv[])
 
 static void saveWindowPosition(QWindow *win)
 {
-    QSettings s(QStringLiteral("skorin"), QStringLiteral("numi-kde"));
+    QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
     s.beginGroup(QStringLiteral("Window"));
     s.setValue(QStringLiteral("savedX"), win->x());
     s.setValue(QStringLiteral("savedY"), win->y());
@@ -80,7 +80,7 @@ static void toggleWindow(QWindow *win)
         win->show();
         // Restore position after show. X11 honours setPosition(); on Wayland
         // the compositor controls placement, but the KWin rule handles it there.
-        QSettings s(QStringLiteral("skorin"), QStringLiteral("numi-kde"));
+        QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
         s.beginGroup(QStringLiteral("Window"));
         const int x = s.value(QStringLiteral("savedX"), -1).toInt();
         const int y = s.value(QStringLiteral("savedY"), -1).toInt();
@@ -110,10 +110,10 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("numi-kde"));
     if (!QStandardPaths::locate(QStandardPaths::ApplicationsLocation,
-                                QStringLiteral("org.skorin.numi-kde.desktop")).isEmpty()) {
-        app.setDesktopFileName(QStringLiteral("org.skorin.numi-kde"));
+                                QStringLiteral("numi-kde.desktop")).isEmpty()) {
+        app.setDesktopFileName(QStringLiteral("numi-kde"));
     }
-    app.setOrganizationName(QStringLiteral("skorin"));
+    app.setOrganizationName(QStringLiteral("numi-kde"));
     app.setQuitOnLastWindowClosed(false);   // stay alive in tray when window is closed
     const QIcon appIcon(QStringLiteral(":/icons/numi-kde.png"));
     const QIcon trayIcon(QStringLiteral(":/icons/numi-kde-tray.png"));
