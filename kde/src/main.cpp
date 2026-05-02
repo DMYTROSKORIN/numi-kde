@@ -3,6 +3,7 @@
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QSettings>
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QAction>
@@ -57,14 +58,33 @@ static int runProbe(int argc, char *argv[])
     return 1;
 }
 
+static void saveWindowPosition(QWindow *win)
+{
+    QSettings s(QStringLiteral("skorin"), QStringLiteral("numi-kde"));
+    s.beginGroup(QStringLiteral("Window"));
+    s.setValue(QStringLiteral("savedX"), win->x());
+    s.setValue(QStringLiteral("savedY"), win->y());
+    s.endGroup();
+}
+
 // Toggle main window show/hide
 static void toggleWindow(QWindow *win)
 {
     if (!win) return;
     if (win->isVisible() && win->windowState() != Qt::WindowMinimized) {
+        saveWindowPosition(win);
         win->hide();
     } else {
         win->show();
+        // Restore position after show. X11 honours setPosition(); on Wayland
+        // the compositor controls placement, but the KWin rule handles it there.
+        QSettings s(QStringLiteral("skorin"), QStringLiteral("numi-kde"));
+        s.beginGroup(QStringLiteral("Window"));
+        const int x = s.value(QStringLiteral("savedX"), -1).toInt();
+        const int y = s.value(QStringLiteral("savedY"), -1).toInt();
+        s.endGroup();
+        if (x >= 0 && y >= 0)
+            win->setPosition(x, y);
         win->raise();
         win->requestActivate();
     }

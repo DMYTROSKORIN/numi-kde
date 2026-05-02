@@ -42,6 +42,10 @@ Controls.ApplicationWindow {
     property bool showResultsSeparator: windowSettings.showResultsSeparator
     onShowResultsSeparatorChanged: windowSettings.showResultsSeparator = showResultsSeparator
 
+    // Prevents the compositor's initial window placement from overwriting the
+    // saved position. Set to true only after Component.onCompleted restores it.
+    property bool positionRestored: false
+
     readonly property color numiWindow: "#22242a"
     readonly property color numiTitle: "#5d5f69"
     readonly property color numiText: "#f0f0f3"
@@ -75,15 +79,13 @@ Controls.ApplicationWindow {
         if (typeof documentModel !== "undefined") {
             documentModel.decimalPlaces = decimalPlaces
         }
-        // Defer setKeepAbove until after the window is shown and its WId is valid
-        Qt.callLater(() => {
-            if (typeof documentModel !== "undefined") {
-                documentModel.setKeepAbove(alwaysOnTop)
-            }
-        })
+        // Defer positionRestored so any async compositor placement that arrives
+        // after our restore does not overwrite the saved value.
+        Qt.callLater(() => { positionRestored = true })
     }
 
-    // Re-apply keep-above whenever the window becomes visible (e.g. after hide/show)
+    // Re-apply skip-taskbar and keep-above whenever the window becomes visible
+    // (X11 EWMH states are reset on each unmap/remap).
     onVisibleChanged: {
         if (visible && typeof documentModel !== "undefined") {
             Qt.callLater(() => documentModel.setKeepAbove(alwaysOnTop))
@@ -92,8 +94,13 @@ Controls.ApplicationWindow {
 
     onWidthChanged: windowSettings.savedWidth = width
     onHeightChanged: windowSettings.savedHeight = height
-    onXChanged: windowSettings.savedX = x
-    onYChanged: windowSettings.savedY = y
+    onXChanged: if (positionRestored) windowSettings.savedX = x
+    onYChanged: if (positionRestored) windowSettings.savedY = y
+
+    onClosing: (close) => {
+        close.accepted = false
+        root.hide()
+    }
 
     background: Rectangle {
         color: "transparent"
@@ -195,7 +202,7 @@ Controls.ApplicationWindow {
                     color: root.numiMuted
                     hoverColor: "#5c2a2d"
                     pressedColor: "#743236"
-                    onClicked: Qt.quit()
+                    onClicked: root.hide()
                 }
             }
         }

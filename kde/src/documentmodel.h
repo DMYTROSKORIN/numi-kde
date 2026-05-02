@@ -79,4 +79,6 @@ private:
     QVariantList m_history;
     int m_decimalPlaces = 3;
     double m_total = 0.0;
+    bool m_kwinRuleApplied = false;
+    bool m_keepAbove = true;
 };

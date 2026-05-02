@@ -211,16 +211,26 @@ QString DocumentModel::highlightExample(const QString &line) const
 
 void DocumentModel::setKeepAbove(bool above)
 {
-    if (KWindowSystem::isPlatformWayland())
-        setKWinKeepAboveRule(above);
+    if (KWindowSystem::isPlatformWayland()) {
+        // Only write kwinrulesrc + call reconfigure when the state actually changes.
+        // Calling reconfigure on every window show causes KWin to re-place the
+        // window, resetting its position on Wayland.
+        if (!m_kwinRuleApplied || above != m_keepAbove) {
+            setKWinKeepAboveRule(above);
+            m_kwinRuleApplied = true;
+            m_keepAbove = above;
+        }
+    }
 
     for (QWindow *win : qApp->allWindows()) {
         if (!win->isVisible()) continue;
         if (KWindowSystem::isPlatformX11()) {
             if (above) {
-                KX11Extras::setState(win->winId(), NET::KeepAbove | NET::SkipTaskbar);
+                KX11Extras::setState(win->winId(), NET::KeepAbove | NET::SkipTaskbar | NET::SkipPager);
             } else {
-                KX11Extras::clearState(win->winId(), NET::KeepAbove | NET::SkipTaskbar);
+                // Keep-above off, but always stay out of the taskbar and pager.
+                KX11Extras::clearState(win->winId(), NET::KeepAbove);
+                KX11Extras::setState(win->winId(), NET::SkipTaskbar | NET::SkipPager);
             }
         }
     }
@@ -291,43 +301,24 @@ void DocumentModel::setKWinKeepAboveRule(bool enabled)
             keptRules.append(section);
     }
 
-    // 2. If enabled, add the Keep Above rule.
-    if (enabled) {
-        keptRules.append(RuleSection{
-            QString(),
-            {
-                QStringLiteral("Description=%1").arg(managedDescription),
-                QStringLiteral("above=true"),
-                QStringLiteral("aboverule=2"), // 2 = Force
-                QStringLiteral("keepabove=true"),
-                QStringLiteral("keepaboverule=2"), // 2 = Force
-                QStringLiteral("wmclass=numi-kde"),
-                QStringLiteral("wmclasscomplete=false"),
-                QStringLiteral("wmclassmatch=2"), // 2 = Exact Match Substring
-                QStringLiteral("types=4294967295"), // All window types
-            }
-        });
-    } else {
-        // To ensure it gets turned off instantly, we append a temporary rule
-        // forcing it off, then rely on DBus reconfigure. KWin caches window states.
-        // Or simply omitting it is usually enough for KWin to drop the state on reconfigure
-        // but if it sticks, it means the state needs to be forcefully cleared.
-        // Let's add a force-disable rule if not enabled to ensure the state clears.
-        keptRules.append(RuleSection{
-            QString(),
-            {
-                QStringLiteral("Description=%1").arg(managedDescription),
-                QStringLiteral("above=false"),
-                QStringLiteral("aboverule=2"), // Force
-                QStringLiteral("keepabove=false"),
-                QStringLiteral("keepaboverule=2"), // Force
-                QStringLiteral("wmclass=numi-kde"),
-                QStringLiteral("wmclasscomplete=false"),
-                QStringLiteral("wmclassmatch=2"),
-                QStringLiteral("types=4294967295"),
-            }
-        });
-    }
+    // 2. Add the managed rule. Skip-taskbar and skip-pager are always forced;
+    //    keep-above is toggled by the `enabled` parameter.
+    QStringList ruleLines = {
+        QStringLiteral("Description=%1").arg(managedDescription),
+        QStringLiteral("skiptaskbar=true"),
+        QStringLiteral("skiptaskbarrule=2"),  // Force
+        QStringLiteral("skippager=true"),
+        QStringLiteral("skippagerrule=2"),    // Force
+        QStringLiteral("above=%1").arg(enabled ? "true" : "false"),
+        QStringLiteral("aboverule=2"),        // Force
+        QStringLiteral("keepabove=%1").arg(enabled ? "true" : "false"),
+        QStringLiteral("keepaboverule=2"),    // Force
+        QStringLiteral("wmclass=numi-kde"),
+        QStringLiteral("wmclasscomplete=false"),
+        QStringLiteral("wmclassmatch=2"),     // Exact Match Substring
+        QStringLiteral("types=4294967295"),   // All window types
+    };
+    keptRules.append(RuleSection{QString(), ruleLines});
 
     QDir().mkpath(configDir);
     QFile output(path);
