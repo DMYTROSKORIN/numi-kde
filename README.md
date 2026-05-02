@@ -1,7 +1,7 @@
 # numi-kde
 
 <p align="center">
-  <img src="kde/resources/numi-kde.png" width="156" alt="numi-kde logo" />
+  <img src="logo/numi-kde-readme.png" width="172" alt="numi-kde logo" />
 </p>
 
 **A KDE-native document calculator for people who think in text.**
