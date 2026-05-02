@@ -4,6 +4,6 @@ Name=numi-kde
 GenericName=Document Calculator
 Comment=KDE-native Numi-compatible calculator
 Exec=numi-kde
-Icon=accessories-calculator
+Icon=org.skorin.numi-kde
 Terminal=false
 Categories=Qt;KDE;Utility;Calculator;

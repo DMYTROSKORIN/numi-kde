@@ -22,6 +22,8 @@ Completed:
 - Qt/QML frameless compact window.
 - C++ backend through `DocumentModel`.
 - `libqalculate` bridge in `QalcBridge`.
+- `--version` and `--probe` command-line modes for package smoke tests.
+- CMake install rules for binary, desktop file, AppStream metadata and app icon.
 - C++ syntax highlighter.
 - Settings window.
 - History drawer.
@@ -171,11 +173,16 @@ Remaining:
 
 ### Phase E: Packaging and Release
 
-Status: not started.
+Status: active.
+
+Done:
+
+- install rules for the app binary, desktop file, AppStream metadata and app icon;
+- non-GUI `--version` and `--probe` checks for installer/package smoke tests;
+- one-line installer plan based on GitHub Releases and native `.deb`/`.rpm` packages.
 
 Needed:
 
-- install rules for icons if needed outside Qt resources;
 - desktop/appstream validation;
 - package smoke test;
 - one-line install script from release artifacts;
