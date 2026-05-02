@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6 - 2026-05-02
+
+- Released the project under the Apache License 2.0.
+- Updated AppStream metadata from proprietary placeholder licensing to `Apache-2.0`.
+- Removed the README logo image and added a clear license section.
+- Bumped the native project version to `0.1.6`.
+
 ## 0.1.5 - 2026-05-02
 
 - Reworked `README.md` into a public-facing project overview with status, features, build instructions, acknowledgements and contribution notes.

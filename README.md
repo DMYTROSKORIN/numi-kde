@@ -1,7 +1,5 @@
 # numi-kde
 
-![numi-kde logo](logo/logo-numi-kde.png)
-
 `numi-kde` is a KDE-native document calculator inspired by Numi: you type a small text document on the left, and results appear line-by-line on the right.
 
 The goal is a fast, quiet calculator for Linux/KDE that feels native: compact window, keyboard-first workflow, tray integration, global shortcut, KDE window behavior, history, settings, and a calculation engine strong enough for math, units, currencies, crypto and dates.
@@ -81,6 +79,12 @@ ctest --test-dir build/kde --output-on-failure
 - `docs/installation-plan.md`: one-line installer design for KDE Linux distributions.
 - `docs/architecture.md`: current layer boundaries.
 - `CHANGELOG.md`: release notes.
+- `LICENSE`: Apache License 2.0.
+- `NOTICE`: copyright and attribution notice.
+
+## License
+
+`numi-kde` is released under the [Apache License 2.0](LICENSE). This is a permissive open-source license that allows use, modification, redistribution and commercial use while preserving copyright notices, license terms and patent protections.
 
 ## Thanks
 
@@ -105,5 +109,3 @@ The project is intended to be easy to study, fork, improve and adapt. Useful con
 - installer validation on clean KDE systems;
 - UI polish and accessibility improvements;
 - documentation and examples.
-
-Before public release, the repository should get an explicit open-source `LICENSE` file and matching AppStream metadata. MIT is the recommended license if the goal is to allow broad reuse with minimal restrictions.
