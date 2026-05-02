@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.10 - 2026-05-03
+
+### Performance & Stability
+
+- **Improved Window Position Persistence**: Switched from `hide()` to `showMinimized()` for the main window toggle. This preserves the surface mapping and compositor state, ensuring the window reappears exactly where the user left it on both Wayland and X11.
+- **Enhanced Calculation Parsing**: Fixed an issue where numbers with thousands separators (e.g., `22,045.00`) were incorrectly parsed as lists by `libqalculate`. Pre-processing now safely strips locale-aware group separators from numbers before evaluation.
+- **Robust Shortcut Persistence**: Refactored `ShortcutManager` to use native `KGlobalAccel` configuration. User-defined global shortcuts are now stored directly in KDE's settings (`kglobalshortcutsrc`), ensuring they are remembered across app restarts.
+
+### UX & Branding
+
+- **Light Theme**: Added a new "Light Theme" option in settings with a palette inspired by old paper/milky white (`#f2e9d0`). All UI components (settings, history, drawer) now dynamically adapt to the selected theme.
+- **Update Checker Notifications**: Fixed a `QSettings` organization mismatch that prevented update checks from persisting. Added system tray notifications for manual update checks: "Checking for updates...", "You are using the latest version", and "A new version is available".
+
 ## 0.1.9 - 2026-05-03
 
 ### Performance & Stability

@@ -558,6 +558,20 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         // Preprocess input for libqalculate compatibility
         QString line = rawLine;
 
+        // Safely strip thousands separators from numbers.
+        // e.g. "22,045.00" -> "22045.00".
+        // We only strip if it's strictly a thousands separator followed by 3 digits.
+        QLocale locale;
+        QString groupSep = locale.groupSeparator();
+        QString decimalPoint = locale.decimalPoint();
+        if (!groupSep.isEmpty() && groupSep != decimalPoint) {
+            QString escapedSep = QRegularExpression::escape(groupSep);
+            QRegularExpression regex(QStringLiteral("(\\d)%1(\\d{3}(?=\\D|$))").arg(escapedSep));
+            while (line.indexOf(regex) != -1) {
+                line.replace(regex, QStringLiteral("\\1\\2"));
+            }
+        }
+
         if (isIncompleteExpression(trimmed)) {
             res.ok = true;
             res.result = "";

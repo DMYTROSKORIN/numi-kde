@@ -20,7 +20,7 @@ Item {
 
             Text {
                 text: "History"
-                color: "#c0c2cc"
+                color: Window.window.numiMuted
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
                 Layout.fillWidth: true
@@ -40,7 +40,7 @@ Item {
 
                 contentItem: Text {
                     text: "🗑"
-                    color: "#e8e9f0"
+                    color: Window.window.numiRed
                     font.pixelSize: 14
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -48,7 +48,7 @@ Item {
 
                 background: Rectangle {
                     radius: 4
-                    color: clearBtn.down ? "#4a2c2c" : clearBtn.hovered ? "#3a2525" : "transparent"
+                    color: clearBtn.down ? Window.window.controlPressed : clearBtn.hovered ? Window.window.controlHover : "transparent"
                 }
 
                 onClicked: documentModel.clearHistory()
@@ -58,7 +58,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             height: 1
-            color: "#3a3d47"
+            color: Window.window.lightTheme ? "#d9cea1" : "#3a3d47"
         }
 
         ListView {
@@ -73,7 +73,7 @@ Item {
             delegate: Rectangle {
                 width: historyList.width
                 height: 58
-                color: itemHover.hovered ? "#363a47" : "transparent"
+                color: itemHover.hovered ? Window.window.controlHover : "transparent"
                 radius: 5
 
                 ColumnLayout {
@@ -86,7 +86,7 @@ Item {
 
                     Text {
                         text: modelData.text.split('\n')[0]
-                        color: "#e8e9f0"
+                        color: Window.window.numiText
                         font.pixelSize: 12
                         font.family: "Menlo, Monaco, Consolas, monospace"
                         elide: Text.ElideRight
@@ -95,7 +95,7 @@ Item {
 
                     Text {
                         text: modelData.timestamp
-                        color: "#7a7d8a"
+                        color: Window.window.numiMuted
                         font.pixelSize: 10
                         Layout.fillWidth: true
                     }
@@ -115,7 +115,7 @@ Item {
                 anchors.centerIn: parent
                 visible: historyList.count === 0
                 text: "No history yet"
-                color: "#5a5d6a"
+                color: Window.window.numiMuted
                 font.pixelSize: 12
             }
         }

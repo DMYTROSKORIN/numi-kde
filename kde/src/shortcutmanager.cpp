@@ -14,15 +14,18 @@ ShortcutManager::ShortcutManager(QAction *action, QObject *parent)
     : QObject(parent)
     , m_action(action)
 {
-    QSettings settings("numi-kde", "numi-kde");
-    m_sequence = settings.value(QStringLiteral("globalShortcut"), QStringLiteral("Ctrl+Alt+1")).toString();
-    if (m_sequence == QStringLiteral("Alt+1")) {
+#ifdef NUMI_KDE_HAVE_GLOBAL_ACCEL
+    // KGlobalAccel automatically loads the shortcut from kglobalshortcutsrc
+    // based on the application name and objectName.
+    KGlobalAccel::self()->setGlobalShortcut(m_action, QKeySequence(QStringLiteral("Ctrl+Alt+1")));
+    
+    QList<QKeySequence> shortcuts = KGlobalAccel::self()->shortcut(m_action);
+    if (!shortcuts.isEmpty()) {
+        m_sequence = shortcuts.first().toString(QKeySequence::PortableText);
+    } else {
         m_sequence = QStringLiteral("Ctrl+Alt+1");
-        settings.setValue(QStringLiteral("globalShortcut"), m_sequence);
     }
-    if (!registerShortcut(m_sequence, false)) {
-        qWarning() << "Failed to register global shortcut" << m_sequence;
-    }
+#endif
     updateActionText();
 }
 
@@ -49,8 +52,6 @@ void ShortcutManager::setSequence(const QString &sequence)
     }
 
     m_sequence = normalized;
-    QSettings settings("numi-kde", "numi-kde");
-    settings.setValue(QStringLiteral("globalShortcut"), m_sequence);
     setStatus(QStringLiteral("Shortcut saved"));
     updateActionText();
     emit sequenceChanged();
@@ -65,22 +66,19 @@ bool ShortcutManager::registerShortcut(const QString &sequence, bool promptForCo
     if (shortcut.isEmpty())
         return false;
 
-    m_action->setShortcut(shortcut);
-
 #ifdef NUMI_KDE_HAVE_GLOBAL_ACCEL
     auto *globalAccel = KGlobalAccel::self();
     if (promptForConflicts && !KGlobalAccel::isGlobalShortcutAvailable(shortcut)) {
         const auto conflicts = KGlobalAccel::globalShortcutsByKey(shortcut);
-        if (!promptForConflicts ||
-            !KGlobalAccel::promptStealShortcutSystemwide(nullptr, conflicts, shortcut)) {
+        if (!KGlobalAccel::promptStealShortcutSystemwide(nullptr, conflicts, shortcut)) {
             setStatus(QStringLiteral("Shortcut is already used"));
             return false;
         }
         KGlobalAccel::stealShortcutSystemwide(shortcut);
     }
 
-    globalAccel->setDefaultShortcut(m_action, {shortcut}, KGlobalAccel::NoAutoloading);
-    const bool ok = globalAccel->setShortcut(m_action, {shortcut}, KGlobalAccel::NoAutoloading);
+    // This commits the new shortcut to kglobalshortcutsrc
+    const bool ok = globalAccel->setShortcut(m_action, {shortcut});
     setStatus(ok ? QString() : QStringLiteral("Shortcut is not available"));
     return ok;
 #else

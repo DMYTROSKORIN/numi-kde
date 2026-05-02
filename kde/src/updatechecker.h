@@ -22,6 +22,7 @@ public:
 
 signals:
     void updateAvailable(const QString &latestVersion, const QUrl &releaseUrl);
+    void checkFinished(bool updateFound);
 
 private:
     QNetworkAccessManager *m_nam;

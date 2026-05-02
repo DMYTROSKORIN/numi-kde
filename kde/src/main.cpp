@@ -75,9 +75,9 @@ static void toggleWindow(QWindow *win)
     if (!win) return;
     if (win->isVisible() && win->windowState() != Qt::WindowMinimized) {
         saveWindowPosition(win);
-        win->hide();
+        win->showMinimized();
     } else {
-        win->show();
+        win->showNormal();
         // Restore position after show. X11 honours setPosition(); on Wayland
         // the compositor controls placement, but the KWin rule handles it there.
         QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
@@ -204,9 +204,31 @@ int main(int argc, char *argv[])
         });
 
     // Manual check: restore label if no update found after an explicit click
-    QObject::connect(checkUpdatesAction, &QAction::triggered, [&updateChecker]() {
+    bool manualCheckInProgress = false;
+    QObject::connect(checkUpdatesAction, &QAction::triggered, [&updateChecker, &tray, &manualCheckInProgress]() {
+        manualCheckInProgress = true;
         updateChecker.checkAsync();
+        tray.showMessage(QStringLiteral("Numi-KDE"), 
+                         QStringLiteral("Checking for updates..."), 
+                         QSystemTrayIcon::Information, 2000);
     });
+
+    QObject::connect(&updateChecker, &UpdateChecker::checkFinished,
+        [&tray, &manualCheckInProgress](bool found) {
+            if (manualCheckInProgress && !found) {
+                tray.showMessage(QStringLiteral("Numi-KDE"),
+                                 QStringLiteral("You are using the latest version."),
+                                 QSystemTrayIcon::Information, 3000);
+            }
+            manualCheckInProgress = false;
+        });
+
+    QObject::connect(&updateChecker, &UpdateChecker::updateAvailable,
+        [&tray](const QString &version, const QUrl &url) {
+            tray.showMessage(QStringLiteral("Numi-KDE"),
+                             QStringLiteral("A new version is available: %1").arg(version),
+                             QSystemTrayIcon::Information, 5000);
+        });
 
     // Auto-check once per 24 hours on startup
     if (updateChecker.shouldAutoCheck())

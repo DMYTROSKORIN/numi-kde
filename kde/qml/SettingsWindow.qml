@@ -12,7 +12,7 @@ Window {
     height: 500
     minimumWidth: 280
     minimumHeight: 460
-    color: "#22242a"
+    color: mainWindow ? mainWindow.numiWindow : "#22242a"
     flags: Qt.Dialog
 
     ColumnLayout {
@@ -22,9 +22,47 @@ Window {
 
         Text {
             text: "Numi-KDE — Settings"
-            color: "#f0f0f3"
+            color: mainWindow ? mainWindow.numiText : "#f0f0f3"
             font.pixelSize: 14
             font.bold: true
+        }
+
+        Controls.CheckBox {
+            id: lightThemeCheck
+
+            text: "Light theme"
+            checked: mainWindow ? mainWindow.lightTheme : false
+            onToggled: {
+                if (mainWindow) mainWindow.lightTheme = checked
+            }
+
+            indicator: Rectangle {
+                implicitWidth: 16
+                implicitHeight: 16
+                x: lightThemeCheck.leftPadding
+                y: (lightThemeCheck.height - height) / 2
+                radius: 3
+                border.color: lightThemeCheck.checked ? (mainWindow ? mainWindow.numiBlue : "#6fc4e8") : "#6b6d76"
+                border.width: 1
+                color: lightThemeCheck.checked ? (mainWindow ? mainWindow.numiBlue : "#6fc4e8") : "transparent"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "✓"
+                    color: mainWindow ? mainWindow.numiWindow : "#22242a"
+                    font.pixelSize: 11
+                    font.weight: Font.Bold
+                    visible: lightThemeCheck.checked
+                }
+            }
+
+            contentItem: Text {
+                leftPadding: lightThemeCheck.indicator.width + lightThemeCheck.spacing
+                text: lightThemeCheck.text
+                color: mainWindow ? mainWindow.numiText : "#f0f0f3"
+                font.pixelSize: 13
+                verticalAlignment: Text.AlignVCenter
+            }
         }
 
         Controls.CheckBox {
@@ -42,14 +80,14 @@ Window {
                 x: alwaysOnTopCheck.leftPadding
                 y: (alwaysOnTopCheck.height - height) / 2
                 radius: 3
-                border.color: alwaysOnTopCheck.checked ? "#6fc4e8" : "#6b6d76"
+                border.color: alwaysOnTopCheck.checked ? (mainWindow ? mainWindow.numiBlue : "#6fc4e8") : "#6b6d76"
                 border.width: 1
-                color: alwaysOnTopCheck.checked ? "#6fc4e8" : "transparent"
+                color: alwaysOnTopCheck.checked ? (mainWindow ? mainWindow.numiBlue : "#6fc4e8") : "transparent"
 
                 Text {
                     anchors.centerIn: parent
                     text: "✓"
-                    color: "#22242a"
+                    color: mainWindow ? mainWindow.numiWindow : "#22242a"
                     font.pixelSize: 11
                     font.weight: Font.Bold
                     visible: alwaysOnTopCheck.checked
@@ -59,7 +97,7 @@ Window {
             contentItem: Text {
                 leftPadding: alwaysOnTopCheck.indicator.width + alwaysOnTopCheck.spacing
                 text: alwaysOnTopCheck.text
-                color: "#f0f0f3"
+                color: mainWindow ? mainWindow.numiText : "#f0f0f3"
                 font.pixelSize: 13
                 verticalAlignment: Text.AlignVCenter
             }
@@ -80,14 +118,14 @@ Window {
                 x: autostartCheck.leftPadding
                 y: (autostartCheck.height - height) / 2
                 radius: 3
-                border.color: autostartCheck.checked ? "#6fc4e8" : "#6b6d76"
+                border.color: autostartCheck.checked ? (mainWindow ? mainWindow.numiBlue : "#6fc4e8") : "#6b6d76"
                 border.width: 1
-                color: autostartCheck.checked ? "#6fc4e8" : "transparent"
+                color: autostartCheck.checked ? (mainWindow ? mainWindow.numiBlue : "#6fc4e8") : "transparent"
 
                 Text {
                     anchors.centerIn: parent
                     text: "✓"
-                    color: "#22242a"
+                    color: mainWindow ? mainWindow.numiWindow : "#22242a"
                     font.pixelSize: 11
                     font.weight: Font.Bold
                     visible: autostartCheck.checked
@@ -97,7 +135,7 @@ Window {
             contentItem: Text {
                 leftPadding: autostartCheck.indicator.width + autostartCheck.spacing
                 text: autostartCheck.text
-                color: "#f0f0f3"
+                color: mainWindow ? mainWindow.numiText : "#f0f0f3"
                 font.pixelSize: 13
                 verticalAlignment: Text.AlignVCenter
             }
@@ -118,14 +156,14 @@ Window {
                 x: resultsSeparatorCheck.leftPadding
                 y: (resultsSeparatorCheck.height - height) / 2
                 radius: 3
-                border.color: resultsSeparatorCheck.checked ? "#6fc4e8" : "#6b6d76"
+                border.color: resultsSeparatorCheck.checked ? (mainWindow ? mainWindow.numiBlue : "#6fc4e8") : "#6b6d76"
                 border.width: 1
-                color: resultsSeparatorCheck.checked ? "#6fc4e8" : "transparent"
+                color: resultsSeparatorCheck.checked ? (mainWindow ? mainWindow.numiBlue : "#6fc4e8") : "transparent"
 
                 Text {
                     anchors.centerIn: parent
                     text: "✓"
-                    color: "#22242a"
+                    color: mainWindow ? mainWindow.numiWindow : "#22242a"
                     font.pixelSize: 11
                     font.weight: Font.Bold
                     visible: resultsSeparatorCheck.checked
@@ -135,7 +173,7 @@ Window {
             contentItem: Text {
                 leftPadding: resultsSeparatorCheck.indicator.width + resultsSeparatorCheck.spacing
                 text: resultsSeparatorCheck.text
-                color: "#f0f0f3"
+                color: mainWindow ? mainWindow.numiText : "#f0f0f3"
                 font.pixelSize: 13
                 verticalAlignment: Text.AlignVCenter
             }
@@ -147,7 +185,7 @@ Window {
 
             Text {
                 text: "Font size: " + (mainWindow ? mainWindow.fontSize : 16) + " px"
-                color: "#f0f0f3"
+                color: mainWindow ? mainWindow.numiText : "#f0f0f3"
                 font.pixelSize: 13
             }
 
@@ -169,7 +207,7 @@ Window {
 
             Text {
                 text: "Result column width: " + (mainWindow ? mainWindow.resultWidth : 124) + " px"
-                color: "#f0f0f3"
+                color: mainWindow ? mainWindow.numiText : "#f0f0f3"
                 font.pixelSize: 13
             }
 
@@ -191,7 +229,7 @@ Window {
 
             Text {
                 text: "Decimal places: " + (mainWindow ? Math.round(mainWindow.decimalPlaces) : 3)
-                color: "#f0f0f3"
+                color: mainWindow ? mainWindow.numiText : "#f0f0f3"
                 font.pixelSize: 13
             }
 
@@ -232,7 +270,7 @@ Window {
 
             Text {
                 text: "Global hotkey"
-                color: "#f0f0f3"
+                color: mainWindow ? mainWindow.numiText : "#f0f0f3"
                 font.pixelSize: 13
             }
 
@@ -243,7 +281,7 @@ Window {
                 text: hotkeyColumn.recordingHotkey ? "Press shortcut..." : (shortcutManager ? shortcutManager.sequence : "Ctrl+Alt+1")
                 readOnly: true
                 focus: hotkeyColumn.recordingHotkey
-                color: "#f0f0f3"
+                color: mainWindow ? mainWindow.numiText : "#f0f0f3"
                 selectedTextColor: "#22242a"
                 selectionColor: "#6fc4e8"
                 font.pixelSize: 13
@@ -286,8 +324,8 @@ Window {
 
                 background: Rectangle {
                     radius: 4
-                    color: "#1d1f25"
-                    border.color: "#343742"
+                    color: mainWindow ? (mainWindow.lightTheme ? "#e4d9b6" : "#1d1f25") : "#1d1f25"
+                    border.color: mainWindow ? (mainWindow.lightTheme ? "#d1c499" : "#343742") : "#343742"
                     border.width: 1
                 }
             }
@@ -312,14 +350,14 @@ Window {
 
             background: Rectangle {
                 radius: 4
-                color: parent.down ? "#3a3d45" : parent.hovered ? "#30333b" : "#2a2c34"
-                border.color: "#1a1b20"
+                color: parent.down ? (mainWindow ? mainWindow.controlPressed : "#3a3d45") : parent.hovered ? (mainWindow ? mainWindow.controlHover : "#30333b") : (mainWindow ? mainWindow.numiWindow : "#2a2c34")
+                border.color: mainWindow ? (mainWindow.lightTheme ? "#d1c499" : "#1a1b20") : "#1a1b20"
                 border.width: 1
             }
 
             contentItem: Text {
                 text: parent.text
-                color: "#f0f0f3"
+                color: mainWindow ? mainWindow.numiText : "#f0f0f3"
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 font.pixelSize: 13

@@ -43,7 +43,7 @@ UpdateChecker::UpdateChecker(QObject *parent)
 
 bool UpdateChecker::shouldAutoCheck()
 {
-    QSettings s(QStringLiteral("skorin"), QStringLiteral("numi-kde"));
+    QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
     s.beginGroup(QStringLiteral("Updates"));
     const QDateTime last = s.value(QStringLiteral("lastCheck")).toDateTime();
     const bool due = !last.isValid() || last.secsTo(QDateTime::currentDateTimeUtc()) >= 86400;
@@ -62,12 +62,16 @@ void UpdateChecker::checkAsync()
     QNetworkReply *reply = m_nam->get(req);
     QObject::connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError)
+        if (reply->error() != QNetworkReply::NoError) {
+            emit checkFinished(false);
             return;
+        }
         const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
         const QString tag = obj.value(QStringLiteral("tag_name")).toString();
         const QString url = obj.value(QStringLiteral("html_url")).toString();
-        if (!tag.isEmpty() && isNewerVersion(tag, QStringLiteral(NUMI_KDE_VERSION)))
+        const bool found = !tag.isEmpty() && isNewerVersion(tag, QStringLiteral(NUMI_KDE_VERSION));
+        if (found)
             emit updateAvailable(tag, QUrl(url));
+        emit checkFinished(found);
     });
 }
