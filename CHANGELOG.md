@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5 - 2026-05-02
+
+- Reworked `README.md` into a public-facing project overview with status, features, build instructions, acknowledgements and contribution notes.
+- Refined the one-line installer plan around GitHub Releases, `.deb`/`.rpm` packages, checksums and thin install/uninstall scripts.
+- Added `numi-kde --version` and `numi-kde --probe` for package smoke tests.
+- Updated CMake install rules to install the binary, desktop file, AppStream metadata and the app icon.
+- Changed the desktop launcher to use the installed `org.skorin.numi-kde` icon.
+
 ## 0.1.4 - 2026-05-02
 
 - Changed inline `/help` date examples to use `01.01.2000`.

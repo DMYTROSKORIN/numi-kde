@@ -10,13 +10,52 @@
 #include <QKeySequence>
 #include <QDebug>
 #include <QStandardPaths>
+#include <cstdio>
 
 #ifdef NUMI_KDE_HAVE_GLOBAL_ACCEL
 #include <KGlobalAccel>
 #endif
 
 #include "documentmodel.h"
+#include "qalcbridge.h"
 #include "shortcutmanager.h"
+
+#ifndef NUMI_KDE_VERSION
+#define NUMI_KDE_VERSION "0.0.0"
+#endif
+
+static bool hasArgument(int argc, char *argv[], const char *argument)
+{
+    for (int i = 1; i < argc; ++i) {
+        if (qstrcmp(argv[i], argument) == 0)
+            return true;
+    }
+    return false;
+}
+
+static int runProbe(int argc, char *argv[])
+{
+    QCoreApplication app(argc, argv);
+    app.setApplicationName(QStringLiteral("numi-kde"));
+    app.setOrganizationName(QStringLiteral("skorin"));
+
+    QalcBridge bridge;
+    const auto results = bridge.evaluateDocument(QStringLiteral("2 + 2\n1 km to m"));
+    const bool ok = results.size() == 2
+                 && results.at(0).ok
+                 && results.at(0).result == QStringLiteral("4")
+                 && results.at(1).ok
+                 && results.at(1).hasNumericValue
+                 && results.at(1).numericValue == 1000.0;
+
+    if (ok) {
+        std::printf("numi-kde %s probe ok\n", NUMI_KDE_VERSION);
+        return 0;
+    }
+
+    std::fprintf(stderr, "numi-kde %s probe failed\n", NUMI_KDE_VERSION);
+    return 1;
+}
 
 // Toggle main window show/hide
 static void toggleWindow(QWindow *win)
@@ -33,6 +72,17 @@ static void toggleWindow(QWindow *win)
 
 int main(int argc, char *argv[])
 {
+    if (hasArgument(argc, argv, "--version")) {
+        std::printf("numi-kde %s\n", NUMI_KDE_VERSION);
+        return 0;
+    }
+    if (hasArgument(argc, argv, "--probe"))
+        return runProbe(argc, argv);
+    if (hasArgument(argc, argv, "--help")) {
+        std::printf("Usage: numi-kde [--version] [--probe]\n");
+        return 0;
+    }
+
     // DocumentModel MUST be declared before engine so it outlives QML's
     // Component.onDestruction (stack is unwound in reverse: engine first, then model)
     QApplication app(argc, argv);

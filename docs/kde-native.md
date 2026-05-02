@@ -32,6 +32,8 @@ The CMake target requires Qt 6 Core/DBus/Gui/Widgets/Network/Qml/Quick/QuickCont
 cmake -S kde -B build/kde
 cmake --build build/kde --target numi-kde numi-kde-tests
 ctest --test-dir build/kde --output-on-failure
+./build/kde/numi-kde --version
+./build/kde/numi-kde --probe
 ./build/kde/numi-kde
 ```
 
@@ -40,6 +42,8 @@ Latest local status:
 - configure: passes;
 - native build: passes;
 - native CTest: 2/2 passes;
+- CLI smoke checks: `--version` and `--probe` pass;
+- staged CMake install: binary, desktop file, AppStream metadata and icon are installed;
 - GUI dev binary starts without QML warnings.
 
 ## Current Behavior

@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(numi-kde-native VERSION 0.1.0 LANGUAGES CXX)
+project(numi-kde-native VERSION 0.1.5 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+
+include(GNUInstallDirs)
 
 find_package(Qt6 6.6 REQUIRED COMPONENTS Core DBus Gui Widgets Network Qml Quick QuickControls2)
 find_package(PkgConfig REQUIRED)
@@ -65,15 +67,20 @@ target_link_libraries(numi-kde
     KF6::WindowSystem
     ${QALCULATE_LIBRARIES}
 )
+target_compile_definitions(numi-kde PRIVATE NUMI_KDE_VERSION="${PROJECT_VERSION}")
 
 if(KF6GlobalAccel_FOUND)
   target_link_libraries(numi-kde PRIVATE KF6::GlobalAccel)
   target_compile_definitions(numi-kde PRIVATE NUMI_KDE_HAVE_GLOBAL_ACCEL=1)
 endif()
 
-install(TARGETS numi-kde RUNTIME DESTINATION bin)
-install(FILES resources/org.skorin.numi-kde.desktop DESTINATION share/applications)
-install(FILES resources/org.skorin.numi-kde.metainfo.xml DESTINATION share/metainfo)
+install(TARGETS numi-kde RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES resources/org.skorin.numi-kde.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES resources/org.skorin.numi-kde.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
+install(FILES resources/numi-kde.png
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
+  RENAME org.skorin.numi-kde.png
+)
 
 # ── Math test suite ──────────────────────────────────────────────────────────
 enable_testing()
