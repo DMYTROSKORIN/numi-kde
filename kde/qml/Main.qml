@@ -175,6 +175,45 @@ Controls.ApplicationWindow {
                 font.weight: Font.DemiBold
             }
 
+            Rectangle {
+                id: networkStatusIndicator
+                anchors.left: parent.left
+                anchors.leftMargin: 56
+                anchors.verticalCenter: parent.verticalCenter
+                width: 8
+                height: 8
+                radius: 4
+                color: {
+                    if (typeof documentModel === "undefined") return "transparent"
+                    switch (documentModel.networkStatus) {
+                        case 1: return root.numiYellow  // Fetching
+                        case 2: return root.numiGreen   // Success
+                        case 3: return root.numiRed     // Error
+                        default: return "transparent"   // Idle
+                    }
+                }
+                opacity: color === "transparent" ? 0 : 0.8
+                
+                Controls.ToolTip.visible: statusMouse.containsMouse && documentModel.networkStatus !== 0
+                Controls.ToolTip.text: {
+                    switch (documentModel.networkStatus) {
+                        case 1: return qsTr("Updating rates...")
+                        case 2: return qsTr("Rates up to date")
+                        case 3: return qsTr("Rate update failed")
+                        default: return ""
+                    }
+                }
+
+                MouseArea {
+                    id: statusMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                }
+
+                Behavior on color { ColorAnimation { duration: 200 } }
+                Behavior on opacity { NumberAnimation { duration: 200 } }
+            }
+
             Row {
                 anchors.right: parent.right
                 anchors.rightMargin: 12

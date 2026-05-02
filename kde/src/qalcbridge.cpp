@@ -63,6 +63,9 @@ QalcBridge::~QalcBridge() {
 }
 
 void QalcBridge::fetchCryptoRates() {
+    m_networkStatus = NetworkStatus::Fetching;
+    emit networkStatusChanged();
+
     QStringList ids;
     for (const auto &p : CRYPTO_LIST)
         ids << p.first;
@@ -75,8 +78,11 @@ void QalcBridge::fetchCryptoRates() {
 
 void QalcBridge::onCryptoReply(QNetworkReply *reply) {
     reply->deleteLater();
-    if (reply->error() != QNetworkReply::NoError)
+    if (reply->error() != QNetworkReply::NoError) {
+        m_networkStatus = NetworkStatus::Error;
+        emit networkStatusChanged();
         return;
+    }
 
     QJsonObject data = QJsonDocument::fromJson(reply->readAll()).object();
     QJsonObject rates;
@@ -88,8 +94,13 @@ void QalcBridge::onCryptoReply(QNetworkReply *reply) {
         }
     }
     if (!rates.isEmpty()) {
+        m_networkStatus = NetworkStatus::Success;
+        emit networkStatusChanged();
         applyCryptoRates(rates);
         emit cryptoRatesUpdated();
+    } else {
+        m_networkStatus = NetworkStatus::Error;
+        emit networkStatusChanged();
     }
 }
 

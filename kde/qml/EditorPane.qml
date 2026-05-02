@@ -36,26 +36,23 @@ Controls.ScrollView {
         width: Math.max(root.availableWidth, editor.contentWidth)
         height: Math.max(root.availableHeight, editor.contentHeight)
 
-        Column {
+        ListView {
             id: highlightLayer
 
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-
-            Repeater {
-                model: root.highlightModel
-
-                delegate: Text {
-                    width: highlightLayer.width
-                    height: root.lineH
-                    text: highlightedHtml
-                    textFormat: Text.RichText
-                    color: root.textColor
-                    font.family: root.monoFont
-                    font.pixelSize: root.monoSize
-                    verticalAlignment: Text.AlignVCenter
-                }
+            anchors.fill: parent
+            model: root.highlightModel
+            interactive: false
+            boundsBehavior: Flickable.StopAtBounds
+            contentY: editor.contentY
+            delegate: Text {
+                width: highlightLayer.width
+                height: root.lineH
+                text: highlightedHtml
+                textFormat: Text.RichText
+                color: root.textColor
+                font.family: root.monoFont
+                font.pixelSize: root.monoSize
+                verticalAlignment: Text.AlignVCenter
             }
         }
 

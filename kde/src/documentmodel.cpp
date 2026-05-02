@@ -30,6 +30,7 @@ DocumentModel::DocumentModel(QObject *parent)
         if (!m_source.trimmed().isEmpty() && m_source.trimmed() != QStringLiteral("/help"))
             evaluate();
     });
+    connect(m_qalc, &QalcBridge::networkStatusChanged, this, &DocumentModel::networkStatusChanged);
     QSettings settings("numi-kde", "numi-kde");
     m_history = settings.value("history").value<QVariantList>();
     m_decimalPlaces = settings.value("decimalPlaces", 3).toInt();
@@ -107,6 +108,11 @@ bool DocumentModel::autostart() const
 {
     QString path = QDir::homePath() + "/.config/autostart/numi-kde.desktop";
     return QFile::exists(path);
+}
+
+int DocumentModel::networkStatus() const
+{
+    return static_cast<int>(m_qalc->networkStatus());
 }
 
 void DocumentModel::setAutostart(bool enable)

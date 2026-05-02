@@ -40,8 +40,12 @@ public:
     void fetchCryptoRates();
     void applyCryptoRates(const QJsonObject &rates);
 
+    enum class NetworkStatus { Idle, Fetching, Success, Error };
+    NetworkStatus networkStatus() const { return m_networkStatus; }
+
 signals:
     void cryptoRatesUpdated();
+    void networkStatusChanged();
 
 private slots:
     void onCryptoReply(QNetworkReply *reply);
@@ -56,6 +60,7 @@ private:
     QTimer *m_cryptoRefreshTimer;
     QHash<QString, double> m_cryptoUsdRates;
     mutable QMutex m_calcMutex;
+    NetworkStatus m_networkStatus = NetworkStatus::Idle;
 };
 
 #endif // QALCBRIDGE_H

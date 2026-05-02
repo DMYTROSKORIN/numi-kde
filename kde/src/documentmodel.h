@@ -22,6 +22,7 @@ class DocumentModel : public QAbstractListModel
     Q_PROPERTY(int decimalPlaces READ decimalPlaces WRITE setDecimalPlaces NOTIFY decimalPlacesChanged)
     Q_PROPERTY(double total READ total NOTIFY linesChanged)
     Q_PROPERTY(bool autostart READ autostart WRITE setAutostart NOTIFY autostartChanged)
+    Q_PROPERTY(int networkStatus READ networkStatus NOTIFY networkStatusChanged)
 
 public:
     enum Roles {
@@ -46,6 +47,7 @@ public:
     double total() const;
     bool autostart() const;
     void setAutostart(bool enable);
+    int networkStatus() const;
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;
@@ -66,6 +68,7 @@ signals:
     void historyChanged();
     void decimalPlacesChanged();
     void autostartChanged();
+    void networkStatusChanged();
 
 private:
     void evaluate();
