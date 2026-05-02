@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QJsonObject>
 #include <QDate>
+#include <QLocale>
 #include <QString>
 #include <QList>
 #include <QTemporaryDir>
@@ -179,9 +180,17 @@ static void runSuite(QalcBridge &bridge) {
     {
         const QString date = QDate::currentDate().addYears(-2).addDays(-5).toString("dd.MM.yyyy");
         auto r = eval(QStringLiteral("today - %1").arg(date));
-        check("today minus date returns years and days",
-              r.ok && r.result == "2 years, 5 days",
-              r.result, "2 years, 5 days");
+        check("today minus date returns detailed English span",
+              r.ok && r.result.startsWith("2 years and 5 days (excluding the end date).\n"),
+              r.result, "2 years and 5 days (excluding the end date).");
+    }
+    {
+        auto r = eval("26.08.1983 - 02.05.2026");
+        const QString expected = QStringLiteral("42 years, 8 months and 6 days (excluding the end date).\n%1 days.")
+            .arg(QLocale(QLocale::English, QLocale::UnitedStates).toString(QDate(1983, 8, 26).daysTo(QDate(2026, 5, 2))));
+        check("date minus date returns detailed English span",
+              r.ok && r.result == expected,
+              r.result, expected.toUtf8().constData());
     }
     {
         auto r = eval("26.08.1983 + 42 years");
@@ -235,25 +244,30 @@ static void runSuite(QalcBridge &bridge) {
         bridge.applyCryptoRates(rates);
 
         auto btcToEth = eval("1 BTC to ETH");
-        check("1 BTC to ETH = 20", btcToEth.ok && btcToEth.result == "20",
-              btcToEth.result, "20");
+        check("1 BTC to ETH = ETH 20", btcToEth.ok && btcToEth.result == "ETH 20",
+              btcToEth.result, "ETH 20");
 
         auto usdToEth = eval("400 USD to ETH");
-        check("400 USD to ETH = 0.16", usdToEth.ok && usdToEth.result == "0.16",
-              usdToEth.result, "0.16");
+        check("400 USD to ETH = ETH 0.16", usdToEth.ok && usdToEth.result == "ETH 0.16",
+              usdToEth.result, "ETH 0.16");
 
         auto ethToUsd = eval("1 ETH to USD");
-        check("1 ETH to USD = 2,500", ethToUsd.ok && ethToUsd.result == QLocale().toString(2500),
-              ethToUsd.result, "2,500");
+        check("1 ETH to USD = USD 2,500", ethToUsd.ok && ethToUsd.result == QStringLiteral("USD %1").arg(QLocale().toString(2500)),
+              ethToUsd.result, "USD 2,500");
         check("crypto conversion exposes numeric value",
               ethToUsd.hasNumericValue && ethToUsd.numericValue == 2500.0,
               QString::number(ethToUsd.numericValue), "2500");
 
+        auto btcToEur = eval("1 BTC to EUR");
+        check("1 BTC to EUR includes target currency prefix",
+              btcToEur.ok && btcToEur.result.startsWith("EUR ") && btcToEur.hasNumericValue && btcToEur.numericValue > 0.0,
+              btcToEur.result, "EUR <number>");
+
         auto btcToUah = eval("1 BTC to UAH");
         check("1 BTC to UAH supports fiat target",
-              btcToUah.ok && btcToUah.hasNumericValue && btcToUah.numericValue > 0.0 && btcToUah.totalKey == "UAH",
+              btcToUah.ok && btcToUah.result.startsWith("UAH ") && btcToUah.hasNumericValue && btcToUah.numericValue > 0.0 && btcToUah.totalKey == "UAH",
               QString("%1 (%2)").arg(btcToUah.result, QString::number(btcToUah.numericValue)),
-              "numeric UAH value");
+              "UAH <number>");
 
         auto mixed = bridge.evaluateDocument("500 AED to USD\n1 BTC to UAH");
         bool ok = mixed.size() == 2
@@ -418,6 +432,13 @@ static void runDocumentModelSuite() {
         bool ok = model.rowCount() == 1 && help.isEmpty() && html.contains("/help");
         check("DocumentModel /help returns empty result but highlighted HTML", ok,
               help, "empty result");
+    }
+    {
+        const QString html = model.highlightExample("500 AED to USD");
+        bool ok = html.contains("#6fc4e8") && html.contains("AED") && html.contains("USD")
+               && html.contains("#ffd35a") && html.contains("to");
+        check("DocumentModel help examples use shared syntax highlighting", ok,
+              html, "highlighted AED/USD/to");
     }
 }
 

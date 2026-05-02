@@ -1,6 +1,6 @@
 # Native KDE Application
 
-Last updated: 2026-05-01.
+Last updated: 2026-05-02.
 
 The native KDE application lives in `kde/` and is the primary runtime target.
 
@@ -51,9 +51,10 @@ Latest local status:
 - C++ syntax highlighting.
 - Result hover/click behavior.
 - Total footer for compatible numeric rows; mixed units/currencies hide the total.
-- `/help` shows readable inline editor help.
-- `today - DD.MM.YYYY` returns a year/day date span.
+- `/help` shows readable inline editor help using the same syntax highlighting as normal input.
+- `today - DD.MM.YYYY` and `DD.MM.YYYY - DD.MM.YYYY` return an English calendar span plus total days.
 - `DD.MM.YYYY + N years/months/weeks/days` returns a date.
+- Crypto conversion results include the target prefix, such as `ETH 0.16` or `EUR 67,059.8291`.
 - History drawer with persisted sessions.
 - Settings window for display, behavior, precision, autostart and hotkey.
 - Tray icon and tray menu.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3 - 2026-05-02
+
+- Routed inline `/help` examples through the shared C++ syntax highlighter so currencies, units and operators are colored consistently with normal input.
+- Changed manual crypto conversion results to keep the target prefix, for example `1 BTC to EUR` returns `EUR <value>`.
+- Added explicit date-to-date spans such as `26.08.1983 - 02.05.2026`, returning an English calendar span and total day count.
+- Added regression tests for shared help highlighting, target-prefixed crypto output and detailed date spans.
+- Refreshed docs for the current native-only behavior and verification status.
+
 ## 0.1.2 - 2026-05-01
 
 - Matched the result separator default color to the app divider color used by the Total row and settings controls.
