@@ -165,3 +165,6 @@ Useful areas:
 ## License
 
 `numi-kde` is released under the [Apache License 2.0](LICENSE).
+
+---
+**Contact:** [dev@skorin.online](mailto:dev@skorin.online)

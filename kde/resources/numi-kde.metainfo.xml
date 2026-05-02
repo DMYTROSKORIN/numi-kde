@@ -9,5 +9,9 @@
     <p>numi-kde is a document-style calculator for KDE, inspired by Numi. It treats calculations as a small live document where you type expressions like notes and get results instantly.</p>
   </description>
   <launchable type="desktop-id">numi-kde.desktop</launchable>
+  <developer id="online.skorin">
+    <name>DMYTRO SKORIN</name>
+  </developer>
+  <update_contact>dev@skorin.online</update_contact>
   <url type="homepage">https://github.com/DMYTROSKORIN/numi-kde</url>
 </component>

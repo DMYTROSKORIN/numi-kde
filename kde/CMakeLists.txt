@@ -121,7 +121,7 @@ set_tests_properties(qalc-math documentmodel PROPERTIES ENVIRONMENT "QT_QPA_PLAT
 # ── Packaging ────────────────────────────────────────────────────────────────
 set(CPACK_PACKAGE_NAME "numi-kde")
 set(CPACK_PACKAGE_VENDOR "DMYTRO SKORIN")
-set(CPACK_PACKAGE_CONTACT "DMYTROSKORIN@users.noreply.github.com")
+set(CPACK_PACKAGE_CONTACT "dev@skorin.online")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "KDE-native document calculator")
 set(CPACK_PACKAGE_DESCRIPTION "numi-kde is a KDE-native document-style calculator with support for unit conversion, currency exchange, date arithmetic, and variables.")
 set(CPACK_RPM_PACKAGE_DESCRIPTION "numi-kde is a KDE-native document-style calculator with support for unit conversion, currency exchange, date arithmetic, and variables.")
@@ -141,6 +141,6 @@ endif()
 
 set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "DMYTRO SKORIN <DMYTROSKORIN@users.noreply.github.com>")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "DMYTRO SKORIN <dev@skorin.online>")
 
 include(CPack)

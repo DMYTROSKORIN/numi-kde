@@ -14,7 +14,7 @@ ShortcutManager::ShortcutManager(QAction *action, QObject *parent)
     : QObject(parent)
     , m_action(action)
 {
-    QSettings settings("skorin", "numi-kde");
+    QSettings settings("numi-kde", "numi-kde");
     m_sequence = settings.value(QStringLiteral("globalShortcut"), QStringLiteral("Ctrl+Alt+1")).toString();
     if (m_sequence == QStringLiteral("Alt+1")) {
         m_sequence = QStringLiteral("Ctrl+Alt+1");
@@ -49,7 +49,7 @@ void ShortcutManager::setSequence(const QString &sequence)
     }
 
     m_sequence = normalized;
-    QSettings settings("skorin", "numi-kde");
+    QSettings settings("numi-kde", "numi-kde");
     settings.setValue(QStringLiteral("globalShortcut"), m_sequence);
     setStatus(QStringLiteral("Shortcut saved"));
     updateActionText();
