@@ -13,7 +13,7 @@ KDE/Linux-native clone of Numi: a compact text-document calculator with expressi
 - Math: `2 + 2 * 3^2`, `sqrt(256)`, `sin(pi/2)`.
 - Units: `10 meters in feet`, `50 kg to lbs`, `1 km to m`.
 - Currency and crypto: case-insensitive fiat units where libqalculate supports them, plus live CoinGecko-backed top-crypto conversion such as `400 USD to ETH`; conversion results keep the target unit prefix, for example `ETH 0.16` or `USD 136.1471`.
-- Dates/time: `today + 2 weeks`, `today - 26.08.1983`, `26.08.1983 - 02.05.2026`, `26.08.1983 + 42 years`, `time`, `now`.
+- Dates/time: `today + 2 weeks`, `today - 01.01.2000`, `01.01.2000 - 02.05.2026`, `01.01.2000 + 25 years`, `time`, `now`.
 - Variables: `A = 800 - 200`, `B := A * 2`.
 - Percentages: `20% of 300`, `20% from 300`; incomplete input like `20% from` stays quiet until finished.
 - `/help`: clear inline in-app usage guide with examples for math, variables, units, currency, dates and controls; examples use the same syntax highlighter as normal input.
@@ -55,5 +55,6 @@ ctest --test-dir build/kde --output-on-failure
 
 - `docs/kde-native.md`: native KDE build/runtime notes.
 - `docs/implementation-plan.md`: roadmap and current phase status.
+- `docs/installation-plan.md`: one-line installer design for KDE Linux distributions.
 - `docs/architecture.md`: current layer boundaries.
 - `CHANGELOG.md`: release notes.

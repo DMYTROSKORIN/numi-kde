@@ -181,25 +181,35 @@ static void runSuite(QalcBridge &bridge) {
         const QString date = QDate::currentDate().addYears(-2).addDays(-5).toString("dd.MM.yyyy");
         auto r = eval(QStringLiteral("today - %1").arg(date));
         check("today minus date returns detailed English span",
-              r.ok && r.result.startsWith("2 years and 5 days (excluding the end date).\n"),
-              r.result, "2 years and 5 days (excluding the end date).");
+              r.ok && r.result == "2 years and 5 days; 735 days.",
+              r.result, "2 years and 5 days; 735 days.");
     }
     {
-        auto r = eval("26.08.1983 - 02.05.2026");
-        const QString expected = QStringLiteral("42 years, 8 months and 6 days (excluding the end date).\n%1 days.")
-            .arg(QLocale(QLocale::English, QLocale::UnitedStates).toString(QDate(1983, 8, 26).daysTo(QDate(2026, 5, 2))));
+        auto r = eval("01.01.2000 - 02.05.2026");
+        const QString expected = QStringLiteral("26 years, 4 months and 1 day; %1 days.")
+            .arg(QLocale(QLocale::English, QLocale::UnitedStates).toString(QDate(2000, 1, 1).daysTo(QDate(2026, 5, 2))));
         check("date minus date returns detailed English span",
               r.ok && r.result == expected,
               r.result, expected.toUtf8().constData());
     }
     {
-        auto r = eval("26.08.1983 + 42 years");
-        check("date plus years returns date",
-              r.ok && r.result == "26.08.2025",
-              r.result, "26.08.2025");
+        auto r = eval("01.02.2012 - today");
+        const bool ok = r.ok
+                     && !r.result.startsWith('-')
+                     && !r.result.contains("excluding")
+                     && r.result.contains(';')
+                     && r.result.endsWith("days.");
+        check("date minus today returns compact absolute span",
+              ok, r.result, "compact positive date span");
     }
     {
-        auto r = eval("today - 26.08.1983");
+        auto r = eval("01.01.2000 + 25 years");
+        check("date plus years returns date",
+              r.ok && r.result == "01.01.2025",
+              r.result, "01.01.2025");
+    }
+    {
+        auto r = eval("today - 01.01.2000");
         check("today is highlighted as an operator",
               r.highlightedHtml.contains("#ffd35a") && r.highlightedHtml.contains("today"),
               r.highlightedHtml, "highlighted today");
