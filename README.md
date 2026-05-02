@@ -1,5 +1,9 @@
 # numi-kde
 
+<p align="center">
+  <img src="kde/resources/numi-kde.png" width="156" alt="numi-kde logo" />
+</p>
+
 **A KDE-native document calculator for people who think in text.**
 
 Type expressions like notes. Get aligned results instantly. Keep the window small, fast, native, and out of the way.
