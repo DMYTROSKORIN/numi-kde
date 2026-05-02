@@ -29,8 +29,8 @@ Completed:
 - Total sums only compatible numeric values and stays hidden for mixed units/currencies.
 - Readable inline `/help` guide using shared syntax highlighting.
 - Adaptive result column width with separator clamped to visible content.
-- Explicit date difference support such as `today - 26.08.1983` and `26.08.1983 - 02.05.2026`.
-- Explicit date arithmetic support such as `26.08.1983 + 42 years`.
+- Explicit date difference support such as `today - 01.01.2000` and `01.01.2000 - 02.05.2026`.
+- Explicit date arithmetic support such as `01.01.2000 + 25 years`.
 - Target-prefixed conversion output for crypto/fiat paths such as `1 BTC to EUR`.
 - App/tray transparent PNG resources.
 - Tray menu.
@@ -131,7 +131,7 @@ Status: active.
 Done:
 
 - arithmetic, variables, units, percentages, dates/time keywords;
-- explicit `today - date` and `date - date` spans;
+- compact absolute `today - date`, `date - today` and `date - date` spans;
 - explicit `date + duration` arithmetic;
 - `20% from/of`;
 - incomplete input stays quiet;
@@ -178,6 +178,7 @@ Needed:
 - install rules for icons if needed outside Qt resources;
 - desktop/appstream validation;
 - package smoke test;
+- one-line install script from release artifacts;
 - Flatpak/AppImage/RPM decision;
 - CI for CMake build and native tests.
 

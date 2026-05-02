@@ -170,10 +170,8 @@ static QString joinEnglishParts(const QStringList &parts)
 
 static QString formatDateSpan(QDate from, QDate to)
 {
-    bool negative = false;
     if (from > to) {
         std::swap(from, to);
-        negative = true;
     }
 
     const qint64 totalDays = from.daysTo(to);
@@ -200,10 +198,8 @@ static QString formatDateSpan(QDate from, QDate to)
     if (days > 0 || parts.isEmpty())
         parts << pluralize(days, QStringLiteral("day"), QStringLiteral("days"));
 
-    const QString sign = negative ? QStringLiteral("-") : QString();
-    return QStringLiteral("%1%2 (excluding the end date).\n%1%3 days.")
-        .arg(sign,
-             joinEnglishParts(parts),
+    return QStringLiteral("%1; %2 days.")
+        .arg(joinEnglishParts(parts),
              formatEnglishInteger(totalDays));
 }
 

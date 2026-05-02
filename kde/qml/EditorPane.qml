@@ -69,8 +69,8 @@ Controls.ScrollView {
             persistentSelection: true
             textFormat: TextEdit.PlainText
             color: "transparent"
-            selectedTextColor: "#ffffff"
-            selectionColor: "#43505b"
+            selectedTextColor: "transparent"
+            selectionColor: "#6643505b"
             cursorDelegate: Rectangle {
                 width: 2
                 color: root.textColor

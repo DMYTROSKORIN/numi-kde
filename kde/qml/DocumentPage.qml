@@ -135,7 +135,7 @@ Item {
                             { label: "Variables", text: "A = 800 - 200    B := A * 2    B + 50" },
                             { label: "Units", text: "10 m to ft    1 hour in min    50 kg to lbs" },
                             { label: "Money", text: "500 AED to USD    1 BTC to UAH    400 USD to ETH" },
-                            { label: "Dates", text: "today + 2 weeks    today - 26.08.1983    26.08.1983 + 42 years" },
+                            { label: "Dates", text: "today + 2 weeks    today - 01.01.2000    01.01.2000 + 25 years" },
                             { label: "Percent", text: "20% of 500    10% from 200" },
                             { label: "Keys", text: "Tab completes    Ctrl+N clears    click result to copy" }
                         ]

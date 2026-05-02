@@ -39,17 +39,16 @@ Preprocessing currently handles:
 - incomplete input suppression;
 - explicit division-by-zero error;
 - `time` and `now`;
-- explicit date spans such as `today - 26.08.1983` and `26.08.1983 - 02.05.2026`;
-- explicit date arithmetic such as `26.08.1983 + 42 years`;
+- explicit date spans such as `today - 01.01.2000` and `01.01.2000 - 02.05.2026`;
+- explicit date arithmetic such as `01.01.2000 + 25 years`;
 - manual crypto conversion for top CoinGecko symbols.
 
 Manual crypto conversion returns the target prefix with the formatted value, matching the rest of the conversion UI. For example, `1 BTC to EUR` displays as `EUR <value>`.
 
-Date spans are formatted in English as a calendar period plus total days, for example:
+Date spans are formatted in English as a compact absolute calendar period plus total days, for example:
 
 ```text
-42 years, 8 months and 6 days (excluding the end date).
-15,590 days.
+26 years, 4 months and 1 day; 9,618 days.
 ```
 
 `LineResult::hasNumericValue` and `LineResult::totalKey` are the boundary between display formatting and totals. `DocumentModel` sums only when every numeric result row has the same total key, so mixed units or currencies do not produce a misleading total.

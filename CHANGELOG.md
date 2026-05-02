@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.4 - 2026-05-02
+
+- Changed inline `/help` date examples to use `01.01.2000`.
+- Kept editor syntax colors stable while selecting text by drawing selection over the shared highlight layer.
+- Shortened date-span output to a compact English single-line format without end-date wording or negative spans.
+- Added a dedicated one-line installer implementation plan for KDE Ubuntu, Fedora and Debian support.
+
 ## 0.1.3 - 2026-05-02
 
 - Routed inline `/help` examples through the shared C++ syntax highlighter so currencies, units and operators are colored consistently with normal input.

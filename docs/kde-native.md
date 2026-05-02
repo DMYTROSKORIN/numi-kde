@@ -52,7 +52,7 @@ Latest local status:
 - Result hover/click behavior.
 - Total footer for compatible numeric rows; mixed units/currencies hide the total.
 - `/help` shows readable inline editor help using the same syntax highlighting as normal input.
-- `today - DD.MM.YYYY` and `DD.MM.YYYY - DD.MM.YYYY` return an English calendar span plus total days.
+- `today - DD.MM.YYYY`, `DD.MM.YYYY - today` and `DD.MM.YYYY - DD.MM.YYYY` return a compact absolute English calendar span plus total days.
 - `DD.MM.YYYY + N years/months/weeks/days` returns a date.
 - Crypto conversion results include the target prefix, such as `ETH 0.16` or `EUR 67,059.8291`.
 - History drawer with persisted sessions.
