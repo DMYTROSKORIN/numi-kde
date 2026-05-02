@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.1.7 - 2026-05-02
+
+### Packaging
+
+- Added CPack configuration to `kde/CMakeLists.txt` for `.rpm` (Fedora) and `.deb` (Debian/Ubuntu) generation.
+- Added install rules for `LICENSE` and `NOTICE` to `share/doc/numi-kde`.
+- Fedora runtime dependencies confirmed from live binary: `libqalculate`, `qt6-qtbase`, `qt6-qtbase-gui`, `qt6-qtdeclarative`, `kf6-kwindowsystem`, `kf6-kglobalaccel`.
+- Local RPM built, installed, probed and removed cleanly on Fedora KDE.
+- Added `packaging/install.sh`: distro detection via `/etc/os-release`, GitHub Releases download, SHA256 verification, `dnf`/`apt-get` install, `--probe` smoke test, `--dry-run` and `--help` flags, `NUMI_KDE_VERSION` pin.
+- Added `packaging/uninstall.sh`: package manager detection, removal, optional `--purge` with explicit confirmation.
+- Added `.github/workflows/release.yml`: builds RPM on Fedora container and DEB on Ubuntu runner on `v*` tag push, generates `SHA256SUMS`, publishes GitHub Release.
+
+### Window behavior
+
+- Window position is now remembered correctly across sessions and within a session. Fixed a race condition where the compositor's initial placement overwrote the saved position before `Component.onCompleted` could restore it.
+- X button and Alt+F4 now hide the window instead of quitting the application. The app can only be quit from the system tray **Quit Numi-KDE** action.
+- The app no longer appears in the KDE panel task manager (`NET::SkipTaskbar | NET::SkipPager` always applied, not only when "Always on top" is enabled).
+
+### Calculator
+
+- `X% from/of N CURRENCY` now preserves the original currency. Previously `21.75% from 3654 AED` returned `USD 217.02` because libqalculate normalises currency results to USD when multiplying by a dimensionless fraction. The pattern is now computed directly.
+
+### Visual
+
+- Comment lines (`# …`) are now colored neon cyan (`#22d3ee`) instead of operator yellow, making them visually distinct.
+- Added project logo to README.
+
 ## 0.1.6 - 2026-05-02
 
 - Released the project under the Apache License 2.0.

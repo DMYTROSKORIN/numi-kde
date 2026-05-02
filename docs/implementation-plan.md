@@ -4,197 +4,74 @@ Last updated: 2026-05-02.
 
 ## Goal
 
-`numi-kde` should be a KDE-native Numi-like document calculator:
+`numi-kde` is a KDE-native document calculator:
 
 - text document on the left, aligned results on the right;
 - instant recalculation while typing;
 - compact scratchpad window;
-- native KDE integration for tray, global shortcut, clipboard, autostart and window behavior;
-- strong math/unit/currency/date support through `libqalculate`;
+- native KDE integration: tray, global shortcut, clipboard, autostart and window behavior;
+- strong math / unit / currency / date support through `libqalculate`;
 - only native KDE application code, resources, tests and current documentation in the repository.
 
-## Current State
+## What Is Done
 
-Primary implementation: `kde/`.
-
-Completed:
-
-- Qt/QML frameless compact window.
+- Qt/QML frameless compact window with persistent geometry.
 - C++ backend through `DocumentModel`.
 - `libqalculate` bridge in `QalcBridge`.
-- `--version` and `--probe` command-line modes for package smoke tests.
-- CMake install rules for binary, desktop file, AppStream metadata and app icon.
+- `--version` and `--probe` CLI modes for package smoke tests.
+- CMake install rules for binary, desktop file, AppStream metadata, app icon, LICENSE and NOTICE.
 - Apache License 2.0 project licensing.
-- C++ syntax highlighter.
+- C++ syntax highlighter with semantic token classification.
 - Settings window.
-- History drawer.
+- History drawer with persisted sessions.
 - Result copy and Total copy.
-- Total sums only compatible numeric values and stays hidden for mixed units/currencies.
+- Total sums only compatible numeric values; hidden for mixed units/currencies.
 - Readable inline `/help` guide using shared syntax highlighting.
-- Adaptive result column width with separator clamped to visible content.
-- Explicit date difference support such as `today - 01.01.2000` and `01.01.2000 - 02.05.2026`.
-- Explicit date arithmetic support such as `01.01.2000 + 25 years`.
-- Target-prefixed conversion output for crypto/fiat paths such as `1 BTC to EUR`.
+- Adaptive result column with separator clamped to visible content.
+- Date differences: `today - 01.01.2000`, `01.01.2000 - 02.05.2026`.
+- Date arithmetic: `01.01.2000 + 25 years`.
+- Target-prefixed conversion output: `1 BTC to EUR` → `EUR <value>`.
+- Percentage: `20% of 300`, `20% from 300`; currency-preserving: `21.75% from 3654 AED` → `AED 794.745`.
+- Comments: lines starting with `#` are colored and ignored by the calculator.
 - App/tray transparent PNG resources.
-- Tray menu.
+- Tray menu with show/hide and quit.
+- Window hides on close (X button, Alt+F4); quit only from tray.
+- Skip taskbar and skip pager — app stays out of the panel task manager.
 - Global shortcut via `KGlobalAccel`, default `Ctrl+Alt+1`.
 - Configurable global shortcut with KDE conflict handling.
-- `Ctrl+N` clears current document.
-- `Tab` completion.
+- `Ctrl+N` clears the current document.
+- `Tab` completion for units, functions and variables.
 - Launch-at-login.
-- X11 keep-above through `KX11Extras`.
+- X11 keep-above through `KX11Extras` and `NET::KeepAbove`.
 - KDE Wayland keep-above via managed KWin Window Rule.
+- CPack packaging: `.rpm` for Fedora, `.deb` scaffold for Debian/Ubuntu.
+- `packaging/install.sh` — thin bootstrapper for GitHub Releases.
+- `packaging/uninstall.sh` — package manager removal.
+- GitHub Actions release workflow on `v*` tags.
 - Native tests in `kde/tests/qalc_test.cpp`.
 
-Current verification:
+## Roadmap
 
-```sh
-cmake --build build/kde --target numi-kde numi-kde-tests
-ctest --test-dir build/kde --output-on-failure
-./build/kde/numi-kde
-```
+### Calculator
 
-Latest local result: build passes, CTest passes 2/2, offscreen dev GUI starts without QML warnings.
+- Improve diagnostic messages beyond the compact `Error` label.
+- Broaden date/time format compatibility.
+- Offline / failed-rate UI state for crypto.
 
-## Workflow Rules
+### KDE Integration
 
-- Check `git status --short` before editing.
-- Do not discard local changes without explicit user instruction.
-- Every behavior change should get a native test where practical.
-- Run `cmake --build build/kde --target numi-kde numi-kde-tests`.
-- Run `ctest --test-dir build/kde --output-on-failure`.
-- Update docs when behavior changes.
-- Keep the repository scoped to native KDE application code, resources, tests and current documentation.
+- Validate KWin keep-above rule on a real KDE Wayland session.
+- Add installed desktop-file smoke test.
 
-## Native Test Coverage
+### Packaging and Release
 
-Current native tests cover:
+- Validate DEB dependencies on Ubuntu/Kubuntu and Debian.
+- Test `install.sh` end-to-end against published GitHub Release artifacts.
+- Validate one-line install on a clean Fedora KDE system.
+- Validate one-line install on a clean Kubuntu LTS system.
+- Publish repository after installer validation passes.
 
-- arithmetic;
-- formatting and no unnecessary trailing zeros;
-- percentages;
-- incomplete expression suppression;
-- division-by-zero `Error`;
-- variables and assignment;
-- comments/empty lines;
-- `/help`;
-- `time` and `now`;
-- explicit date differences, including date-to-date spans with total days;
-- explicit date arithmetic;
-- unit conversion;
-- lowercase fiat preprocessing;
-- mocked crypto conversion;
-- functions;
-- totals for compatible numeric and converted rows, plus mixed-unit rejection;
-- completion;
-- DocumentModel history, total, autostart and `/help`.
+### UX
 
-## Phase Status
-
-### Phase A: Native Runtime
-
-Status: mostly complete.
-
-Done:
-
-- keep the repository scoped to the native KDE runtime;
-- evaluate through `libqalculate`;
-- keep one result row per source line;
-- expose QML model roles for result, ok/error, diagnostics and highlighted HTML.
-
-Remaining:
-
-- improve diagnostic messages beyond compact `Error`;
-- add source ranges for errors if the UI starts drawing underlines/tooltips.
-
-### Phase B: KDE Integration
-
-Status: active.
-
-Done:
-
-- tray icon/menu;
-- transparent app/tray icons;
-- global shortcut with KDE conflict checks;
-- launch-at-login;
-- clipboard workflows;
-- X11 keep-above;
-- KDE Wayland KWin-rule keep-above.
-
-Remaining:
-
-- manually validate KWin rule behavior on KDE Wayland;
-- add installed-app smoke test for `.desktop` app id and portal behavior;
-- consider migrating the KWin rule writer to KF6Config if/when `KF6Config` is added.
-
-### Phase C: Calculator Compatibility
-
-Status: active.
-
-Done:
-
-- arithmetic, variables, units, percentages, dates/time keywords;
-- compact absolute `today - date`, `date - today` and `date - date` spans;
-- explicit `date + duration` arithmetic;
-- `20% from/of`;
-- incomplete input stays quiet;
-- explicit invalid math shows `Error`;
-- crypto conversion for top symbols using CoinGecko rates;
-- target-prefixed crypto conversion display.
-
-Remaining:
-
-- decide how to display live rate timestamps/source;
-- add offline/failed-rate UI state;
-- broaden date/time compatibility;
-- decide what unsupported natural-language phrases should do.
-
-### Phase D: UX Polish
-
-Status: active.
-
-Done:
-
-- settings window;
-- result separator setting;
-- visible vertical result separator matched to the app's divider brightness;
-- Total footer;
-- compatible-result totals;
-- adaptive result width;
-- history drawer;
-- configurable font/result width/precision;
-- `Ctrl+N`;
-- readable inline `/help` guide with shared highlighting.
-
-Remaining:
-
-- visual screenshot checks for KDE Wayland, X11, HiDPI and fractional scaling;
-- revisit settings layout once more options are added;
-- decide whether result click should copy immediately or show copied feedback.
-
-### Phase E: Packaging and Release
-
-Status: active.
-
-Done:
-
-- install rules for the app binary, desktop file, AppStream metadata and app icon;
-- non-GUI `--version` and `--probe` checks for installer/package smoke tests;
-- AppStream project license set to `Apache-2.0`;
-- one-line installer plan based on GitHub Releases and native `.deb`/`.rpm` packages.
-
-Needed:
-
-- desktop/appstream validation;
-- package smoke test;
-- one-line install script from release artifacts;
-- Flatpak/AppImage/RPM decision;
-- CI for CMake build and native tests.
-
-## Next Recommended Work
-
-1. Test "Always on top" on a real KDE Wayland session after toggling the setting.
-2. If KWin only applies the rule on new windows, add a forced hide/show or clear user-facing behavior.
-3. Add injectable config path or helper class for KWin rule writing, then unit-test it.
-4. Add installed desktop-file smoke test.
-5. Add visual screenshots for icon transparency and the result separator.
+- Visual screenshot checks for KDE Wayland, X11, HiDPI and fractional scaling.
+- Decide whether result click should copy immediately or show copy feedback.

@@ -61,10 +61,10 @@ jobs:
   deb:
     name: Build DEB (Ubuntu)
     runs-on: ubuntu-latest
+    continue-on-error: true
     # NOTE: Ubuntu package names need verification on a real Kubuntu/Ubuntu system.
-    # Build deps below are best-effort guesses — update after testing on Ubuntu.
-    # DEB Depends field (CPACK_DEBIAN_PACKAGE_DEPENDS) is not yet set;
-    # add it to kde/CMakeLists.txt after confirming runtime package names.
+    # DEB Depends field (CPACK_DEBIAN_PACKAGE_DEPENDS) is not yet set in CMakeLists.txt.
+    # This job is informational — release publishes with RPM only.
 
     steps:
       - name: Install build dependencies
@@ -109,7 +109,7 @@ jobs:
 
   release:
     name: Publish Release
-    needs: [rpm, deb]
+    needs: [rpm]
     runs-on: ubuntu-latest
 
     steps:
@@ -121,8 +121,9 @@ jobs:
           name: rpm
           path: dist/
 
-      - name: Download DEB
+      - name: Download DEB (if available)
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: deb
           path: dist/

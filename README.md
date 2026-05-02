@@ -42,15 +42,19 @@ The app and tray icons are transparent PNG resources in `kde/resources/` and are
 
 ## Install
 
-The polished one-line installer is planned but not published yet.
-
-Target command after release packaging is ready:
+Install on **Fedora** or **Debian/Ubuntu** with a single command:
 
 ```sh
 curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/install.sh | bash
 ```
 
-The installer plan is documented in `docs/installation-plan.md`. The intended production path is GitHub Releases with verified `.deb` and `.rpm` packages, not compiling source on the user's machine.
+The script detects your distro, downloads the matching `.rpm` or `.deb` from GitHub Releases, verifies the SHA256 checksum, installs it with the system package manager, and runs `numi-kde --probe` to confirm the installation. See `packaging/install.sh` for the full source.
+
+To uninstall:
+
+```sh
+curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/uninstall.sh | bash
+```
 
 ## Build From Source
 

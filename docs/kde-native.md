@@ -13,8 +13,6 @@ The native KDE application lives in `kde/` and is the primary runtime target.
 - KF6GlobalAccel for global shortcuts when available.
 - Qt DBus for KWin reconfiguration.
 
-The repository is scoped to the native KDE application.
-
 ## Fedora Dependencies
 
 ```sh
@@ -24,7 +22,8 @@ sudo dnf install -y \
   kf6-kwindowsystem-devel kf6-kglobalaccel-devel
 ```
 
-The CMake target requires Qt 6 Core/DBus/Gui/Widgets/Network/Qml/Quick/QuickControls2, KF6WindowSystem, optional KF6GlobalAccel, and libqalculate.
+The CMake target requires Qt 6 Core/DBus/Gui/Widgets/Network/Qml/Quick/QuickControls2,
+KF6WindowSystem, optional KF6GlobalAccel, and libqalculate.
 
 ## Build, Test, Run
 
@@ -37,52 +36,22 @@ ctest --test-dir build/kde --output-on-failure
 ./build/kde/numi-kde
 ```
 
-Latest local status:
-
-- configure: passes;
-- native build: passes;
-- native CTest: 2/2 passes;
-- CLI smoke checks: `--version` and `--probe` pass;
-- staged CMake install: binary, desktop file, AppStream metadata and icon are installed;
-- GUI dev binary starts without QML warnings.
-
-## Current Behavior
-
-- Compact frameless dark window.
-- Editable source document on the left.
-- Result column on the right, with automatic expansion for long result text.
-- Live C++ evaluation while typing.
-- C++ syntax highlighting.
-- Result hover/click behavior.
-- Total footer for compatible numeric rows; mixed units/currencies hide the total.
-- `/help` shows readable inline editor help using the same syntax highlighting as normal input.
-- `today - DD.MM.YYYY`, `DD.MM.YYYY - today` and `DD.MM.YYYY - DD.MM.YYYY` return a compact absolute English calendar span plus total days.
-- `DD.MM.YYYY + N years/months/weeks/days` returns a date.
-- Crypto conversion results include the target prefix, such as `ETH 0.16` or `EUR 67,059.8291`.
-- History drawer with persisted sessions.
-- Settings window for display, behavior, precision, autostart and hotkey.
-- Tray icon and tray menu.
-- Global shortcut: `Ctrl+Alt+1` by default.
-- `Ctrl+N`: clear current document.
-- `Tab`: completion.
-- Persistent window geometry.
-- Transparent app/tray PNG resources.
-
 ## Always on Top
 
-X11:
+**X11:** Uses `KX11Extras` with `NET::KeepAbove | NET::SkipTaskbar | NET::SkipPager`.
+QML keeps static window flags to avoid window recreation and re-centering.
 
-- Uses `KX11Extras` with `NET::KeepAbove`.
-- QML keeps static window flags to avoid window recreation and re-centering.
+**KDE Wayland:** Wayland clients cannot directly control stacking.
+`DocumentModel` writes a managed KWin Window Rule to `~/.config/kwinrulesrc`
+and calls `org.kde.KWin.reconfigure` via DBus.
+The rule is identified by `Description=Numi-KDE keep above (managed)`.
+It sets `keepabove`, `skiptaskbar` and `skippager` — all forced.
 
-KDE Wayland:
+## Window Behavior
 
-- Wayland clients cannot directly control stacking.
-- When enabled, `DocumentModel` writes a managed KWin Window Rule to `~/.config/kwinrulesrc` and calls `org.kde.KWin.reconfigure`.
-- The managed rule is identified by `Description=Numi-KDE keep above (managed)`.
-- The rule matches `wmclass` substring `numi-kde` and title `Numi`, then sets `keepabove=true`.
-
-Manual validation on a real KDE Wayland session is still required because automated tests cannot verify compositor stacking.
+- Closing the window (X button or Alt+F4) hides it; the app stays alive in the system tray.
+- To quit, use **Quit Numi-KDE** from the tray context menu.
+- Window position is saved to `QSettings` before hiding and restored on show.
 
 ## Runtime Files
 
@@ -96,9 +65,3 @@ kde/qml/*.qml
 kde/resources/*.png
 kde/tests/qalc_test.cpp
 ```
-
-## Current Limitations
-
-- No packaged-install smoke test yet.
-- KWin keep-above rule writer is not unit-tested with an injected config path.
-- Wayland keep-above depends on KWin accepting/reloading the generated rule.
