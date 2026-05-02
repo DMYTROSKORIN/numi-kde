@@ -1,6 +1,6 @@
 # numi-kde Implementation Plan
 
-Last updated: 2026-05-01.
+Last updated: 2026-05-02.
 
 ## Goal
 
@@ -27,10 +27,11 @@ Completed:
 - History drawer.
 - Result copy and Total copy.
 - Total sums only compatible numeric values and stays hidden for mixed units/currencies.
-- Readable inline `/help` guide.
+- Readable inline `/help` guide using shared syntax highlighting.
 - Adaptive result column width with separator clamped to visible content.
-- Explicit date difference support such as `today - 26.08.1983`.
+- Explicit date difference support such as `today - 26.08.1983` and `26.08.1983 - 02.05.2026`.
 - Explicit date arithmetic support such as `26.08.1983 + 42 years`.
+- Target-prefixed conversion output for crypto/fiat paths such as `1 BTC to EUR`.
 - App/tray transparent PNG resources.
 - Tray menu.
 - Global shortcut via `KGlobalAccel`, default `Ctrl+Alt+1`.
@@ -75,7 +76,7 @@ Current native tests cover:
 - comments/empty lines;
 - `/help`;
 - `time` and `now`;
-- explicit date differences;
+- explicit date differences, including date-to-date spans with total days;
 - explicit date arithmetic;
 - unit conversion;
 - lowercase fiat preprocessing;
@@ -130,12 +131,13 @@ Status: active.
 Done:
 
 - arithmetic, variables, units, percentages, dates/time keywords;
-- explicit `today - date` spans;
+- explicit `today - date` and `date - date` spans;
 - explicit `date + duration` arithmetic;
 - `20% from/of`;
 - incomplete input stays quiet;
 - explicit invalid math shows `Error`;
-- crypto conversion for top symbols using CoinGecko rates.
+- crypto conversion for top symbols using CoinGecko rates;
+- target-prefixed crypto conversion display.
 
 Remaining:
 
@@ -159,7 +161,7 @@ Done:
 - history drawer;
 - configurable font/result width/precision;
 - `Ctrl+N`;
-- readable inline `/help` guide.
+- readable inline `/help` guide with shared highlighting.
 
 Remaining:
 

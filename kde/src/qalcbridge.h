@@ -34,6 +34,7 @@ public:
     QList<LineResult> evaluateDocument(const QString &source);
     void setDecimalPlaces(int places);
     QString getCompletion(const QString &prefix);
+    QString highlightLine(const QString &line) const;
 
     void fetchCryptoRates();
     void applyCryptoRates(const QJsonObject &rates);

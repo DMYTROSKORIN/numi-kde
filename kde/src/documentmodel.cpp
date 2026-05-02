@@ -204,6 +204,11 @@ QString DocumentModel::completeWord(const QString &prefix)
     return m_qalc->getCompletion(prefix);
 }
 
+QString DocumentModel::highlightExample(const QString &line) const
+{
+    return m_qalc->highlightLine(line);
+}
+
 void DocumentModel::setKeepAbove(bool above)
 {
     if (KWindowSystem::isPlatformWayland())

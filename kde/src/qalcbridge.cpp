@@ -151,6 +151,23 @@ static QString pluralize(int value, const QString &one, const QString &many)
     return QStringLiteral("%1 %2").arg(value).arg(value == 1 ? one : many);
 }
 
+static QString formatEnglishInteger(qint64 value)
+{
+    return QLocale(QLocale::English, QLocale::UnitedStates).toString(value);
+}
+
+static QString joinEnglishParts(const QStringList &parts)
+{
+    if (parts.size() <= 1)
+        return parts.join(QString());
+    if (parts.size() == 2)
+        return QStringLiteral("%1 and %2").arg(parts.at(0), parts.at(1));
+
+    QStringList head = parts;
+    const QString last = head.takeLast();
+    return QStringLiteral("%1 and %2").arg(head.join(QStringLiteral(", ")), last);
+}
+
 static QString formatDateSpan(QDate from, QDate to)
 {
     bool negative = false;
@@ -159,22 +176,35 @@ static QString formatDateSpan(QDate from, QDate to)
         negative = true;
     }
 
-    int years = to.year() - from.year();
-    QDate anniversary = from.addYears(years);
-    if (anniversary > to) {
-        --years;
-        anniversary = from.addYears(years);
+    const qint64 totalDays = from.daysTo(to);
+    QDate cursor = from;
+
+    int years = 0;
+    while (cursor.addYears(1).isValid() && cursor.addYears(1) <= to) {
+        cursor = cursor.addYears(1);
+        ++years;
     }
 
-    const int days = anniversary.daysTo(to);
+    int months = 0;
+    while (cursor.addMonths(1).isValid() && cursor.addMonths(1) <= to) {
+        cursor = cursor.addMonths(1);
+        ++months;
+    }
+
+    const int days = cursor.daysTo(to);
     QStringList parts;
     if (years > 0)
         parts << pluralize(years, QStringLiteral("year"), QStringLiteral("years"));
+    if (months > 0)
+        parts << pluralize(months, QStringLiteral("month"), QStringLiteral("months"));
     if (days > 0 || parts.isEmpty())
         parts << pluralize(days, QStringLiteral("day"), QStringLiteral("days"));
 
-    const QString result = parts.join(QStringLiteral(", "));
-    return negative ? QStringLiteral("-%1").arg(result) : result;
+    const QString sign = negative ? QStringLiteral("-") : QString();
+    return QStringLiteral("%1%2 (excluding the end date).\n%1%3 days.")
+        .arg(sign,
+             joinEnglishParts(parts),
+             formatEnglishInteger(totalDays));
 }
 
 static QString formatUserDate(const QDate &date)
@@ -204,6 +234,9 @@ static QDate parseUserDate(const QString &value)
 
 static bool tryDateDifference(const QString &trimmed, QString *result)
 {
+    static QRegularExpression dateMinusDate(
+        "^\\s*(\\d{1,4}[./-]\\d{1,2}[./-]\\d{1,4})\\s*-\\s*(\\d{1,4}[./-]\\d{1,2}[./-]\\d{1,4})\\s*$",
+        QRegularExpression::CaseInsensitiveOption);
     static QRegularExpression todayMinusDate(
         "^\\s*(?:today|now)\\s*-\\s*(\\d{1,4}[./-]\\d{1,2}[./-]\\d{1,4})\\s*$",
         QRegularExpression::CaseInsensitiveOption);
@@ -211,7 +244,17 @@ static bool tryDateDifference(const QString &trimmed, QString *result)
         "^\\s*(\\d{1,4}[./-]\\d{1,2}[./-]\\d{1,4})\\s*-\\s*(?:today|now)\\s*$",
         QRegularExpression::CaseInsensitiveOption);
 
-    auto match = todayMinusDate.match(trimmed);
+    auto match = dateMinusDate.match(trimmed);
+    if (match.hasMatch()) {
+        const QDate from = parseUserDate(match.captured(1));
+        const QDate to = parseUserDate(match.captured(2));
+        if (!from.isValid() || !to.isValid())
+            return false;
+        *result = formatDateSpan(from, to);
+        return true;
+    }
+
+    match = todayMinusDate.match(trimmed);
     if (match.hasMatch()) {
         const QDate date = parseUserDate(match.captured(1));
         if (!date.isValid())
@@ -436,7 +479,12 @@ QString QalcBridge::convertCryptoExpression(const QString &expression, bool *con
 
     if (converted)
         *converted = true;
-    return smartFormat(amount * fromRate / toRate, m_decimalPlaces);
+    return QStringLiteral("%1 %2").arg(to, smartFormat(amount * fromRate / toRate, m_decimalPlaces));
+}
+
+QString QalcBridge::highlightLine(const QString &line) const
+{
+    return m_highlighter->highlightLine(line, {});
 }
 
 QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {

@@ -131,13 +131,13 @@ Item {
 
                     Repeater {
                         model: [
-                            { label: "Math", text: "2 <span style='color:#ffd35a'>+</span> 2    3<span style='color:#ffd35a'>^</span>2    sqrt(16)    sin(pi/2)" },
-                            { label: "Variables", text: "A <span style='color:#ffd35a'>=</span> 800 <span style='color:#ffd35a'>-</span> 200    B <span style='color:#ffd35a'>:=</span> A <span style='color:#ffd35a'>*</span> 2    B <span style='color:#ffd35a'>+</span> 50" },
-                            { label: "Units", text: "10 m <span style='color:#ffd35a'>to</span> ft    1 hour <span style='color:#ffd35a'>in</span> min    50 kg <span style='color:#ffd35a'>to</span> lbs" },
-                            { label: "Money", text: "500 AED <span style='color:#ffd35a'>to</span> USD    1 BTC <span style='color:#ffd35a'>to</span> UAH    400 USD <span style='color:#ffd35a'>to</span> ETH" },
-                            { label: "Dates", text: "<span style='color:#ffd35a'>today</span> <span style='color:#ffd35a'>+</span> 2 weeks    <span style='color:#ffd35a'>today</span> <span style='color:#ffd35a'>-</span> 26.08.1983    26.08.1983 <span style='color:#ffd35a'>+</span> 42 years" },
-                            { label: "Percent", text: "20% <span style='color:#ffd35a'>of</span> 500    10% <span style='color:#ffd35a'>from</span> 200" },
-                            { label: "Keys", text: "Tab completes    Ctrl<span style='color:#ffd35a'>+</span>N clears    click result <span style='color:#ffd35a'>to</span> copy" }
+                            { label: "Math", text: "2 + 2    3^2    sqrt(16)    sin(pi/2)" },
+                            { label: "Variables", text: "A = 800 - 200    B := A * 2    B + 50" },
+                            { label: "Units", text: "10 m to ft    1 hour in min    50 kg to lbs" },
+                            { label: "Money", text: "500 AED to USD    1 BTC to UAH    400 USD to ETH" },
+                            { label: "Dates", text: "today + 2 weeks    today - 26.08.1983    26.08.1983 + 42 years" },
+                            { label: "Percent", text: "20% of 500    10% from 200" },
+                            { label: "Keys", text: "Tab completes    Ctrl+N clears    click result to copy" }
                         ]
                         delegate: Row {
                             width: parent.width
@@ -154,7 +154,7 @@ Item {
 
                             Text {
                                 width: parent.width - x
-                                text: modelData.text
+                                text: documentModel ? documentModel.highlightExample(modelData.text) : modelData.text
                                 textFormat: Text.RichText
                                 color: Window.window.numiText
                                 wrapMode: Text.WordWrap
