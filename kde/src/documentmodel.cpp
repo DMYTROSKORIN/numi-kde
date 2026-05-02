@@ -17,6 +17,7 @@
 #include <QStandardPaths>
 #include <QVector>
 #include <QHash>
+#include <QtConcurrent>
 
 #include <QSaveFile>
 #include <utility>
@@ -32,10 +33,20 @@ DocumentModel::DocumentModel(QObject *parent)
     QSettings settings("numi-kde", "numi-kde");
     m_history = settings.value("history").value<QVariantList>();
     m_decimalPlaces = settings.value("decimalPlaces", 3).toInt();
+
+    m_debounceTimer = new QTimer(this);
+    m_debounceTimer->setSingleShot(true);
+    m_debounceTimer->setInterval(50); // 50ms debounce
+    connect(m_debounceTimer, &QTimer::timeout, this, &DocumentModel::evaluate);
+
+    connect(&m_watcher, &QFutureWatcher<QList<LineResult>>::finished,
+            this, &DocumentModel::onEvaluationFinished);
 }
 
 DocumentModel::~DocumentModel()
 {
+    m_watcher.cancel();
+    m_watcher.waitForFinished();
 }
 
 QString DocumentModel::source() const
@@ -49,6 +60,8 @@ void DocumentModel::setSource(const QString &source)
     if (source.trimmed() == "/help") {
         if (m_source == source) return;
         m_source = source;
+        m_debounceTimer->stop();
+        m_watcher.cancel();
         emit sourceChanged();
         beginResetModel();
         m_lines = QJsonArray();
@@ -70,7 +83,7 @@ void DocumentModel::setSource(const QString &source)
     if (m_source == source) return;
     m_source = source;
     emit sourceChanged();
-    evaluate();
+    m_debounceTimer->start();
 }
 
 int DocumentModel::errorCount() const { return m_errorCount; }
@@ -364,7 +377,24 @@ void DocumentModel::reloadKWinRules()
 void DocumentModel::evaluate()
 {
     m_qalc->setDecimalPlaces(m_decimalPlaces);
-    const auto qalcResults = m_qalc->evaluateDocument(m_source);
+    
+    // Cancel previous evaluation if still running. 
+    // QalcBridge's mutex will ensure the background thread finishes its current atomic evaluateDocument call.
+    if (m_watcher.isRunning()) {
+        m_watcher.cancel();
+    }
+
+    auto future = QtConcurrent::run([this, src = m_source]() {
+        return m_qalc->evaluateDocument(src);
+    });
+    m_watcher.setFuture(future);
+}
+
+void DocumentModel::onEvaluationFinished()
+{
+    if (m_watcher.isCanceled()) return;
+
+    const auto qalcResults = m_watcher.result();
 
     beginResetModel();
     m_lines = QJsonArray();

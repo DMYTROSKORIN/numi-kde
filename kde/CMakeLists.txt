@@ -9,7 +9,7 @@ set(CMAKE_AUTORCC ON)
 
 include(GNUInstallDirs)
 
-find_package(Qt6 6.6 REQUIRED COMPONENTS Core DBus Gui Widgets Network Qml Quick QuickControls2)
+find_package(Qt6 6.6 REQUIRED COMPONENTS Core DBus Gui Widgets Network Qml Quick QuickControls2 Concurrent Test)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(QALCULATE REQUIRED libqalculate)
 find_package(KF6WindowSystem REQUIRED)
@@ -63,6 +63,7 @@ target_link_libraries(numi-kde
     Qt6::Gui
     Qt6::Widgets
     Qt6::Network
+    Qt6::Concurrent
     Qt6::Qml
     Qt6::Quick
     Qt6::QuickControls2
@@ -103,7 +104,9 @@ target_link_libraries(numi-kde-tests
     Qt6::DBus
     Qt6::Gui
     Qt6::Network
+    Qt6::Concurrent
     Qt6::Widgets
+    Qt6::Test
     KF6::WindowSystem
     ${QALCULATE_LIBRARIES}
 )

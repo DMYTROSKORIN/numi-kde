@@ -5,12 +5,12 @@ This document outlines the roadmap for stabilizing and improving the `numi-kde` 
 ## Phase 1: Stabilization & Core Logic (Priority: High)
 - [x] **Fix Variable Persistence Bug**: Ensure that variables from deleted lines do not persist in the calculation engine.
 - [x] **KWin Rules Safety**: Refactor `kwinrulesrc` modification to be more robust and prevent data loss from concurrent writes.
-- [ ] **Variable Name Validation**: Improve regex for variable assignments to prevent edge-case collisions with units.
+- [x] **Variable Name Validation**: Improve regex for variable assignments to prevent edge-case collisions with units.
 
 ## Phase 2: Performance & Concurrency (Priority: Medium)
-- [ ] **Async Evaluation**: Move calculation logic to a background thread to keep the UI responsive during heavy computation.
+- [x] **Async Evaluation**: Move calculation logic to a background thread to keep the UI responsive during heavy computation.
 - [ ] **QML Model Optimization**: Transition from `Repeater` to a more efficient view (like `ListView`) for rendering results and highlights.
-- [ ] **Highlighter Optimization**: Cache unit/keyword lookups in `SyntaxHighlighter` to reduce per-token overhead.
+- [x] **Highlighter Optimization**: Cache unit/keyword lookups in `SyntaxHighlighter` to reduce per-token overhead.
 
 ## Phase 3: UX & Polish (Priority: Medium)
 - [x] **Organization Refactoring**: Rename the organization/app identity from `skorin/numi-kde` to a more formal `numi-kde`.

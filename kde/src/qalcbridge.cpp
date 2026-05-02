@@ -484,6 +484,8 @@ QString QalcBridge::highlightLine(const QString &line) const
 }
 
 QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
+    QMutexLocker locker(&m_calcMutex);
+
     // Clear user-defined variables from previous evaluations.
     // We collect names first to avoid iterator invalidation during removal.
     std::vector<std::string> toRemove;
@@ -641,6 +643,17 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         auto assignMatch = assignmentRegex.match(line.trimmed());
         if (assignMatch.hasMatch()) {
             QString varName = assignMatch.captured(1);
+            
+            // Validation: prevent overwriting known units or keywords
+            if (m_calc->getUnit(varName.toStdString()) || 
+                m_calc->getVariable(varName.toStdString()) ||
+                isIncompleteExpression(varName)) {
+                res.ok = false;
+                res.error = QStringLiteral("Reserved name: %1").arg(varName);
+                results.append(res);
+                continue;
+            }
+
             QString rhs = applyPercentPreprocess(assignMatch.captured(2));
             try {
                 m_calc->clearMessages();

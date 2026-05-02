@@ -22,6 +22,7 @@ private:
     QRegularExpression m_tokenRegex;
     QSet<QString> m_operatorWords;
     QSet<QString> m_operatorSymbols;
+    QHash<QString, QString> m_classificationCache;
 };
 
 #endif // SYNTAXHIGHLIGHTER_H

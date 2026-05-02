@@ -5,6 +5,9 @@
 #include <QJsonObject>
 #include <QString>
 #include <QVariantList>
+#include <QFutureWatcher>
+#include <QTimer>
+#include "qalcbridge.h"
 
 class QalcBridge;
 
@@ -66,6 +69,7 @@ signals:
 
 private:
     void evaluate();
+    void onEvaluationFinished();
     static QString firstDiagnostic(const QJsonObject &line);
     static void setKWinKeepAboveRule(bool enabled);
     static void reloadKWinRules();
@@ -81,4 +85,6 @@ private:
     double m_total = 0.0;
     bool m_kwinRuleApplied = false;
     bool m_keepAbove = true;
+    QTimer *m_debounceTimer;
+    QFutureWatcher<QList<LineResult>> m_watcher;
 };

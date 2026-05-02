@@ -47,35 +47,37 @@ QString SyntaxHighlighter::highlightLine(const QString &line, const QSet<QString
 }
 
 QString SyntaxHighlighter::classify(const QString &token, const QSet<QString> &variables) {
-    QString lower = token.toLower();
-
     if (variables.contains(token)) {
         return "variable";
     }
 
+    if (m_classificationCache.contains(token)) {
+        return m_classificationCache.value(token);
+    }
+
+    QString lower = token.toLower();
+    QString kind;
+
     if (m_operatorWords.contains(lower) || m_operatorSymbols.contains(token)) {
-        return "operator";
-    }
-
-    if (token == "%" || token == "*" || token == "/") {
-        return "entity";
-    }
-
-    // Check for currency (uppercase, 3-5 chars)
-    static QRegularExpression currencyRegex("^[A-Z]{3,5}$");
-    if (currencyRegex.match(token).hasMatch()) {
-        return "entity";
-    }
-
-    // Check for unit using libqalculate (try original and uppercase for lowercase currency tokens)
-    if (m_calc) {
-        if (m_calc->getUnit(token.toStdString()) ||
-            (!m_operatorWords.contains(lower) && m_calc->getUnit(token.toUpper().toStdString()))) {
-            return "entity";
+        kind = "operator";
+    } else if (token == "%" || token == "*" || token == "/") {
+        kind = "entity";
+    } else {
+        // Check for currency (uppercase, 3-5 chars)
+        static QRegularExpression currencyRegex("^[A-Z]{3,5}$");
+        if (currencyRegex.match(token).hasMatch()) {
+            kind = "entity";
+        } else if (m_calc) {
+            // Check for unit using libqalculate (try original and uppercase for lowercase currency tokens)
+            if (m_calc->getUnit(token.toStdString()) ||
+                (!m_operatorWords.contains(lower) && m_calc->getUnit(token.toUpper().toStdString()))) {
+                kind = "entity";
+            }
         }
     }
 
-    return "";
+    m_classificationCache.insert(token, kind);
+    return kind;
 }
 
 QString SyntaxHighlighter::escapeHtml(const QString &input) {

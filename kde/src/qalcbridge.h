@@ -7,6 +7,7 @@
 #include <QTimer>
 #include <QJsonObject>
 #include <QHash>
+#include <QMutex>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -54,6 +55,7 @@ private:
     QNetworkAccessManager *m_nam;
     QTimer *m_cryptoRefreshTimer;
     QHash<QString, double> m_cryptoUsdRates;
+    mutable QMutex m_calcMutex;
 };
 
 #endif // QALCBRIDGE_H

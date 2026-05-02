@@ -352,19 +352,30 @@ static void runSuite(QalcBridge &bridge) {
     }
     {
         auto results = bridge.evaluateDocument("m = 10\n5 m");
-        // If it uses the variable, result is 50. If it uses the unit, result is "5 m".
-        bool ok = results.size() == 2 && results[1].result == "50";
-        check("assignment to unit name 'm' uses variable value", ok,
-              results.size() >= 2 ? results[1].result : "no results", "50");
+        // We now prevent overwriting units.
+        bool ok = results.size() == 2 && !results[0].ok && results[0].error.contains("Reserved");
+        check("assignment to unit name 'm' is now prevented", ok,
+              results.size() >= 2 ? results[0].error : "no results", "Reserved name: m");
     }
 }
 
+#include <QSignalSpy>
+#include <QTest>
+
 static void runDocumentModelSuite() {
     DocumentModel model;
+    QSignalSpy spy(&model, &DocumentModel::linesChanged);
+
+    auto wait = [&]() {
+        if (!spy.isEmpty()) spy.clear();
+        // Wait for up to 2000ms. Since we have a 50ms debounce + evaluation time, this is plenty.
+        spy.wait(2000);
+    };
 
     // ── DocumentModel totals ─────────────────────────────────────────────────
     {
         model.setSource("100\n200\n300");
+        wait();
         bool ok = model.rowCount() == 3
                && model.resultCount() == 3
                && model.errorCount() == 0
@@ -375,6 +386,7 @@ static void runDocumentModelSuite() {
     }
     {
         model.setSource("1 km to m\n2 km to m");
+        wait();
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
@@ -385,6 +397,7 @@ static void runDocumentModelSuite() {
     }
     {
         model.setSource("500 AED to USD\n100");
+        wait();
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
@@ -394,6 +407,7 @@ static void runDocumentModelSuite() {
     }
     {
         model.setSource("500 AED to USD\n100 USD to UAH");
+        wait();
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
@@ -404,6 +418,7 @@ static void runDocumentModelSuite() {
     {
         const QString date = QDate::currentDate().addYears(-2).addDays(-5).toString("dd.MM.yyyy");
         model.setSource(QStringLiteral("today - %1\n100").arg(date));
+        wait();
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
