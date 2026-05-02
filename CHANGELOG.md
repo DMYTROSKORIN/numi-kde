@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.8 - 2026-05-02
+
+### Update checker
+
+- Added automatic update checking via the GitHub Releases API (`api.github.com`).
+- On startup, the app checks for a newer release once per 24 hours (last-check timestamp stored in `QSettings`).
+- The tray menu gains a **Check for Updates** action for manual checks.
+- When a newer version is found, the action label changes to **Update available: vX.Y.Z** and clicking it opens the GitHub release page in the browser.
+- Repository is now public: `https://github.com/DMYTROSKORIN/numi-kde`.
+
 ## 0.1.7 - 2026-05-02
 
 ### Packaging
