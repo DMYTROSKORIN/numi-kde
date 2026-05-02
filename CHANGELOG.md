@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.9 - 2026-05-03
+
+### Performance & Stability
+
+- **Async Evaluation**: Moved the calculation engine (`libqalculate`) to a background thread using `QtConcurrent`. The UI now remains perfectly responsive even during heavy computation or rapid typing.
+- **Throttling/Debouncing**: Added a 50ms delay to evaluations to prevent CPU spikes during rapid text input.
+- **Highlighter Optimization**: Implemented classification caching in `SyntaxHighlighter`. Repeated tokens (units, keywords) are now highlighted near-instantly without re-querying the math engine.
+- **Variable Persistence Fix**: User-defined variables are now correctly cleared before each full document re-evaluation, preventing deleted lines from affecting future results.
+- **ListView Optimization**: Refactored the QML highlight layer to use `ListView` instead of `Repeater`. Only visible lines are rendered, drastically improving performance for large documents.
+
+### UX & Branding
+
+- **Network Status Indicator**: Added a colored status dot in the title bar to show the state of cryptocurrency rate updates (Fetching, Success, Error). Includes detailed ToolTips.
+- **Professional Branding**: Updated all application identifiers and metadata to use the formal `numi-kde` organization name.
+- **Contact Info**: Updated official contact email to `dev@skorin.online`.
+- **Atomic KWin Rules**: Switched to `QSaveFile` for updating `kwinrulesrc`, ensuring configuration safety on KDE Wayland.
+
+### Calculator
+
+- **Variable Validation**: Improved assignment logic to prevent overwriting of system units (like `m`, `kg`, `USD`) or reserved keywords.
+
 ## 0.1.8 - 2026-05-02
 
 ### Update checker
