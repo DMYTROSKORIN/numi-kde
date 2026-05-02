@@ -10,6 +10,9 @@ Type expressions like notes. Get aligned results instantly. Keep the window smal
 
 `numi-kde` is inspired by Numi, built for Linux/KDE with Qt 6, QML, C++ and `libqalculate`.
 
+> [!CAUTION]
+> **Early development — expect bugs.** The app is usable but not production-ready. Features may break, change or disappear between releases. Test before relying on it for real work.
+
 ## Install
 
 Latest release:
@@ -123,8 +126,6 @@ cmake --build build/kde-release --target package
 - Engine: `libqalculate`.
 - Packaging: `.rpm` / `.deb` release flow with GitHub-hosted installer scripts.
 - License: Apache License 2.0.
-- Repository visibility may remain private until public installer validation is complete.
-
 ## Documentation
 
 - `docs/kde-native.md`: native KDE build/runtime notes.
