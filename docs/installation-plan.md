@@ -175,7 +175,7 @@ Before the installer is real, the app needs:
 4. Package metadata:
    - name: `numi-kde`;
    - version from CMake project version;
-   - license;
+   - license: `Apache-2.0`;
    - maintainer;
    - dependencies.
 
@@ -245,8 +245,6 @@ Done:
 
 Remaining:
 
-- Choose the public project license.
-- Update AppStream metadata to match the chosen license.
 - Re-check install layout after CPack package generation.
 
 ### Phase 2: Local Packages

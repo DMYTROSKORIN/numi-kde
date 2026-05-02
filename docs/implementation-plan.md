@@ -24,6 +24,7 @@ Completed:
 - `libqalculate` bridge in `QalcBridge`.
 - `--version` and `--probe` command-line modes for package smoke tests.
 - CMake install rules for binary, desktop file, AppStream metadata and app icon.
+- Apache License 2.0 project licensing.
 - C++ syntax highlighter.
 - Settings window.
 - History drawer.
@@ -179,6 +180,7 @@ Done:
 
 - install rules for the app binary, desktop file, AppStream metadata and app icon;
 - non-GUI `--version` and `--probe` checks for installer/package smoke tests;
+- AppStream project license set to `Apache-2.0`;
 - one-line installer plan based on GitHub Releases and native `.deb`/`.rpm` packages.
 
 Needed:
