@@ -1,64 +1,92 @@
-<p align="center">
-  <img src="logo/logo-numi-kde_clear.png" width="140" alt="numi-kde logo" />
-</p>
-
 # numi-kde
 
-`numi-kde` is a KDE-native document calculator inspired by Numi: you type a small text document on the left, and results appear line-by-line on the right.
+**A KDE-native document calculator for people who think in text.**
 
-The goal is a fast, quiet calculator for Linux/KDE that feels native: compact window, keyboard-first workflow, tray integration, global shortcut, KDE window behavior, history, settings, and a calculation engine strong enough for math, units, currencies, crypto and dates.
+Type expressions like notes. Get aligned results instantly. Keep the window small, fast, native, and out of the way.
 
-This project is not affiliated with Numi. It is an independent native KDE implementation built with respect for the ideas and open technologies that made this kind of tool possible.
-
-## Status
-
-- Runtime: C++ / Qt 6 / QML.
-- Calculation engine: `libqalculate`.
-- Desktop integration: KDE tray icon, global shortcut, clipboard, saved geometry, launch-at-login and KWin keep-above integration.
-- Current verification: native CMake build and native CTest pass.
-- Packaging: manual build is available now; one-line GitHub Releases installer is planned in `docs/installation-plan.md`.
-
-## What It Does
-
-- Math: `2 + 2 * 3^2`, `sqrt(256)`, `sin(pi/2)`.
-- Variables: `A = 800 - 200`, `B := A * 2`, `B + 50`.
-- Units: `10 meters in feet`, `50 kg to lbs`, `1 km to m`.
-- Currency and crypto: fiat units supported by `libqalculate`, plus live CoinGecko-backed top-crypto conversion such as `400 USD to ETH`.
-- Consistent conversion results: `500 AED to USD` returns `USD <value>`, `1 BTC to EUR` returns `EUR <value>`.
-- Dates/time: `today + 2 weeks`, `today - 01.01.2000`, `01.01.2000 - 02.05.2026`, `01.01.2000 + 25 years`, `time`, `now`.
-- Percentages: `20% of 300`, `20% from 300`; incomplete input like `20% from` stays quiet until finished.
-- Inline `/help`: readable examples rendered inside the editor using the same syntax highlighter as normal input.
-- Total footer: sums only compatible numeric result rows; mixed units or currencies do not show a misleading total.
-- Result column: auto-expands for long results and keeps the separator from covering visible text.
-- History drawer: saves and restores recent sessions.
-- Settings: always on top, launch at login, result separator, font size, result column width, decimal places and global hotkey.
-- Keyboard: `Ctrl+Alt+1` toggles the app globally by default, `Ctrl+N` clears the document, `Tab` completes units/functions/variables.
-
-## KDE Behavior
-
-On KDE Wayland, applications cannot directly force themselves above other windows. `numi-kde` handles "Always on top" by writing a managed KWin window rule and asking KWin to reconfigure. On X11 it also uses `NET::KeepAbove`.
-
-The app and tray icons are transparent PNG resources in `kde/resources/` and are embedded into the Qt resource binary during build.
+`numi-kde` is inspired by Numi, built for Linux/KDE with Qt 6, QML, C++ and `libqalculate`.
 
 ## Install
 
-Install on **Fedora** or **Debian/Ubuntu** with a single command:
+Latest release:
 
 ```sh
 curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/install.sh | bash
 ```
 
-The script detects your distro, downloads the matching `.rpm` or `.deb` from GitHub Releases, verifies the SHA256 checksum, installs it with the system package manager, and runs `numi-kde --probe` to confirm the installation. See `packaging/install.sh` for the full source.
-
-To uninstall:
+Uninstall:
 
 ```sh
 curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/uninstall.sh | bash
 ```
 
+Install a specific version:
+
+```sh
+curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/install.sh | NUMI_KDE_VERSION=v0.1.6 bash
+```
+
+Dry run:
+
+```sh
+curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/install.sh | bash -s -- --dry-run
+```
+
+The installer detects Fedora, Ubuntu or Debian, downloads the matching `.rpm` or `.deb` from GitHub Releases, verifies `SHA256SUMS`, installs through `dnf` or `apt`, and runs `numi-kde --probe`.
+
+## Why
+
+Most calculators force you into buttons, modes, history panels and copy-paste loops. `numi-kde` treats calculation as a small live document:
+
+```text
+Rent = 1200
+Internet = 45
+Coffee = 4.50 * 18
+Total = Rent + Internet + Coffee
+
+500 AED to USD
+today - 01.01.2000
+```
+
+You keep context. The app does the math.
+
+## Features
+
+- Document-style calculations with one result per line.
+- Math, variables, percentages, units, dates and time.
+- Fiat conversion through `libqalculate`.
+- Live top-crypto conversion backed by CoinGecko rates.
+- Target-prefixed conversion output, such as `USD 136.1471` and `EUR 67,059.8291`.
+- Inline `/help` rendered inside the editor with the same syntax highlighting as normal input.
+- Total footer that sums only compatible values.
+- Auto-expanding result column for long output.
+- History drawer and session restore.
+- KDE tray icon, global shortcut, launch-at-login and keep-above integration.
+- Works with KDE Wayland through a managed KWin window rule; uses `NET::KeepAbove` on X11.
+
+## Examples
+
+| Input | Output |
+| --- | --- |
+| `2 + 2 * 3^2` | `20` |
+| `A = 800 - 200` | `600` |
+| `10 m to ft` | converted length |
+| `500 AED to USD` | `USD <value>` |
+| `1 BTC to EUR` | `EUR <value>` |
+| `01.01.2000 + 25 years` | `01.01.2025` |
+| `today - 01.01.2000` | compact years/months/days span |
+| `/help` | inline usage guide |
+
+## Keyboard
+
+- `Ctrl+Alt+1`: toggle the app globally.
+- `Ctrl+N`: clear the current document.
+- `Tab`: complete units, functions and variables.
+- Click a result: copy it.
+
 ## Build From Source
 
-### Fedora Dependencies
+Fedora dependencies:
 
 ```sh
 sudo dnf install -y \
@@ -67,9 +95,7 @@ sudo dnf install -y \
   kf6-kwindowsystem-devel kf6-kglobalaccel-devel
 ```
 
-Package names vary by distribution. The CMake target requires Qt 6 Core/DBus/Gui/Widgets/Network/Qml/Quick/QuickControls2, KF6WindowSystem, optional KF6GlobalAccel, and `libqalculate`.
-
-### Commands
+Build and test:
 
 ```sh
 cmake -S kde -B build/kde
@@ -80,40 +106,57 @@ ctest --test-dir build/kde --output-on-failure
 ./build/kde/numi-kde
 ```
 
+Package:
+
+```sh
+cmake -S kde -B build/kde-release -DCMAKE_BUILD_TYPE=Release
+cmake --build build/kde-release --target package
+```
+
+## Project Status
+
+- Runtime: C++ / Qt 6 / QML.
+- Engine: `libqalculate`.
+- Packaging: `.rpm` / `.deb` release flow with GitHub-hosted installer scripts.
+- License: Apache License 2.0.
+- Repository visibility may remain private until public installer validation is complete.
+
 ## Documentation
 
 - `docs/kde-native.md`: native KDE build/runtime notes.
 - `docs/implementation-plan.md`: roadmap and current phase status.
-- `docs/installation-plan.md`: one-line installer design for KDE Linux distributions.
+- `docs/installation-plan.md`: one-line installer and release packaging design.
 - `docs/architecture.md`: current layer boundaries.
 - `CHANGELOG.md`: release notes.
 - `LICENSE`: Apache License 2.0.
 - `NOTICE`: copyright and attribution notice.
 
-## License
-
-`numi-kde` is released under the [Apache License 2.0](LICENSE). This is a permissive open-source license that allows use, modification, redistribution and commercial use while preserving copyright notices, license terms and patent protections.
-
 ## Thanks
 
-`numi-kde` stands on the work of other projects:
+`numi-kde` exists because of other excellent work:
 
-- Numi, for the document-calculator idea and user experience inspiration.
-- Qalculate/libqalculate, for the calculation engine that powers math, units and conversions.
-- KDE and KWin, for the desktop platform, window behavior and integration points.
-- Qt and QML, for the native UI and application framework.
-- CoinGecko, for public crypto market data used by the crypto conversion path.
-- The broader open-source Linux desktop community, whose libraries, packaging tools and documentation make projects like this realistic.
+- Numi, for the document-calculator idea and UX inspiration.
+- Qalculate/libqalculate, for the calculation engine.
+- KDE and KWin, for the desktop platform and integration points.
+- Qt and QML, for the native UI framework.
+- CoinGecko, for public crypto market data.
+- The open-source Linux desktop community, for the libraries and tooling that make projects like this possible.
 
-Thank you to everyone building and maintaining these projects. This repository exists because that work exists.
+Thank you to everyone building and maintaining these projects.
 
 ## Contributing
 
-The project is intended to be easy to study, fork, improve and adapt. Useful contributions include:
+Fork it, improve it, package it, test it, break it, fix it.
 
-- calculator compatibility fixes;
-- KDE integration testing on Wayland and X11;
-- packaging for Fedora, Ubuntu and Debian;
+Useful areas:
+
+- calculator compatibility;
+- KDE Wayland and X11 testing;
+- Fedora, Ubuntu and Debian packaging;
 - installer validation on clean KDE systems;
-- UI polish and accessibility improvements;
+- UI polish and accessibility;
 - documentation and examples.
+
+## License
+
+`numi-kde` is released under the [Apache License 2.0](LICENSE).
