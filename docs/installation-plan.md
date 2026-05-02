@@ -6,6 +6,8 @@ Last updated: 2026-05-02.
 
 Provide a one-command installation path for KDE-based Ubuntu, Fedora and Debian systems, with GitHub Releases as the primary distribution channel.
 
+Detailed implementation handoff for the next packaging pass lives in `docs/installer-handoff.md`.
+
 Recommended public command:
 
 ```sh
@@ -248,6 +250,8 @@ Remaining:
 - Re-check install layout after CPack package generation.
 
 ### Phase 2: Local Packages
+
+Detailed next steps are documented in `docs/installer-handoff.md`.
 
 - Add CPack configuration.
 - Build `.deb` locally or in Ubuntu container.
