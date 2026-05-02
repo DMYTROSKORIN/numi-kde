@@ -3,6 +3,7 @@
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QDesktopServices>
 #include <QSettings>
 #include <QSystemTrayIcon>
 #include <QMenu>
@@ -20,6 +21,7 @@
 #include "documentmodel.h"
 #include "qalcbridge.h"
 #include "shortcutmanager.h"
+#include "updatechecker.h"
 
 #ifndef NUMI_KDE_VERSION
 #define NUMI_KDE_VERSION "0.0.0"
@@ -166,6 +168,8 @@ int main(int argc, char *argv[])
     QMenu trayMenu;
     trayMenu.addAction(&showHideAction);
     trayMenu.addSeparator();
+    QAction *checkUpdatesAction = trayMenu.addAction(QStringLiteral("Check for Updates"));
+    trayMenu.addSeparator();
     QAction *quitAction = trayMenu.addAction(QStringLiteral("Quit Numi-KDE"));
     tray.setContextMenu(&trayMenu);
     tray.show();
@@ -181,6 +185,32 @@ int main(int argc, char *argv[])
         [mainWindow]() { toggleWindow(mainWindow); });
 
     QObject::connect(quitAction, &QAction::triggered, &app, &QCoreApplication::quit);
+
+    // ── Update checker ────────────────────────────────────────────────────
+    UpdateChecker updateChecker;
+
+    // When update available: replace action text and open releases page on click
+    QObject::connect(&updateChecker, &UpdateChecker::updateAvailable,
+        [&tray, checkUpdatesAction](const QString &version, const QUrl &url) {
+            const QString label = QStringLiteral("Update available: %1").arg(version);
+            checkUpdatesAction->setText(label);
+            checkUpdatesAction->setData(url);
+            tray.setToolTip(QStringLiteral("Numi-KDE — ") + label);
+            // Disconnect previous click handlers and open release URL
+            QObject::disconnect(checkUpdatesAction, &QAction::triggered, nullptr, nullptr);
+            QObject::connect(checkUpdatesAction, &QAction::triggered, [url]() {
+                QDesktopServices::openUrl(url);
+            });
+        });
+
+    // Manual check: restore label if no update found after an explicit click
+    QObject::connect(checkUpdatesAction, &QAction::triggered, [&updateChecker]() {
+        updateChecker.checkAsync();
+    });
+
+    // Auto-check once per 24 hours on startup
+    if (updateChecker.shouldAutoCheck())
+        updateChecker.checkAsync();
 
     // Save session before quit
     QObject::connect(&app, &QCoreApplication::aboutToQuit,

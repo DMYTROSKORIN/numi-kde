@@ -28,6 +28,8 @@ qt_add_executable(numi-kde
   src/qalcbridge.h
   src/syntaxhighlighter.cpp
   src/syntaxhighlighter.h
+  src/updatechecker.cpp
+  src/updatechecker.h
 )
 
 target_include_directories(numi-kde PRIVATE ${QALCULATE_INCLUDE_DIRS})
