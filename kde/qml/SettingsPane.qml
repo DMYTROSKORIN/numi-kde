@@ -7,183 +7,170 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: 15
+        anchors.margins: 16
+        spacing: 0
 
-        Text {
-            text: "Settings"
-            color: Window.window.numiMuted
-            font.pixelSize: 13
-            font.weight: Font.DemiBold
+        // Header
+        RowLayout {
             Layout.fillWidth: true
+            Layout.preferredHeight: 36
+            Layout.bottomMargin: 10
+
+            Text {
+                text: "Settings"
+                color: Window.window ? Window.window.numiMuted : "#6b6d76"
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+                Layout.fillWidth: true
+                verticalAlignment: Text.AlignVCenter
+            }
         }
 
         Rectangle {
             Layout.fillWidth: true
             height: 1
             color: "#3a3d47"
+            Layout.bottomMargin: 15
         }
 
-        Flickable {
+        Controls.ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            contentHeight: settingsColumn.height
             clip: true
+            ScrollBar.vertical.policy: Controls.ScrollBar.AsNeeded
 
             ColumnLayout {
                 id: settingsColumn
                 width: parent.width
-                spacing: 15
-                Layout.topMargin: 5
+                spacing: 20
 
-                Controls.CheckBox {
-                    id: alwaysOnTopCheck
-                    text: "Always on top"
-                    checked: Window.window.alwaysOnTop
-                    onToggled: Window.window.alwaysOnTop = checked
-
+                // Helper component for CheckBox styling
+                component NumiCheckBox: Controls.CheckBox {
+                    id: cb
                     indicator: Rectangle {
-                        implicitWidth: 16
-                        implicitHeight: 16
-                        radius: 3
-                        border.color: alwaysOnTopCheck.checked ? Window.window.numiBlue : "#6b6d76"
+                        implicitWidth: 18
+                        implicitHeight: 18
+                        radius: 4
+                        border.color: cb.checked ? (Window.window ? Window.window.numiBlue : "#6fc4e8") : "#4a4d56"
                         border.width: 1
-                        color: alwaysOnTopCheck.checked ? Window.window.numiBlue : "transparent"
+                        color: cb.checked ? (Window.window ? Window.window.numiBlue : "#6fc4e8") : "transparent"
                         Text {
                             anchors.centerIn: parent
                             text: "✓"
-                            color: Window.window.numiWindow
-                            font.pixelSize: 11
+                            color: Window.window ? Window.window.numiWindow : "#22242a"
+                            font.pixelSize: 12
                             font.weight: Font.Bold
-                            visible: alwaysOnTopCheck.checked
+                            visible: cb.checked
                         }
                     }
-
                     contentItem: Text {
-                        leftPadding: alwaysOnTopCheck.indicator.width + alwaysOnTopCheck.spacing
-                        text: alwaysOnTopCheck.text
-                        color: Window.window.numiText
+                        leftPadding: cb.indicator.width + cb.spacing
+                        text: cb.text
+                        color: Window.window ? Window.window.numiText : "#f0f0f3"
                         font.pixelSize: 13
                         verticalAlignment: Text.AlignVCenter
                     }
                 }
 
-                Controls.CheckBox {
-                    id: autostartCheck
+                // Helper component for Slider styling
+                component NumiSlider: Controls.Slider {
+                    id: slider
+                    Layout.fillWidth: true
+                    handle: Rectangle {
+                        x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
+                        y: slider.topPadding + slider.availableHeight / 2 - height / 2
+                        implicitWidth: 16
+                        implicitHeight: 16
+                        radius: 8
+                        color: slider.pressed ? (Window.window ? Window.window.numiBlue : "#6fc4e8") : "#f0f0f3"
+                        border.color: Window.window ? Window.window.numiWindow : "#22242a"
+                        border.width: 1
+                    }
+                    background: Rectangle {
+                        x: slider.leftPadding
+                        y: slider.topPadding + slider.availableHeight / 2 - height / 2
+                        implicitWidth: 200
+                        implicitHeight: 4
+                        width: slider.availableWidth
+                        height: implicitHeight
+                        radius: 2
+                        color: "#343742"
+                        Rectangle {
+                            width: slider.visualPosition * parent.width
+                            height: parent.height
+                            color: Window.window ? Window.window.numiBlue : "#6fc4e8"
+                            radius: 2
+                        }
+                    }
+                }
+
+                NumiCheckBox {
+                    text: "Always on top"
+                    checked: Window.window ? Window.window.alwaysOnTop : true
+                    onToggled: if (Window.window) Window.window.alwaysOnTop = checked
+                }
+
+                NumiCheckBox {
                     text: "Launch at login"
                     checked: documentModel ? documentModel.autostart : false
                     onToggled: if (documentModel) documentModel.autostart = checked
-
-                    indicator: Rectangle {
-                        implicitWidth: 16
-                        implicitHeight: 16
-                        radius: 3
-                        border.color: autostartCheck.checked ? Window.window.numiBlue : "#6b6d76"
-                        border.width: 1
-                        color: autostartCheck.checked ? Window.window.numiBlue : "transparent"
-                        Text {
-                            anchors.centerIn: parent
-                            text: "✓"
-                            color: Window.window.numiWindow
-                            font.pixelSize: 11
-                            font.weight: Font.Bold
-                            visible: autostartCheck.checked
-                        }
-                    }
-
-                    contentItem: Text {
-                        leftPadding: autostartCheck.indicator.width + autostartCheck.spacing
-                        text: autostartCheck.text
-                        color: Window.window.numiText
-                        font.pixelSize: 13
-                        verticalAlignment: Text.AlignVCenter
-                    }
                 }
 
-                Controls.CheckBox {
-                    id: resultsSeparatorCheck
+                NumiCheckBox {
                     text: "Show result separator"
-                    checked: Window.window.showResultsSeparator
-                    onToggled: Window.window.showResultsSeparator = checked
-
-                    indicator: Rectangle {
-                        implicitWidth: 16
-                        implicitHeight: 16
-                        radius: 3
-                        border.color: resultsSeparatorCheck.checked ? Window.window.numiBlue : "#6b6d76"
-                        border.width: 1
-                        color: resultsSeparatorCheck.checked ? Window.window.numiBlue : "transparent"
-                        Text {
-                            anchors.centerIn: parent
-                            text: "✓"
-                            color: Window.window.numiWindow
-                            font.pixelSize: 11
-                            font.weight: Font.Bold
-                            visible: resultsSeparatorCheck.checked
-                        }
-                    }
-
-                    contentItem: Text {
-                        leftPadding: resultsSeparatorCheck.indicator.width + resultsSeparatorCheck.spacing
-                        text: resultsSeparatorCheck.text
-                        color: Window.window.numiText
-                        font.pixelSize: 13
-                        verticalAlignment: Text.AlignVCenter
-                    }
+                    checked: Window.window ? Window.window.showResultsSeparator : true
+                    onToggled: if (Window.window) Window.window.showResultsSeparator = checked
                 }
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 5
+                    spacing: 8
                     Text {
-                        text: "Font size: " + Window.window.fontSize + " px"
-                        color: Window.window.numiText
+                        text: "Font size: " + (Window.window ? Window.window.fontSize : 16) + " px"
+                        color: Window.window ? Window.window.numiText : "#f0f0f3"
                         font.pixelSize: 13
                     }
-                    Controls.Slider {
-                        Layout.fillWidth: true
+                    NumiSlider {
                         from: 11; to: 24; stepSize: 1
-                        value: Window.window.fontSize
-                        onMoved: Window.window.fontSize = Math.round(value)
+                        value: Window.window ? Window.window.fontSize : 16
+                        onMoved: if (Window.window) Window.window.fontSize = Math.round(value)
                     }
                 }
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 5
+                    spacing: 8
                     Text {
-                        text: "Result column width: " + Window.window.resultWidth + " px"
-                        color: Window.window.numiText
+                        text: "Result column width: " + (Window.window ? Window.window.resultWidth : 124) + " px"
+                        color: Window.window ? Window.window.numiText : "#f0f0f3"
                         font.pixelSize: 13
                     }
-                    Controls.Slider {
-                        Layout.fillWidth: true
+                    NumiSlider {
                         from: 96; to: 720; stepSize: 8
-                        value: Window.window.resultWidth
-                        onMoved: Window.window.resultWidth = Math.round(value)
+                        value: Window.window ? Window.window.resultWidth : 124
+                        onMoved: if (Window.window) Window.window.resultWidth = Math.round(value)
                     }
                 }
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 5
+                    spacing: 8
                     Text {
-                        text: "Decimal places: " + Math.round(Window.window.decimalPlaces)
-                        color: Window.window.numiText
+                        text: "Decimal places: " + (Window.window ? Math.round(Window.window.decimalPlaces) : 3)
+                        color: Window.window ? Window.window.numiText : "#f0f0f3"
                         font.pixelSize: 13
                     }
-                    Controls.Slider {
-                        Layout.fillWidth: true
+                    NumiSlider {
                         from: 0; to: 10; stepSize: 1
-                        value: Window.window.decimalPlaces
-                        onMoved: Window.window.decimalPlaces = Math.round(value)
+                        value: Window.window ? Window.window.decimalPlaces : 3
+                        onMoved: if (Window.window) Window.window.decimalPlaces = Math.round(value)
                     }
                 }
 
                 ColumnLayout {
                     id: hotkeyColumn
                     Layout.fillWidth: true
-                    spacing: 5
+                    spacing: 8
                     property bool recordingHotkey: false
 
                     function keyName(key, text) {
@@ -197,7 +184,7 @@ Item {
 
                     Text {
                         text: "Global hotkey"
-                        color: Window.window.numiText
+                        color: Window.window ? Window.window.numiText : "#f0f0f3"
                         font.pixelSize: 13
                     }
 
@@ -207,7 +194,7 @@ Item {
                         text: hotkeyColumn.recordingHotkey ? "Press shortcut..." : (shortcutManager ? shortcutManager.sequence : "Ctrl+Alt+1")
                         readOnly: true
                         focus: hotkeyColumn.recordingHotkey
-                        color: Window.window.numiText
+                        color: Window.window ? Window.window.numiText : "#f0f0f3"
                         selectedTextColor: "#22242a"
                         selectionColor: "#6fc4e8"
                         font.pixelSize: 13
@@ -247,7 +234,7 @@ Item {
                         background: Rectangle {
                             radius: 4
                             color: "#1d1f25"
-                            border.color: "#343742"
+                            border.color: hotkeyField.activeFocus ? (Window.window ? Window.window.numiBlue : "#6fc4e8") : "#343742"
                             border.width: 1
                         }
                     }
@@ -256,7 +243,7 @@ Item {
                         Layout.fillWidth: true
                         visible: shortcutManager && shortcutManager.status.length > 0
                         text: shortcutManager ? shortcutManager.status : ""
-                        color: text === "Shortcut saved" ? "#8fd14f" : "#ff5f57"
+                        color: text === "Shortcut saved" ? (Window.window ? Window.window.numiGreen : "#8fd14f") : (Window.window ? Window.window.numiRed : "#ff5f57")
                         font.pixelSize: 11
                         elide: Text.ElideRight
                     }

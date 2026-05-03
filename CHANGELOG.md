@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.21 - 2026-05-03
+
+### UX & Interface
+
+- **Settings Interface Restyling**: Completely restyled the settings panel to match the Numi-KDE custom dark theme. Replaced default Qt Quick Controls 2 delegates with custom-drawn CheckBoxes, Sliders, and TextFields to ensure visual consistency.
+
 ## 0.1.20 - 2026-05-03
 
 ### UX & Interface
