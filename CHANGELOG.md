@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.13 - 2026-05-03
+
+### Performance & Stability
+
+- **Final Fix for Global Shortcuts**: Resolved the persistence issue where custom shortcuts reverted to defaults. The system now uses local configuration as the source of truth and forces `KGlobalAccel` to apply these settings on every launch, bypassing daemon auto-loading conflicts.
+- **Robust Window Position Restoration**: Implemented an active position restoration logic in QML (`onVisibleChanged`). The window now forcefully re-applies its saved coordinates whenever it transitions from hidden to visible, countering compositor-level placement resets on Wayland and X11.
+- **Improved Mathematical Logic**: Enhanced the calculation engine to reject unsimplified results (e.g., `USD 500 - 600`) as `Error`. This prevents confusing output when mixing incompatible units or using incorrect number formats, ensuring results are always mathematically sound.
+
+### UX & Branding
+
+- **Interactive Update Notifications**: System notifications for new versions are now actionable. Clicking a notification (or the tray menu entry) will immediately open the official GitHub releases page for instructions and downloads.
+
 ## 0.1.12 - 2026-05-03
 
 ### Performance & Stability

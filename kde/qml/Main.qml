@@ -91,7 +91,13 @@ Controls.ApplicationWindow {
     // (X11 EWMH states are reset on each unmap/remap).
     onVisibleChanged: {
         if (visible && typeof documentModel !== "undefined") {
-            Qt.callLater(() => documentModel.setKeepAbove(alwaysOnTop))
+            Qt.callLater(() => {
+                documentModel.setKeepAbove(alwaysOnTop)
+                if (windowSettings.savedX >= 0 && windowSettings.savedY >= 0) {
+                    root.x = windowSettings.savedX
+                    root.y = windowSettings.savedY
+                }
+            })
         }
     }
 

@@ -778,8 +778,10 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                     if (out.startsWith('"') && out.endsWith('"'))
                         out = out.mid(1, out.length() - 2);
 
-                    // Disallow vectors/matrices - Numi doesn't use them and they confuse users
-                    if (out.startsWith('[') && out.endsWith(']')) {
+                    // Disallow vectors/matrices or unsimplified multi-term results (e.g. "USD 500 - 600")
+                    if ((out.startsWith('[') && out.endsWith(']')) || 
+                        out.contains(QStringLiteral(" + ")) || 
+                        out.contains(QStringLiteral(" - "))) {
                         res.ok = false;
                         res.error = "Error";
                     } else {

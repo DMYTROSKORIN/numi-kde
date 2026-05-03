@@ -220,9 +220,26 @@ int main(int argc, char *argv[])
         });
 
     QObject::connect(&updateChecker, &UpdateChecker::updateAvailable,
-        [&tray](const QString &version, const QUrl &url) {
+        [&tray, checkUpdatesAction](const QString &version, const QUrl &url) {
+            const QString label = QStringLiteral("Update available: %1").arg(version);
+            checkUpdatesAction->setText(label);
+            checkUpdatesAction->setData(url);
+            tray.setToolTip(QStringLiteral("Numi-KDE — ") + label);
+
+            // Open release URL on click
+            QObject::disconnect(checkUpdatesAction, &QAction::triggered, nullptr, nullptr);
+            QObject::connect(checkUpdatesAction, &QAction::triggered, [url]() {
+                QDesktopServices::openUrl(url);
+            });
+
+            // Open URL on system notification click
+            QObject::disconnect(&tray, &QSystemTrayIcon::messageClicked, nullptr, nullptr);
+            QObject::connect(&tray, &QSystemTrayIcon::messageClicked, [url]() {
+                QDesktopServices::openUrl(url);
+            });
+
             tray.showMessage(QStringLiteral("Numi-KDE"),
-                             QStringLiteral("A new version is available: %1").arg(version),
+                             QStringLiteral("A new version is available: %1\nClick to view release notes.").arg(version),
                              QSystemTrayIcon::Information, 5000);
         });
 
