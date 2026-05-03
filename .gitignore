@@ -1,2 +1,3 @@
 build/
 __cmake_systeminformation/
+.ai-handoff/
