@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.24 - 2026-05-03
+
+### UX & Interface
+
+- **Shadowing Units for Variables**: Allowed using unit names (like `A`, `B`, `C`, `m`) as variable names. This resolves the "Error" result when assigning conversion results to short variable names, as the engine now correctly shadows the units.
+- **Improved Error Reporting**: The interface now displays specific error messages (like "Reserved name") instead of a generic "Error" text.
+
 ## 0.1.23 - 2026-05-03
 
 ### Bug Fixes

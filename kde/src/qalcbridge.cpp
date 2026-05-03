@@ -787,10 +787,9 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         if (assignMatch.hasMatch()) {
             QString varName = assignMatch.captured(1);
             
-            // Validation: prevent overwriting known units or keywords
-            if (m_calc->getUnit(varName.toStdString()) || 
-                m_calc->getVariable(varName.toStdString()) ||
-                isIncompleteExpression(varName)) {
+            // Validation: prevent using keywords as variable names.
+            // We allow shadowing units (like 'A' for Ampere) as it's common in calculations.
+            if (isIncompleteExpression(varName)) {
                 res.ok = false;
                 res.error = QStringLiteral("Reserved name: %1").arg(varName);
                 results.append(res);
@@ -937,7 +936,8 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 res.result = "";
                 res.error = "";
             } else {
-                res.error = "Error";
+                if (res.error.isEmpty())
+                    res.error = "Error";
             }
         }
 

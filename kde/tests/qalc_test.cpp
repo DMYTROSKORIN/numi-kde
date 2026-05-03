@@ -352,10 +352,11 @@ static void runSuite(QalcBridge &bridge) {
     }
     {
         auto results = bridge.evaluateDocument("m = 10\n5 m");
-        // We now prevent overwriting units.
-        bool ok = results.size() == 2 && !results[0].ok && results[0].error.contains("Reserved");
-        check("assignment to unit name 'm' is now prevented", ok,
-              results.size() >= 2 ? results[0].error : "no results", "Reserved name: m");
+        // We now ALLOW shadowing units (like 'm' for meter).
+        // m = 10, then 5 m = 50.
+        bool ok = results.size() == 2 && results[0].ok && results[1].ok && results[1].result == "50";
+        check("assignment to unit name 'm' is now allowed (shadowing)", ok,
+              results.size() >= 2 ? results[1].result : "no results", "50");
     }
     {
         auto results = bridge.evaluateDocument("2 : 4");
