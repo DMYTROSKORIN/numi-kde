@@ -290,7 +290,7 @@ Item {
         text: "⚙"
         hoverEnabled: true
 
-        onClicked: { if (settingsWindow) settingsWindow.show() }
+        onClicked: { if (settingsWindow) settingsWindow.openCentered() }
 
         contentItem: Text {
             text: settingsButton.text

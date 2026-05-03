@@ -80,6 +80,18 @@ Controls.ApplicationWindow {
         }
     }
 
+    function saveCurrentPosition() {
+        windowSettings.savedX = root.x
+        windowSettings.savedY = root.y
+    }
+
+    function hideWindow() {
+        positionRestoredTimer.stop()
+        saveCurrentPosition()
+        positionRestored = false
+        root.hide()
+    }
+
     // Delay before trusting onXChanged/onYChanged saves, to avoid recording
     // the compositor's initial window placement as the saved position.
     Timer {
@@ -107,6 +119,9 @@ Controls.ApplicationWindow {
             if (typeof documentModel !== "undefined") {
                 Qt.callLater(() => documentModel.setKeepAbove(alwaysOnTop))
             }
+        } else {
+            positionRestoredTimer.stop()
+            positionRestored = false
         }
     }
 
@@ -117,7 +132,7 @@ Controls.ApplicationWindow {
 
     onClosing: (close) => {
         close.accepted = false
-        root.hide()
+        hideWindow()
     }
 
     background: Rectangle {
@@ -259,7 +274,7 @@ Controls.ApplicationWindow {
                     color: root.numiMuted
                     hoverColor: "#5c2a2d"
                     pressedColor: "#743236"
-                    onClicked: root.hide()
+                    onClicked: root.hideWindow()
                 }
             }
         }

@@ -4,6 +4,7 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QDesktopServices>
+#include <QMetaObject>
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QAction>
@@ -64,7 +65,8 @@ static void toggleWindow(QWindow *win, DocumentModel *model)
 {
     if (!win) return;
     if (win->isVisible()) {
-        win->hide();
+        if (!QMetaObject::invokeMethod(win, "hideWindow"))
+            win->hide();
     } else {
         // On Wayland, position rules are only applied at surface map time.
         // Calling prepareShow() writes the KWin rule before win->show().

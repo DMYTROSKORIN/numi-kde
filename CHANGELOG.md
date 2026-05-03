@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.17 - 2026-05-03
+
+### Performance & Stability
+
+- **Window Position Persistence Fix**: The main window now saves its position immediately before hiding and disables compositor-placement writes while hidden, preventing the saved position from being overwritten by a centered fallback after the next toggle.
+- **Settings Dialog Placement**: The settings dialog now opens centered over the main application window instead of persisting its own position.
+
 ## 0.1.16 - 2026-05-03
 
 ### Performance & Stability
