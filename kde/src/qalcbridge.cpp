@@ -578,6 +578,39 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         static QRegularExpression colonDivRegex("(?<=\\d)\\s*:\\s*(?=\\d)");
         line.replace(colonDivRegex, "/");
 
+        // Numi-style arithmetic: "CURRENCY AMOUNT ± NUMBER" → compute directly.
+        // We bypass libqalculate here because its print() converts currency
+        // results to the base fiat currency (USD), losing the original unit.
+        // E.g., "UAH 22045 - 600" → "UAH 21,445"
+        static QRegularExpression currencyArithRegex(
+            "^([A-Za-z]{3,5})\\s+(\\d+(?:[.,]\\d+)?)\\s*([+\\-])\\s*(\\d+(?:[.,]\\d+)?)$",
+            QRegularExpression::CaseInsensitiveOption);
+        {
+            const auto cam = currencyArithRegex.match(line.trimmed());
+            if (cam.hasMatch()) {
+                const QString currency = cam.captured(1).toUpper();
+                if (m_calc->getUnit(currency.toStdString())) {
+                    QString n1str = cam.captured(2);
+                    QString n2str = cam.captured(4);
+                    n1str.replace(QLatin1Char(','), QLatin1Char('.'));
+                    n2str.replace(QLatin1Char(','), QLatin1Char('.'));
+                    bool ok1 = false, ok2 = false;
+                    const double n1 = n1str.toDouble(&ok1);
+                    const double n2 = n2str.toDouble(&ok2);
+                    if (ok1 && ok2) {
+                        const double result = (cam.captured(3) == QLatin1String("+")) ? n1 + n2 : n1 - n2;
+                        res.ok = true;
+                        res.result = currency + QLatin1Char(' ') + smartFormat(result, m_decimalPlaces);
+                        res.hasNumericValue = true;
+                        res.numericValue = result;
+                        res.totalKey = totalKey;
+                        results.append(res);
+                        continue;
+                    }
+                }
+            }
+        }
+
         if (isIncompleteExpression(trimmed)) {
             res.ok = true;
             res.result = "";

@@ -185,21 +185,7 @@ int main(int argc, char *argv[])
     // ── Update checker ────────────────────────────────────────────────────
     UpdateChecker updateChecker;
 
-    // When update available: replace action text and open releases page on click
-    QObject::connect(&updateChecker, &UpdateChecker::updateAvailable,
-        [&tray, checkUpdatesAction](const QString &version, const QUrl &url) {
-            const QString label = QStringLiteral("Update available: %1").arg(version);
-            checkUpdatesAction->setText(label);
-            checkUpdatesAction->setData(url);
-            tray.setToolTip(QStringLiteral("Numi-KDE — ") + label);
-            // Disconnect previous click handlers and open release URL
-            QObject::disconnect(checkUpdatesAction, &QAction::triggered, nullptr, nullptr);
-            QObject::connect(checkUpdatesAction, &QAction::triggered, [url]() {
-                QDesktopServices::openUrl(url);
-            });
-        });
-
-    // Manual check: restore label if no update found after an explicit click
+    // Manual check: show "Checking…" and report if already up-to-date
     bool manualCheckInProgress = false;
     QObject::connect(checkUpdatesAction, &QAction::triggered, [&updateChecker, &tray, &manualCheckInProgress]() {
         manualCheckInProgress = true;

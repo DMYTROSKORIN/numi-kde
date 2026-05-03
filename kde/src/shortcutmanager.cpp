@@ -74,11 +74,9 @@ bool ShortcutManager::registerShortcut(const QString &sequence, bool promptForCo
         KGlobalAccel::stealShortcutSystemwide(shortcut);
     }
 
-    // Force NoAutoloading to ensure KGlobalAccel uses OUR saved sequence from QSettings
-    globalAccel->setDefaultShortcut(m_action, {shortcut}, KGlobalAccel::NoAutoloading);
-    const bool ok = globalAccel->setShortcut(m_action, {shortcut}, KGlobalAccel::NoAutoloading);
-    setStatus(ok ? QString() : QStringLiteral("Shortcut is not available"));
-    return ok;
+    globalAccel->setGlobalShortcut(m_action, shortcut);
+    setStatus(QString());
+    return true;
 #else
     setStatus(QStringLiteral("Global shortcuts require KDE GlobalAccel"));
     return true;

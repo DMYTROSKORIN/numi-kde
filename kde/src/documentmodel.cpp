@@ -231,15 +231,12 @@ QString DocumentModel::highlightExample(const QString &line) const
 
 void DocumentModel::setKeepAbove(bool above)
 {
-    if (KWindowSystem::isPlatformWayland()) {
-        // Only write kwinrulesrc + call reconfigure when the state actually changes.
-        // Calling reconfigure on every window show causes KWin to re-place the
-        // window, resetting its position on Wayland.
-        if (!m_kwinRuleApplied || above != m_keepAbove) {
-            setKWinKeepAboveRule(above);
-            m_kwinRuleApplied = true;
-            m_keepAbove = above;
-        }
+    // Write kwinrulesrc on both X11 and Wayland; positionrule=3 lets KWin
+    // remember the window position so we don't need to restore it manually.
+    if (!m_kwinRuleApplied || above != m_keepAbove) {
+        setKWinKeepAboveRule(above);
+        m_kwinRuleApplied = true;
+        m_keepAbove = above;
     }
 
     for (QWindow *win : qApp->allWindows()) {
@@ -333,6 +330,7 @@ void DocumentModel::setKWinKeepAboveRule(bool enabled)
         QStringLiteral("aboverule=2"),        // Force
         QStringLiteral("keepabove=%1").arg(enabled ? "true" : "false"),
         QStringLiteral("keepaboverule=2"),    // Force
+        QStringLiteral("positionrule=3"),     // Remember
         QStringLiteral("wmclass=numi-kde"),
         QStringLiteral("wmclasscomplete=false"),
         QStringLiteral("wmclassmatch=2"),     // Exact Match Substring

@@ -385,6 +385,12 @@ static void runSuite(QalcBridge &bridge) {
               results.size() == 1 && results[0].result == QLocale().toString(7486333.414, 'f', 3), 
               results.size() >= 1 ? results[0].result : "error", "7,486,333.414");
     }
+    {
+        auto results = bridge.evaluateDocument("UAH 22045 - 600");
+        check("Numi-style unit propagation (UAH 22045 - 600)",
+              results.size() == 1 && results[0].result == "UAH 21,445", 
+              results.size() >= 1 ? results[0].result : "error", "UAH 21,445");
+    }
 }
 
 #include <QSignalSpy>

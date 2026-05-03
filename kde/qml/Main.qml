@@ -75,15 +75,11 @@ Controls.ApplicationWindow {
     }
 
     Component.onCompleted: {
-        if (windowSettings.savedX >= 0 && windowSettings.savedY >= 0) {
-            root.x = windowSettings.savedX
-            root.y = windowSettings.savedY
-        }
         if (typeof documentModel !== "undefined") {
             documentModel.decimalPlaces = decimalPlaces
         }
-        // Defer positionRestored so any async compositor placement that arrives
-        // after our restore does not overwrite the saved value.
+        // Defer positionRestored so the compositor's initial placement
+        // does not immediately overwrite the saved value in onXChanged/onYChanged.
         Qt.callLater(() => { positionRestored = true })
     }
 
@@ -91,13 +87,7 @@ Controls.ApplicationWindow {
     // (X11 EWMH states are reset on each unmap/remap).
     onVisibleChanged: {
         if (visible && typeof documentModel !== "undefined") {
-            Qt.callLater(() => {
-                documentModel.setKeepAbove(alwaysOnTop)
-                if (windowSettings.savedX >= 0 && windowSettings.savedY >= 0) {
-                    root.x = windowSettings.savedX
-                    root.y = windowSettings.savedY
-                }
-            })
+            Qt.callLater(() => documentModel.setKeepAbove(alwaysOnTop))
         }
     }
 
