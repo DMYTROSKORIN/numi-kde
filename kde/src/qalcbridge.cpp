@@ -884,10 +884,10 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                     if (out.startsWith('"') && out.endsWith('"'))
                         out = out.mid(1, out.length() - 2);
 
-                    // Disallow vectors/matrices or unsimplified multi-term results (e.g. "USD 500 - 600")
-                    if ((out.startsWith('[') && out.endsWith(']')) || 
-                        out.contains(QStringLiteral(" + ")) || 
-                        out.contains(QStringLiteral(" - "))) {
+                    // Disallow vectors/matrices. 
+                    // Previously we also disallowed " + " and " - " to hide unsimplified results,
+                    // but this broke currency sums (e.g. 600 AED + 400 USD).
+                    if (out.startsWith('[') && out.endsWith(']')) {
                         res.ok = false;
                         res.error = "Error";
                     } else {

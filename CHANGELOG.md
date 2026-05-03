@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.20 - 2026-05-03
+
+### UX & Interface
+
+- **New Settings Interface**: Migrated the settings window into a side drawer (similar to the History pane). This completely resolves window positioning issues on Wayland by keeping all interface elements within the main application window.
+- **Improved Math Logic**: Fixed a bug where currency sums (e.g., `AED + USD`) resulted in an "Error". The engine now correctly handles and displays multi-term currency results.
+
 ## 0.1.19 - 2026-05-03
 
 ### Performance & Stability

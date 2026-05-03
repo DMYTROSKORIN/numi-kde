@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(numi-kde-native VERSION 0.1.19 LANGUAGES CXX)
+project(numi-kde-native VERSION 0.1.20 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -52,7 +52,7 @@ qt_add_qml_module(numi-kde
     qml/DocumentPage.qml
     qml/EditorPane.qml
     qml/ResultsPane.qml
-    qml/SettingsWindow.qml
+    qml/SettingsPane.qml
     qml/HistoryPane.qml
 )
 

@@ -408,10 +408,26 @@ Controls.ApplicationWindow {
         }
     }
 
-    SettingsWindow {
-        id: settingsWindow
-        visible: false
-        mainWindow: root
+    SettingsPane {
+        id: settingsPane
+        anchors.fill: parent
+        visible: settingsDrawer.opened
+    }
+
+    Controls.Drawer {
+        id: settingsDrawer
+        width: 280
+        height: root.height
+        edge: Qt.LeftEdge
+        dragMargin: 0
+
+        background: Rectangle {
+            color: root.numiWindow
+            border.color: "#3a3d47"
+            border.width: 1
+        }
+
+        contentItem: settingsPane
     }
 
     Controls.Drawer {
