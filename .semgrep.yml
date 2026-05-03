@@ -1,0 +1,18 @@
+rules:
+  - id: cpp-no-shell-exec
+    languages: [cpp]
+    severity: ERROR
+    message: Avoid shell execution in application code; use Qt APIs or QProcess with explicit arguments.
+    pattern-either:
+      - pattern: system(...)
+      - pattern: popen(...)
+
+  - id: cpp-no-unsafe-c-string-copy
+    languages: [cpp]
+    severity: ERROR
+    message: Avoid unsafe C string copy/format APIs; use QString, QByteArray, or bounded alternatives.
+    pattern-either:
+      - pattern: strcpy(...)
+      - pattern: strcat(...)
+      - pattern: sprintf(...)
+      - pattern: vsprintf(...)

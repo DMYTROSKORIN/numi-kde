@@ -42,9 +42,9 @@ Controls.ApplicationWindow {
     property bool showResultsSeparator: windowSettings.showResultsSeparator
     onShowResultsSeparatorChanged: windowSettings.showResultsSeparator = showResultsSeparator
 
-    // Guards onXChanged/onYChanged from saving KWin's initial placement.
-    // Reset to false on each show so compositor jitter isn't recorded.
-    property bool positionRestored: false
+    // Only save x/y after user-initiated movement or resize. Compositor remap
+    // placement must never overwrite the last user position.
+    property bool positionSaveEnabled: false
 
     readonly property color numiWindow: "#22242a"
     readonly property color numiTitle: "#5d5f69"
@@ -80,25 +80,23 @@ Controls.ApplicationWindow {
         }
     }
 
-    function saveCurrentPosition() {
-        windowSettings.savedX = root.x
-        windowSettings.savedY = root.y
-    }
-
     function hideWindow() {
-        positionRestoredTimer.stop()
-        saveCurrentPosition()
-        positionRestored = false
+        restorePositionTimer.stop()
+        positionSaveEnabled = false
         root.hide()
     }
 
-    // Delay before trusting onXChanged/onYChanged saves, to avoid recording
-    // the compositor's initial window placement as the saved position.
+    function armPositionSave() {
+        if (visible) {
+            positionSaveEnabled = true
+        }
+    }
+
     Timer {
-        id: positionRestoredTimer
-        interval: 400
+        id: restorePositionTimer
+        interval: 75
         repeat: false
-        onTriggered: root.positionRestored = true
+        onTriggered: root.restoreSavedPosition()
     }
 
     Component.onCompleted: {
@@ -110,25 +108,24 @@ Controls.ApplicationWindow {
 
     // Re-apply skip-taskbar and keep-above whenever the window becomes visible
     // (X11 EWMH states are reset on each unmap/remap).
-    // Also reset positionRestored so KWin's initial placement isn't saved.
     onVisibleChanged: {
         if (visible) {
-            positionRestored = false
+            positionSaveEnabled = false
             restoreSavedPosition()
-            positionRestoredTimer.restart()
+            restorePositionTimer.restart()
             if (typeof documentModel !== "undefined") {
                 Qt.callLater(() => documentModel.setKeepAbove(alwaysOnTop))
             }
         } else {
-            positionRestoredTimer.stop()
-            positionRestored = false
+            restorePositionTimer.stop()
+            positionSaveEnabled = false
         }
     }
 
     onWidthChanged: windowSettings.savedWidth = width
     onHeightChanged: windowSettings.savedHeight = height
-    onXChanged: if (positionRestored) windowSettings.savedX = x
-    onYChanged: if (positionRestored) windowSettings.savedY = y
+    onXChanged: if (positionSaveEnabled && visible) windowSettings.savedX = x
+    onYChanged: if (positionSaveEnabled && visible) windowSettings.savedY = y
 
     onClosing: (close) => {
         close.accepted = false
@@ -163,7 +160,10 @@ Controls.ApplicationWindow {
             MouseArea {
                 anchors.fill: parent
                 onDoubleClicked: root.visibility = root.visibility === Window.Maximized ? Window.Windowed : Window.Maximized
-                onPressed: root.startSystemMove()
+                onPressed: {
+                    root.armPositionSave()
+                    root.startSystemMove()
+                }
             }
 
             Controls.Button {
@@ -392,7 +392,10 @@ Controls.ApplicationWindow {
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton
             z: 10
-            onPressed: root.startSystemResize(edge)
+            onPressed: {
+                root.armPositionSave()
+                root.startSystemResize(edge)
+            }
         }
     }
 

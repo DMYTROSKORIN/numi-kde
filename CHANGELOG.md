@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.18 - 2026-05-03
+
+### Performance & Stability
+
+- **Window Position Persistence Fix**: The main window now saves position only after user-initiated movement or resize, so compositor remap placement cannot overwrite the last user position.
+- **Settings Dialog Placement Fix**: The settings dialog is now a transient child of the main window and recenters over it when opened.
+- **Repository Hygiene**: Added tracked release/authorship rules and a network-independent semgrep pre-commit hook.
+
 ## 0.1.17 - 2026-05-03
 
 ### Performance & Stability

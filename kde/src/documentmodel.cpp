@@ -314,18 +314,24 @@ void DocumentModel::setKWinKeepAboveRule(bool enabled)
         input.close();
     }
 
-    // 1. We keep all rules EXCEPT our managed one.
+    // 1. We keep all rules EXCEPT our managed one. If KWin already remembered
+    //    a position for that managed rule, preserve it when rewriting.
+    QString rememberedPosition;
     QVector<RuleSection> keptRules;
     keptRules.reserve(numericRules.size() + 1);
     for (const RuleSection &section : std::as_const(numericRules)) {
         bool isManagedRule = false;
+        QString sectionPosition;
         for (const QString &line : section.lines) {
             if (line == QStringLiteral("Description=%1").arg(managedDescription)) {
                 isManagedRule = true;
-                break;
+            } else if (line.startsWith(QStringLiteral("position="))) {
+                sectionPosition = line;
             }
         }
-        if (!isManagedRule)
+        if (isManagedRule)
+            rememberedPosition = sectionPosition;
+        else
             keptRules.append(section);
     }
 
@@ -345,8 +351,10 @@ void DocumentModel::setKWinKeepAboveRule(bool enabled)
         QStringLiteral("wmclasscomplete=false"),
         QStringLiteral("wmclassmatch=2"),     // Substring Match
         QStringLiteral("types=4294967295"),   // All window types
-        QStringLiteral("positionrule=4"),     // Remember
     };
+    if (!rememberedPosition.isEmpty())
+        ruleLines << rememberedPosition;
+    ruleLines << QStringLiteral("positionrule=4");  // Remember
     keptRules.append(RuleSection{QString(), ruleLines});
 
     QDir().mkpath(configDir);

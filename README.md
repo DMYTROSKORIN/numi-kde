@@ -130,6 +130,7 @@ cmake --build build/kde-release --target package
 ## Documentation
 
 - `docs/architecture.md`: current layer boundaries.
+- `docs/release.md`: release checklist, authorship rules, and local semgrep hook setup.
 - `CHANGELOG.md`: release notes.
 - `LICENSE`: Apache License 2.0.
 - `NOTICE`: copyright and attribution notice.

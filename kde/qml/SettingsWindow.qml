@@ -14,17 +14,27 @@ Window {
     minimumHeight: 460
     color: mainWindow ? mainWindow.numiWindow : "#22242a"
     flags: Qt.Dialog
+    transientParent: mainWindow
 
     function centerOnMainWindow() {
         if (mainWindow) {
-            root.x = Math.round(mainWindow.x + (mainWindow.width - root.width) / 2)
-            root.y = Math.round(mainWindow.y + (mainWindow.height - root.height) / 2)
+            var nextX = Math.round(mainWindow.x + (mainWindow.width - root.width) / 2)
+            var nextY = Math.round(mainWindow.y + (mainWindow.height - root.height) / 2)
+            var geometry = root.screen ? root.screen.availableGeometry : null
+            if (geometry) {
+                nextX = Math.max(geometry.x, Math.min(nextX, geometry.x + geometry.width - root.width))
+                nextY = Math.max(geometry.y, Math.min(nextY, geometry.y + geometry.height - root.height))
+            }
+            root.x = nextX
+            root.y = nextY
         }
     }
 
     function openCentered() {
         centerOnMainWindow()
         show()
+        centerOnMainWindow()
+        Qt.callLater(centerOnMainWindow)
         raise()
         requestActivate()
     }
