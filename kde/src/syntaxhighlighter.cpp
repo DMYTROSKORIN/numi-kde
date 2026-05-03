@@ -1,3 +1,9 @@
+/**
+ * Portions Copyright (c) Nikolas
+ * Original MIT License: https://github.com/nikolaeu/numi/blob/master/license.txt
+ * Modified by DMYTRO SKORIN under Apache License 2.0
+ */
+
 #include "syntaxhighlighter.h"
 #include <libqalculate/qalculate.h>
 

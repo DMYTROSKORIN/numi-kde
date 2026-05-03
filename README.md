@@ -161,9 +161,13 @@ Useful areas:
 - UI polish and accessibility;
 - documentation and examples.
 
+## Credits
+
+This project is based on the core logic and is inspired by [Numi](https://github.com/nikolaeu/numi) by Nikolas, used under the MIT License.
+
 ## License
 
-`numi-kde` is released under the [Apache License 2.0](LICENSE).
+`numi-kde` is released under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for third-party attribution.
 
 ---
 **Contact:** [dev@skorin.online](mailto:dev@skorin.online)
