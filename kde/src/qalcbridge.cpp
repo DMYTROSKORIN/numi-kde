@@ -514,7 +514,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     QList<LineResult> results;
     QStringList lines = source.split('\n');
 
-    // First pass: collect variable names for highlighting
+    // коллекционируем имена переменных для подсветки
     QSet<QString> variables;
     static QRegularExpression assignmentRegex(
         "^([A-Za-z_π\\p{L}][\\wπ\\p{L}]*)\\s*(?::=|=)\\s*(.+)$",
@@ -748,26 +748,32 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         static QSet<QString> skipWords = {"the", "and", "but", "not", "for", "nor",
                                            "yet", "has", "had", "was", "are", "its"};
         static QRegularExpression currencyRegex("\\b([a-z]{3,5})\\b");
-        QRegularExpressionMatchIterator currIt = currencyRegex.globalMatch(line);
-        // Collect replacements backwards to preserve positions
-        struct Replacement { qsizetype start; qsizetype len; QString replacement; };
-        QList<Replacement> replacements;
-        while (currIt.hasNext()) {
-            auto m = currIt.next();
-            QString word = m.captured(1);
-            QString upper = word.toUpper();
-            if (!skipWords.contains(word) && m_calc->getUnit(upper.toStdString())) {
-                replacements.prepend({m.capturedStart(1), m.capturedLength(1), upper});
+        
+        auto preprocessCurrencies = [&](QString l) -> QString {
+            QRegularExpressionMatchIterator currIt = currencyRegex.globalMatch(l);
+            struct Replacement { qsizetype start; qsizetype len; QString replacement; };
+            QList<Replacement> reps;
+            while (currIt.hasNext()) {
+                auto m = currIt.next();
+                QString word = m.captured(1);
+                QString upper = word.toUpper();
+                if (!skipWords.contains(word) && m_calc->getUnit(upper.toStdString())) {
+                    reps.prepend({m.capturedStart(1), m.capturedLength(1), upper});
+                }
             }
-        }
-        for (const auto &r : replacements)
-            line.replace(r.start, r.len, r.replacement);
+            for (const auto &r : reps)
+                l.replace(r.start, r.len, r.replacement);
+            return l;
+        };
+
+        line = preprocessCurrencies(line);
 
         // 3. Percentage patterns: "X% from Y" / "X% of Y" → "(X/100)*Y"
         //    Applied to RHS for assignments, to the full line otherwise.
         static QRegularExpression percentFromOf(
             "([\\d.]+)\\s*%\\s+(?:from|of)\\s+(.+)$",
             QRegularExpression::CaseInsensitiveOption);
+
 
         auto applyPercentPreprocess = [&](QString expr) -> QString {
             auto pfm = percentFromOf.match(expr.trimmed());

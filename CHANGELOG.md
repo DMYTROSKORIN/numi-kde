@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.22 - 2026-05-03
+
+### UX & Interface
+
+- **Final Fix for Currency Sums**: Resolved the "Error" result when adding mixed currencies (e.g., `600 AED + 400 USD`). The fix involves improved preprocessing of currency symbols and correct handling of variable assignments for unsimplified results.
+
 ## 0.1.21 - 2026-05-03
 
 ### UX & Interface
