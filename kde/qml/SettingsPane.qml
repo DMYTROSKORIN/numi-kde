@@ -37,7 +37,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            ScrollBar.vertical.policy: Controls.ScrollBar.AsNeeded
+            Controls.ScrollBar.vertical.policy: Controls.ScrollBar.AsNeeded
 
             ColumnLayout {
                 id: settingsColumn

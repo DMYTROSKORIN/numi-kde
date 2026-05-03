@@ -408,12 +408,6 @@ Controls.ApplicationWindow {
         }
     }
 
-    SettingsPane {
-        id: settingsPane
-        anchors.fill: parent
-        visible: settingsDrawer.opened
-    }
-
     Controls.Drawer {
         id: settingsDrawer
         width: 280
@@ -427,7 +421,9 @@ Controls.ApplicationWindow {
             border.width: 1
         }
 
-        contentItem: settingsPane
+        contentItem: SettingsPane {
+            id: settingsPane
+        }
     }
 
     Controls.Drawer {

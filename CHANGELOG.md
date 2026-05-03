@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.23 - 2026-05-03
+
+### Bug Fixes
+
+- **Fix QML Loading Crash**: Resolved a "Non-existent attached object" error caused by an unqualified ScrollBar property in SettingsPane.qml.
+- **Improved UI Robustness**: Added null checks for Window.window attached properties in HistoryPane and SettingsPane to prevent runtime crashes during engine initialization.
+
 ## 0.1.22 - 2026-05-03
 
 ### UX & Interface
