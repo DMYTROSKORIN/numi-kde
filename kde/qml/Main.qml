@@ -42,23 +42,20 @@ Controls.ApplicationWindow {
     property bool showResultsSeparator: windowSettings.showResultsSeparator
     onShowResultsSeparatorChanged: windowSettings.showResultsSeparator = showResultsSeparator
 
-    property bool lightTheme: windowSettings.lightTheme
-    onLightThemeChanged: windowSettings.lightTheme = lightTheme
-
-    // Prevents the compositor's initial window placement from overwriting the
-    // saved position. Set to true only after Component.onCompleted restores it.
+    // Guards onXChanged/onYChanged from saving KWin's initial placement.
+    // Reset to false on each show so compositor jitter isn't recorded.
     property bool positionRestored: false
 
-    readonly property color numiWindow: lightTheme ? "#f2e9d0" : "#22242a"
-    readonly property color numiTitle: lightTheme ? "#5c5c5c" : "#5d5f69"
-    readonly property color numiText: lightTheme ? "#1a1a1a" : "#f0f0f3"
-    readonly property color numiMuted: lightTheme ? "#7a7a7a" : "#6b6d76"
-    readonly property color numiYellow: lightTheme ? "#856600" : "#ffd35a"
-    readonly property color numiBlue: lightTheme ? "#1a6f91" : "#6fc4e8"
-    readonly property color numiGreen: lightTheme ? "#4e7a1d" : "#8fd14f"
-    readonly property color numiRed: lightTheme ? "#a82a25" : "#ff5f57"
-    readonly property color controlHover: lightTheme ? "#e4d9b6" : "#30333b"
-    readonly property color controlPressed: lightTheme ? "#d1c499" : "#3a3d45"
+    readonly property color numiWindow: "#22242a"
+    readonly property color numiTitle: "#5d5f69"
+    readonly property color numiText: "#f0f0f3"
+    readonly property color numiMuted: "#6b6d76"
+    readonly property color numiYellow: "#ffd35a"
+    readonly property color numiBlue: "#6fc4e8"
+    readonly property color numiGreen: "#8fd14f"
+    readonly property color numiRed: "#ff5f57"
+    readonly property color controlHover: "#30333b"
+    readonly property color controlPressed: "#3a3d45"
 
     Settings {
         id: windowSettings
@@ -74,6 +71,15 @@ Controls.ApplicationWindow {
         property bool showResultsSeparator: true
     }
 
+    // Delay before trusting onXChanged/onYChanged saves, to avoid recording
+    // the compositor's initial window placement as the saved position.
+    Timer {
+        id: positionRestoredTimer
+        interval: 400
+        repeat: false
+        onTriggered: root.positionRestored = true
+    }
+
     Component.onCompleted: {
         if (typeof documentModel !== "undefined") {
             documentModel.decimalPlaces = decimalPlaces
@@ -85,9 +91,14 @@ Controls.ApplicationWindow {
 
     // Re-apply skip-taskbar and keep-above whenever the window becomes visible
     // (X11 EWMH states are reset on each unmap/remap).
+    // Also reset positionRestored so KWin's initial placement isn't saved.
     onVisibleChanged: {
-        if (visible && typeof documentModel !== "undefined") {
-            Qt.callLater(() => documentModel.setKeepAbove(alwaysOnTop))
+        if (visible) {
+            positionRestored = false
+            positionRestoredTimer.restart()
+            if (typeof documentModel !== "undefined") {
+                Qt.callLater(() => documentModel.setKeepAbove(alwaysOnTop))
+            }
         }
     }
 
@@ -111,7 +122,7 @@ Controls.ApplicationWindow {
         anchors.fill: parent
         radius: 7
         color: root.numiWindow
-        border.color: root.lightTheme ? "#d9cea1" : "#1a1b20"
+        border.color: "#1a1b20"
         border.width: 1
 
         layer.enabled: true
@@ -375,8 +386,8 @@ Controls.ApplicationWindow {
         edge: Qt.LeftEdge
         z: 100
         background: Rectangle {
-            color: root.lightTheme ? "#e9debe" : "#2d303a"
-            border.color: root.lightTheme ? "#d9cea1" : "#3a3d47"
+            color: "#2d303a"
+            border.color: "#3a3d47"
             border.width: 1
         }
 

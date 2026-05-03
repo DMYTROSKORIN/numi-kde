@@ -70,22 +70,31 @@ static void saveWindowPosition(QWindow *win)
 }
 
 // Toggle main window show/hide
-static void toggleWindow(QWindow *win)
+static void toggleWindow(QWindow *win, DocumentModel *model)
 {
     if (!win) return;
     if (win->isVisible()) {
         saveWindowPosition(win);
         win->hide();
     } else {
-        win->show();
-        // Restore position after show.
         QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
         s.beginGroup(QStringLiteral("Window"));
         const int x = s.value(QStringLiteral("savedX"), -1).toInt();
         const int y = s.value(QStringLiteral("savedY"), -1).toInt();
         s.endGroup();
+
+        // On Wayland, position rules are only applied at surface map time.
+        // Calling prepareShow() writes the KWin rule (with saved position)
+        // BEFORE win->show() so KWin positions the window correctly at map.
+        if (model)
+            model->prepareShow();
+
+        win->show();
+
+        // On X11 win->setPosition() works directly after show.
         if (x >= 0 && y >= 0)
             win->setPosition(x, y);
+
         win->raise();
         win->requestActivate();
     }
@@ -172,13 +181,13 @@ int main(int argc, char *argv[])
 
     // Tray left-click toggles window
     QObject::connect(&tray, &QSystemTrayIcon::activated,
-        [mainWindow](QSystemTrayIcon::ActivationReason reason) {
+        [mainWindow, &documentModel](QSystemTrayIcon::ActivationReason reason) {
             if (reason == QSystemTrayIcon::Trigger)
-                toggleWindow(mainWindow);
+                toggleWindow(mainWindow, &documentModel);
         });
 
     QObject::connect(&showHideAction, &QAction::triggered,
-        [mainWindow]() { toggleWindow(mainWindow); });
+        [mainWindow, &documentModel]() { toggleWindow(mainWindow, &documentModel); });
 
     QObject::connect(quitAction, &QAction::triggered, &app, &QCoreApplication::quit);
 

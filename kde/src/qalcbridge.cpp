@@ -611,6 +611,79 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             }
         }
 
+        // Cross-currency arithmetic: "AMT1 CURR1 ± AMT2 CURR2"
+        // Uses the same rate-via-USD approach as convertCryptoExpression to avoid
+        // libqalculate's print() converting results to the USD base currency.
+        // E.g., "500 EUR - 100 USD" → rate(USD→EUR) → "EUR 415"
+        static QRegularExpression crossCurrencyRegex(
+            "^(\\d+(?:[.,]\\d+)?)\\s+([A-Za-z]{3,5})\\s*([+\\-])\\s*(\\d+(?:[.,]\\d+)?)\\s+([A-Za-z]{3,5})$",
+            QRegularExpression::CaseInsensitiveOption);
+        {
+            const auto ccm = crossCurrencyRegex.match(line.trimmed());
+            if (ccm.hasMatch()) {
+                const QString curr1 = ccm.captured(2).toUpper();
+                const QString curr2 = ccm.captured(5).toUpper();
+                if (curr1 != curr2) {
+                    // Returns the value of 1 unit of sym in USD.
+                    auto usdRate = [this](const QString &sym, bool *ok) -> double {
+                        *ok = false;
+                        if (sym == QLatin1String("USD")) { *ok = true; return 1.0; }
+                        const auto it = m_cryptoUsdRates.constFind(sym);
+                        if (it != m_cryptoUsdRates.constEnd()) { *ok = true; return it.value(); }
+                        if (!m_calc->getUnit(sym.toStdString())) return 0.0;
+                        EvaluationOptions reo;
+                        reo.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
+                        reo.structuring = STRUCTURING_SIMPLIFY;
+                        reo.parse_options.unknowns_enabled = false;
+                        PrintOptions rpo;
+                        rpo.number_fraction_format = FRACTION_DECIMAL;
+                        rpo.base = 10;
+                        rpo.max_decimals = 12;
+                        rpo.use_max_decimals = true;
+                        rpo.digit_grouping = DIGIT_GROUPING_NONE;
+                        m_calc->clearMessages();
+                        MathStructure r = m_calc->calculate(
+                            QStringLiteral("1 %1 to USD").arg(sym).toStdString(), reo);
+                        if (hasCalculationError(m_calc) || r.isUndefined() || r.isInfinite())
+                            return 0.0;
+                        if (r.isNumber()) {
+                            const double v = r.number().floatValue();
+                            if (std::isfinite(v) && v > 0.0) { *ok = true; return v; }
+                            return 0.0;
+                        }
+                        const QString out = QString::fromStdString(m_calc->print(r, 2000, rpo));
+                        double v2 = 0.0;
+                        if (parseDisplayNumber(out, &v2) && v2 > 0.0) { *ok = true; return v2; }
+                        return 0.0;
+                    };
+
+                    QString n1str = ccm.captured(1); n1str.replace(QLatin1Char(','), QLatin1Char('.'));
+                    QString n2str = ccm.captured(4); n2str.replace(QLatin1Char(','), QLatin1Char('.'));
+                    bool ok1 = false, ok2 = false;
+                    const double n1 = n1str.toDouble(&ok1);
+                    const double n2 = n2str.toDouble(&ok2);
+                    if (ok1 && ok2) {
+                        bool r1ok = false, r2ok = false;
+                        const double rate1 = usdRate(curr1, &r1ok);
+                        const double rate2 = usdRate(curr2, &r2ok);
+                        if (r1ok && r2ok && rate1 > 0.0) {
+                            // n2 CURR2 = (n2 * rate2 / rate1) CURR1
+                            const double n2InCurr1 = n2 * rate2 / rate1;
+                            const double result = (ccm.captured(3) == QLatin1String("+"))
+                                                  ? n1 + n2InCurr1 : n1 - n2InCurr1;
+                            res.ok = true;
+                            res.result = curr1 + QLatin1Char(' ') + smartFormat(result, m_decimalPlaces);
+                            res.hasNumericValue = true;
+                            res.numericValue = result;
+                            res.totalKey = totalKey;
+                            results.append(res);
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
         if (isIncompleteExpression(trimmed)) {
             res.ok = true;
             res.result = "";

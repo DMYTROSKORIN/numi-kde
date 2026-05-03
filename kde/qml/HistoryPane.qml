@@ -58,7 +58,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             height: 1
-            color: Window.window.lightTheme ? "#d9cea1" : "#3a3d47"
+            color: "#3a3d47"
         }
 
         ListView {

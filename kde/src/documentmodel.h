@@ -56,6 +56,7 @@ public:
     Q_INVOKABLE void copyResult(int row);
     Q_INVOKABLE void copyText(const QString &text);
     Q_INVOKABLE void setKeepAbove(bool above);
+    Q_INVOKABLE void prepareShow();
     Q_INVOKABLE void saveSession();
     Q_INVOKABLE void restoreSession(int index);
     Q_INVOKABLE void clearHistory();

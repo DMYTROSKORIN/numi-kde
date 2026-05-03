@@ -388,8 +388,16 @@ static void runSuite(QalcBridge &bridge) {
     {
         auto results = bridge.evaluateDocument("UAH 22045 - 600");
         check("Numi-style unit propagation (UAH 22045 - 600)",
-              results.size() == 1 && results[0].result == "UAH 21,445", 
+              results.size() == 1 && results[0].result == "UAH 21,445",
               results.size() >= 1 ? results[0].result : "error", "UAH 21,445");
+    }
+    {
+        // 500 EUR - 100 USD: convert 100 USD to EUR (≈85 EUR at ~0.85 rate), result ≈ 415 EUR
+        // We don't check exact value since exchange rates vary; just check currency prefix
+        auto results = bridge.evaluateDocument("500 EUR - 100 USD");
+        check("cross-currency: 500 EUR - 100 USD starts with EUR",
+              results.size() == 1 && results[0].result.startsWith("EUR "),
+              results.size() >= 1 ? results[0].result : "error", "EUR ...");
     }
 }
 

@@ -28,44 +28,6 @@ Window {
         }
 
         Controls.CheckBox {
-            id: lightThemeCheck
-
-            text: "Light theme"
-            checked: mainWindow ? mainWindow.lightTheme : false
-            onToggled: {
-                if (mainWindow) mainWindow.lightTheme = checked
-            }
-
-            indicator: Rectangle {
-                implicitWidth: 16
-                implicitHeight: 16
-                x: lightThemeCheck.leftPadding
-                y: (lightThemeCheck.height - height) / 2
-                radius: 3
-                border.color: lightThemeCheck.checked ? (mainWindow ? mainWindow.numiBlue : "#6fc4e8") : "#6b6d76"
-                border.width: 1
-                color: lightThemeCheck.checked ? (mainWindow ? mainWindow.numiBlue : "#6fc4e8") : "transparent"
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "✓"
-                    color: mainWindow ? mainWindow.numiWindow : "#22242a"
-                    font.pixelSize: 11
-                    font.weight: Font.Bold
-                    visible: lightThemeCheck.checked
-                }
-            }
-
-            contentItem: Text {
-                leftPadding: lightThemeCheck.indicator.width + lightThemeCheck.spacing
-                text: lightThemeCheck.text
-                color: mainWindow ? mainWindow.numiText : "#f0f0f3"
-                font.pixelSize: 13
-                verticalAlignment: Text.AlignVCenter
-            }
-        }
-
-        Controls.CheckBox {
             id: alwaysOnTopCheck
 
             text: "Always on top"
@@ -324,8 +286,8 @@ Window {
 
                 background: Rectangle {
                     radius: 4
-                    color: mainWindow ? (mainWindow.lightTheme ? "#e4d9b6" : "#1d1f25") : "#1d1f25"
-                    border.color: mainWindow ? (mainWindow.lightTheme ? "#d1c499" : "#343742") : "#343742"
+                    color: "#1d1f25"
+                    border.color: "#343742"
                     border.width: 1
                 }
             }
@@ -351,7 +313,7 @@ Window {
             background: Rectangle {
                 radius: 4
                 color: parent.down ? (mainWindow ? mainWindow.controlPressed : "#3a3d45") : parent.hovered ? (mainWindow ? mainWindow.controlHover : "#30333b") : (mainWindow ? mainWindow.numiWindow : "#2a2c34")
-                border.color: mainWindow ? (mainWindow.lightTheme ? "#d1c499" : "#1a1b20") : "#1a1b20"
+                border.color: "#1a1b20"
                 border.width: 1
             }
 

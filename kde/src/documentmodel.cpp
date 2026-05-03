@@ -253,8 +253,27 @@ void DocumentModel::setKeepAbove(bool above)
     }
 }
 
+void DocumentModel::prepareShow()
+{
+    // Called from main.cpp BEFORE win->show(). On Wayland, KWin applies
+    // window rules at surface map time, so we must write the rule (including
+    // the saved window position) before the window becomes visible.
+    if (!KWindowSystem::isPlatformWayland())
+        return;
+    setKWinKeepAboveRule(m_keepAbove);
+    m_kwinRuleApplied = true;
+    reloadKWinRules();
+}
+
 void DocumentModel::setKWinKeepAboveRule(bool enabled)
 {
+    // Read the last-known window position so KWin can restore it at map time.
+    QSettings ws(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
+    ws.beginGroup(QStringLiteral("Window"));
+    const int savedX = ws.value(QStringLiteral("savedX"), -1).toInt();
+    const int savedY = ws.value(QStringLiteral("savedY"), -1).toInt();
+    ws.endGroup();
+
     const QString configDir = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
     if (configDir.isEmpty())
         return;
@@ -330,12 +349,17 @@ void DocumentModel::setKWinKeepAboveRule(bool enabled)
         QStringLiteral("aboverule=2"),        // Force
         QStringLiteral("keepabove=%1").arg(enabled ? "true" : "false"),
         QStringLiteral("keepaboverule=2"),    // Force
-        QStringLiteral("positionrule=3"),     // Remember
         QStringLiteral("wmclass=numi-kde"),
         QStringLiteral("wmclasscomplete=false"),
-        QStringLiteral("wmclassmatch=2"),     // Exact Match Substring
+        QStringLiteral("wmclassmatch=2"),     // Substring Match
         QStringLiteral("types=4294967295"),   // All window types
     };
+    // Include saved position so KWin restores it at surface map time (Wayland).
+    // positionrule=3 = Apply Initially: applied once on window creation, not enforced.
+    if (savedX >= 0 && savedY >= 0) {
+        ruleLines << QStringLiteral("position=%1,%2").arg(savedX).arg(savedY);
+        ruleLines << QStringLiteral("positionrule=3");
+    }
     keptRules.append(RuleSection{QString(), ruleLines});
 
     QDir().mkpath(configDir);
