@@ -1,11 +1,13 @@
 import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Layouts
+import QtCore
 
 Window {
     id: root
 
     property Window mainWindow: null
+    property bool positionRestored: false
 
     title: "Settings"
     width: 320
@@ -14,6 +16,42 @@ Window {
     minimumHeight: 460
     color: mainWindow ? mainWindow.numiWindow : "#22242a"
     flags: Qt.Dialog
+
+    Settings {
+        id: settingsPos
+        category: "SettingsWindow"
+        property int savedX: -1
+        property int savedY: -1
+    }
+
+    function restoreSavedPosition() {
+        if (settingsPos.savedX >= 0) {
+            root.x = settingsPos.savedX
+        }
+        if (settingsPos.savedY >= 0) {
+            root.y = settingsPos.savedY
+        }
+    }
+
+    Timer {
+        id: positionRestoredTimer
+        interval: 400
+        repeat: false
+        onTriggered: root.positionRestored = true
+    }
+
+    Component.onCompleted: restoreSavedPosition()
+
+    onVisibleChanged: {
+        if (visible) {
+            positionRestored = false
+            restoreSavedPosition()
+            positionRestoredTimer.restart()
+        }
+    }
+
+    onXChanged: if (positionRestored) settingsPos.savedX = x
+    onYChanged: if (positionRestored) settingsPos.savedY = y
 
     ColumnLayout {
         anchors.fill: parent

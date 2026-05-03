@@ -126,11 +126,9 @@ cmake --build build/kde-release --target package
 - Engine: `libqalculate`.
 - Packaging: `.rpm` / `.deb` release flow with GitHub-hosted installer scripts.
 - License: Apache License 2.0.
+
 ## Documentation
 
-- `docs/kde-native.md`: native KDE build/runtime notes.
-- `docs/implementation-plan.md`: roadmap and current phase status.
-- `docs/installation-plan.md`: one-line installer and release packaging design.
 - `docs/architecture.md`: current layer boundaries.
 - `CHANGELOG.md`: release notes.
 - `LICENSE`: Apache License 2.0.

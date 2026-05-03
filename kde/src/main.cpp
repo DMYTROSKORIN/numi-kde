@@ -4,7 +4,6 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QDesktopServices>
-#include <QSettings>
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QAction>
@@ -60,41 +59,19 @@ static int runProbe(int argc, char *argv[])
     return 1;
 }
 
-static void saveWindowPosition(QWindow *win)
-{
-    QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
-    s.beginGroup(QStringLiteral("Window"));
-    s.setValue(QStringLiteral("savedX"), win->x());
-    s.setValue(QStringLiteral("savedY"), win->y());
-    s.endGroup();
-}
-
 // Toggle main window show/hide
 static void toggleWindow(QWindow *win, DocumentModel *model)
 {
     if (!win) return;
     if (win->isVisible()) {
-        saveWindowPosition(win);
         win->hide();
     } else {
-        QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
-        s.beginGroup(QStringLiteral("Window"));
-        const int x = s.value(QStringLiteral("savedX"), -1).toInt();
-        const int y = s.value(QStringLiteral("savedY"), -1).toInt();
-        s.endGroup();
-
         // On Wayland, position rules are only applied at surface map time.
-        // Calling prepareShow() writes the KWin rule (with saved position)
-        // BEFORE win->show() so KWin positions the window correctly at map.
+        // Calling prepareShow() writes the KWin rule before win->show().
         if (model)
             model->prepareShow();
 
         win->show();
-
-        // On X11 win->setPosition() works directly after show.
-        if (x >= 0 && y >= 0)
-            win->setPosition(x, y);
-
         win->raise();
         win->requestActivate();
     }
@@ -163,6 +140,14 @@ int main(int argc, char *argv[])
             mainWindow->setIcon(appIcon);
             break;
         }
+    }
+
+    if (mainWindow) {
+        documentModel.setKeepAbove(mainWindow->property("alwaysOnTop").toBool());
+        documentModel.prepareShow();
+        mainWindow->show();
+        mainWindow->raise();
+        mainWindow->requestActivate();
     }
 
     // ── System tray ──────────────────────────────────────────────────────

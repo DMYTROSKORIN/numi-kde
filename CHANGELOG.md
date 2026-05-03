@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.16 - 2026-05-03
+
+### Performance & Stability
+
+- **Window Position Startup Fix**: The main window is now shown from C++ after startup preparation, so QML no longer maps it before KWin rules are written. Position persistence is owned by QML on X11 and by KWin's `Remember` rule on Wayland.
+- **Settings Window Position Persistence**: The settings dialog now restores and saves its own position.
+- **Public Repository Cleanup**: Removed internal notes and stale documentation references.
+
+## 0.1.15 - 2026-05-03
+
+### Performance & Stability
+
+- **Dark-Only UI**: Removed the light theme option and related theme state.
+- **Cross-Currency Arithmetic**: Fixed expressions such as `500 EUR - 100 USD` so the result keeps the left-hand currency.
+- **Global Shortcut Reliability**: Restored `setShortcut(NoAutoloading)` alongside native global shortcut registration.
+- **Window Position Follow-Up**: Improved hide/show position handling; startup restoration is completed in `0.1.16`.
+
+### Calculator
+
+- **Expanded Help**: Added Area, Data, and Speed examples to `/help`.
+
 ## 0.1.13 - 2026-05-03
 
 ### Performance & Stability

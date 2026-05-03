@@ -9,7 +9,7 @@ Controls.ApplicationWindow {
     height: windowSettings.savedHeight
     minimumWidth: 420
     minimumHeight: 320
-    visible: true
+    visible: false
     title: qsTr("Numi")
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint
@@ -71,6 +71,15 @@ Controls.ApplicationWindow {
         property bool showResultsSeparator: true
     }
 
+    function restoreSavedPosition() {
+        if (windowSettings.savedX >= 0) {
+            root.x = windowSettings.savedX
+        }
+        if (windowSettings.savedY >= 0) {
+            root.y = windowSettings.savedY
+        }
+    }
+
     // Delay before trusting onXChanged/onYChanged saves, to avoid recording
     // the compositor's initial window placement as the saved position.
     Timer {
@@ -84,9 +93,7 @@ Controls.ApplicationWindow {
         if (typeof documentModel !== "undefined") {
             documentModel.decimalPlaces = decimalPlaces
         }
-        // Defer positionRestored so the compositor's initial placement
-        // does not immediately overwrite the saved value in onXChanged/onYChanged.
-        Qt.callLater(() => { positionRestored = true })
+        restoreSavedPosition()
     }
 
     // Re-apply skip-taskbar and keep-above whenever the window becomes visible
@@ -95,6 +102,7 @@ Controls.ApplicationWindow {
     onVisibleChanged: {
         if (visible) {
             positionRestored = false
+            restoreSavedPosition()
             positionRestoredTimer.restart()
             if (typeof documentModel !== "undefined") {
                 Qt.callLater(() => documentModel.setKeepAbove(alwaysOnTop))
