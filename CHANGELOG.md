@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.19 - 2026-05-03
+
+### Performance & Stability
+
+- **Wayland Position Memory Fix**: Rewrote the window position logic to resolve the "centering every second show" bug on KDE Wayland. The application now uses an idempotent KWin rule injection strategy and disables client-side position restoration on Wayland to prevent conflicts with KWin's native `Remember` mechanism.
+- **Settings Dialog Jumping Fix**: Disabled manual dialog centering on Wayland to prevent the settings window from jumping to the top-left corner due to unreliable client-side coordinates.
+
 ## 0.1.18 - 2026-05-03
 
 ### Performance & Stability

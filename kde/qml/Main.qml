@@ -72,6 +72,9 @@ Controls.ApplicationWindow {
     }
 
     function restoreSavedPosition() {
+        if (typeof documentModel !== "undefined" && documentModel.isWayland) {
+            return
+        }
         if (windowSettings.savedX >= 0) {
             root.x = windowSettings.savedX
         }
@@ -124,8 +127,14 @@ Controls.ApplicationWindow {
 
     onWidthChanged: windowSettings.savedWidth = width
     onHeightChanged: windowSettings.savedHeight = height
-    onXChanged: if (positionSaveEnabled && visible) windowSettings.savedX = x
-    onYChanged: if (positionSaveEnabled && visible) windowSettings.savedY = y
+    onXChanged: {
+        if (typeof documentModel !== "undefined" && documentModel.isWayland) return
+        if (positionSaveEnabled && visible) windowSettings.savedX = x
+    }
+    onYChanged: {
+        if (typeof documentModel !== "undefined" && documentModel.isWayland) return
+        if (positionSaveEnabled && visible) windowSettings.savedY = y
+    }
 
     onClosing: (close) => {
         close.accepted = false

@@ -23,6 +23,7 @@ class DocumentModel : public QAbstractListModel
     Q_PROPERTY(double total READ total NOTIFY linesChanged)
     Q_PROPERTY(bool autostart READ autostart WRITE setAutostart NOTIFY autostartChanged)
     Q_PROPERTY(int networkStatus READ networkStatus NOTIFY networkStatusChanged)
+    Q_PROPERTY(bool isWayland READ isWayland CONSTANT)
 
 public:
     enum Roles {
@@ -48,6 +49,7 @@ public:
     bool autostart() const;
     void setAutostart(bool enable);
     int networkStatus() const;
+    bool isWayland() const;
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;

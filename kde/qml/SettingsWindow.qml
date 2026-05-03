@@ -17,6 +17,9 @@ Window {
     transientParent: mainWindow
 
     function centerOnMainWindow() {
+        if (typeof documentModel !== "undefined" && documentModel.isWayland) {
+            return
+        }
         if (mainWindow) {
             var nextX = Math.round(mainWindow.x + (mainWindow.width - root.width) / 2)
             var nextY = Math.round(mainWindow.y + (mainWindow.height - root.height) / 2)

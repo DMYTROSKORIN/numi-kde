@@ -115,6 +115,11 @@ int DocumentModel::networkStatus() const
     return static_cast<int>(m_qalc->networkStatus());
 }
 
+bool DocumentModel::isWayland() const
+{
+    return KWindowSystem::isPlatformWayland();
+}
+
 void DocumentModel::setAutostart(bool enable)
 {
     QString path = QDir::homePath() + "/.config/autostart/numi-kde.desktop";
@@ -259,6 +264,15 @@ void DocumentModel::prepareShow()
     // window becomes visible.
     if (!KWindowSystem::isPlatformWayland())
         return;
+    
+    // If the rule is already applied, do NOT rewrite it here. Rewriting the
+    // rule while KWin is managing it (e.g. for position memory) can cause
+    // the position to be lost or reset to default (center) because we might
+    // be reading the rule file before KWin has had a chance to save the
+    // latest position to it.
+    if (m_kwinRuleApplied)
+        return;
+
     setKWinKeepAboveRule(m_keepAbove);
     m_kwinRuleApplied = true;
     reloadKWinRules();
@@ -329,10 +343,11 @@ void DocumentModel::setKWinKeepAboveRule(bool enabled)
                 sectionPosition = line;
             }
         }
-        if (isManagedRule)
+        if (isManagedRule) {
             rememberedPosition = sectionPosition;
-        else
+        } else {
             keptRules.append(section);
+        }
     }
 
     // 2. Add the managed rule. Skip-taskbar and skip-pager are always forced;
@@ -352,8 +367,9 @@ void DocumentModel::setKWinKeepAboveRule(bool enabled)
         QStringLiteral("wmclassmatch=2"),     // Substring Match
         QStringLiteral("types=4294967295"),   // All window types
     };
-    if (!rememberedPosition.isEmpty())
+    if (!rememberedPosition.isEmpty()) {
         ruleLines << rememberedPosition;
+    }
     ruleLines << QStringLiteral("positionrule=4");  // Remember
     keptRules.append(RuleSection{QString(), ruleLines});
 
