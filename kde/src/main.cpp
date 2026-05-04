@@ -65,11 +65,11 @@ static void toggleWindow(QWindow *win, DocumentModel *model)
 {
     if (!win) return;
 
-    // On Wayland the compositor owns minimize state and never sets
-    // Qt::WindowMinimized, so windowStates() is unreliable.
-    // isExposed() correctly returns false for both minimized and hidden
-    // windows on both X11 and Wayland — use it as the visibility gate.
-    if (win->isVisible() && win->isExposed()) {
+    // Hide only when the window is visible AND has keyboard focus.
+    // On Wayland, windowStates()/isExposed() are compositor-controlled and
+    // cannot reliably detect minimize. isActive() works on both X11 and Wayland:
+    // a minimized or hidden window is never active, so it will always be shown.
+    if (win->isVisible() && win->isActive()) {
         if (!QMetaObject::invokeMethod(win, "hideWindow"))
             win->hide();
     } else {
