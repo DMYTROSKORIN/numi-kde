@@ -58,57 +58,9 @@ jobs:
           name: rpm
           path: build/release/*.rpm
 
-  deb:
-    name: Build DEB (Ubuntu)
-    runs-on: ubuntu-latest
-    container:
-      image: ubuntu:25.10
-
-    steps:
-      - name: Install build dependencies
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            git ca-certificates cmake ninja-build g++ \
-            qt6-base-dev qt6-declarative-dev \
-            libkf6windowsystem-dev libkf6globalaccel-dev \
-            libqalculate-dev \
-            dpkg-dev file
-
-      - uses: actions/checkout@v4
-
-      - name: Configure
-        run: cmake -S kde -B build/release -GNinja -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build build/release --target numi-kde numi-kde-tests
-
-      - name: Test
-        run: ctest --test-dir build/release --output-on-failure
-
-      - name: Package
-        run: cmake --build build/release --target package
-
-      - name: Inspect DEB
-        run: dpkg-deb -I build/release/*.deb && dpkg-deb -c build/release/*.deb
-
-      - name: Install and probe DEB
-        run: |
-          apt-get install -y ./build/release/*.deb
-          numi-kde --version
-          numi-kde --probe
-          apt-get remove -y numi-kde
-
-      - name: Upload DEB artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: deb
-          path: build/release/*.deb
-
   release:
     name: Publish Release
-    needs: [rpm, deb]
+    needs: [rpm]
     runs-on: ubuntu-latest
 
     steps:
@@ -118,12 +70,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: rpm
-          path: dist/
-
-      - name: Download DEB (if available)
-        uses: actions/download-artifact@v4
-        with:
-          name: deb
           path: dist/
 
       - name: Copy installer scripts

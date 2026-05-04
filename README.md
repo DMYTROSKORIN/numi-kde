@@ -39,7 +39,24 @@ Dry run:
 curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/install.sh | bash -s -- --dry-run
 ```
 
-The installer detects Fedora, Ubuntu or Debian, downloads the matching `.rpm` or `.deb` from GitHub Releases, verifies `SHA256SUMS`, installs through `dnf` or `apt`, and runs `numi-kde --probe`.
+The installer detects Fedora (or other RPM-based systems), downloads the matching `.rpm` from GitHub Releases, verifies `SHA256SUMS`, installs through `dnf`, and runs `numi-kde --probe`.
+
+### Manual Build (Ubuntu/Debian/Arch)
+
+If you are not on Fedora, you can build and install the application from source:
+
+1. **Install Dependencies**:
+   - **Ubuntu/Debian**: `sudo apt install cmake g++ qt6-base-dev qt6-declarative-dev libkf6windowsystem-dev libkf6globalaccel-dev libqalculate-dev`
+   - **Arch**: `sudo pacman -S cmake gcc qt6-base qt6-declarative kwindowsystem kglobalaccel libqalculate`
+
+2. **Clone and Build**:
+   ```sh
+   git clone https://github.com/DMYTROSKORIN/numi-kde.git
+   cd numi-kde
+   cmake -S kde -B build -DCMAKE_BUILD_TYPE=Release
+   cmake --build build -j$(nproc)
+   sudo cmake --install build
+   ```
 
 ## Why
 
