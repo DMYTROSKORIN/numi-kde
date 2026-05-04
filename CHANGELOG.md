@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.27 - 2026-05-04
+
+### Bug Fixes
+
+- **Minimize + hotkey requires two presses**: Fixed an issue where pressing the global hotkey (or clicking the tray icon) after minimizing the window would hide it instead of restoring it. Root cause: a minimized window reports `isVisible() == true` in Qt, so the toggle logic treated it as "shown" and called `hide()`. The fix checks `windowState()` for `Qt::WindowMinimized` and restores the window in that case.
+
 ## 0.1.26 - 2026-05-04
 
 ### Bug Fixes

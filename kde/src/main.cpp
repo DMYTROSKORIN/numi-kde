@@ -64,15 +64,18 @@ static int runProbe(int argc, char *argv[])
 static void toggleWindow(QWindow *win, DocumentModel *model)
 {
     if (!win) return;
-    if (win->isVisible()) {
+
+    // A minimized window reports isVisible()==true but is not usable.
+    // Treat minimized the same as hidden: restore and raise it.
+    const bool minimized = win->windowState() & Qt::WindowMinimized;
+
+    if (win->isVisible() && !minimized) {
         if (!QMetaObject::invokeMethod(win, "hideWindow"))
             win->hide();
     } else {
-        // On Wayland, position rules are only applied at surface map time.
-        // Calling prepareShow() writes the KWin rule before win->show().
         if (model)
             model->prepareShow();
-
+        win->setWindowStates(win->windowStates() & ~Qt::WindowMinimized);
         win->show();
         win->raise();
         win->requestActivate();
