@@ -12,7 +12,6 @@
 #include <QKeySequence>
 #include <QDebug>
 #include <QStandardPaths>
-#include <KWindowSystem>
 #include <cstdio>
 
 #ifdef NUMI_KDE_HAVE_GLOBAL_ACCEL
@@ -66,18 +65,21 @@ static void toggleWindow(QWindow *win, DocumentModel *model)
 {
     if (!win) return;
 
-    // Hide only when the window is visible AND has keyboard focus.
-    // On Wayland, windowStates()/isExposed() are compositor-controlled and
-    // cannot reliably detect minimize. isActive() works on both X11 and Wayland:
-    // a minimized or hidden window is never active, so it will always be shown.
-    if (win->isVisible() && win->isActive()) {
+    // Keep the stable 0.1.27 toggle contract: a visible window hides, a hidden
+    // or minimized window is shown. The QML minimize button hides to tray, so
+    // Wayland compositor minimize state is not needed for the common path.
+    const bool minimized = win->windowState() & Qt::WindowMinimized;
+
+    if (win->isVisible() && !minimized) {
         if (!QMetaObject::invokeMethod(win, "hideWindow"))
             win->hide();
     } else {
         if (model)
             model->prepareShow();
+        win->setWindowStates(win->windowStates() & ~Qt::WindowMinimized);
         win->show();
-        KWindowSystem::activateWindow(win);
+        win->raise();
+        win->requestActivate();
     }
 }
 

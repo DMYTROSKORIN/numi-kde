@@ -267,7 +267,7 @@ Controls.ApplicationWindow {
                     color: root.numiMuted
                     hoverColor: root.controlHover
                     pressedColor: root.controlPressed
-                    onClicked: root.showMinimized()
+                    onClicked: root.hideWindow()
                 }
 
                 WindowButton {

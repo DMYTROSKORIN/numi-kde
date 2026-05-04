@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.31 - 2026-05-04
+
+### Bug Fixes
+
+- **Global hotkey regression after 0.1.27**: restored the stable 0.1.27 toggle behavior so a visible window hides and a hidden window is shown even when another application has focus. Removed the `KWindowSystem::activateWindow()` toggle path because KWin may reject explicit activation as focus stealing on Wayland.
+- **Minimize button requiring two hotkey presses**: the custom `–` button now hides the window to tray instead of using compositor minimize. This avoids unreliable Wayland minimize state detection and makes the next hotkey press show the window immediately.
+
 ## 0.1.30 - 2026-05-04
 
 ### Bug Fixes
