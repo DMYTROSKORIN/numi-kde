@@ -831,8 +831,22 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                         QString rhsStr = QString::fromStdString(m_calc->print(rhsResult, 2000, po));
                         res.result = rhsStr;
                         res.ok = !hasCalculationError(m_calc);
-                        if (!res.ok)
+                        if (!res.ok) {
                             res.error = "Error";
+                        } else {
+                            // Re-assign with the plain numeric value so that arithmetic like
+                            // A+200 works when A holds a currency-valued result (e.g. A = 500 AED to USD).
+                            // Without this, libqalculate stores the expression and later can't add
+                            // a dimensionless number to a currency-tagged value.
+                            double numericForVar = 0.0;
+                            if (parseDisplayNumber(rhsStr, &numericForVar) && std::isfinite(numericForVar)) {
+                                QString numAssignment = QString("%1 := %2").arg(varName).arg(numericForVar, 0, 'g', 15);
+                                m_calc->calculate(numAssignment.toStdString(), eo);
+                                res.hasNumericValue = true;
+                                res.numericValue = numericForVar;
+                                res.totalKey = totalKey;
+                            }
+                        }
                     }
                 }
             } catch (...) {

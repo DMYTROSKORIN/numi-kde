@@ -138,6 +138,28 @@ static void runSuite(QalcBridge &bridge) {
         check("variable deletion: x should not persist across evaluations", ok,
               results.size() >= 1 ? results[0].result : "no results", "Error/not 15");
     }
+    {
+        // A = 500 AED to USD → currency-valued result; A+200 must compute the sum,
+        // not show an unsimplified expression like "USD 136.xxx + 200.000".
+        auto results = bridge.evaluateDocument("A = 500 AED to USD\nA + 200");
+        bool line1ok = results.size() >= 1 && results[0].ok && !results[0].result.isEmpty();
+        bool line2ok = results.size() >= 2 && results[1].ok
+                    && results[1].result != "Error"
+                    && !results[1].result.contains("+")
+                    && results[1].hasNumericValue
+                    && results[1].numericValue > 200.0;
+        check("currency variable + plain number computes sum (bug: USD x + 200.000)",
+              line1ok && line2ok,
+              results.size() >= 2 ? results[1].result : "size<2",
+              "single computed number > 200");
+    }
+    {
+        // Integers must never show trailing .000 in results.
+        auto results = bridge.evaluateDocument("200 + 0");
+        bool ok = results.size() == 1 && results[0].ok && results[0].result == "200";
+        check("integer result has no trailing zeros (200+0 = \"200\")", ok,
+              results.size() >= 1 ? results[0].result : "size<1", "200");
+    }
 
     // ── Empty and comment lines ───────────────────────────────────────────────
     {

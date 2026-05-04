@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.26 - 2026-05-04
+
+### Bug Fixes
+
+- **Currency Variable Arithmetic**: Fixed a regression where `A = 500 AED to USD` followed by `A + 200` showed the unsimplified expression `USD 136.xxx + 200.000` instead of computing the sum. The variable is now stored as a plain numeric value so that arithmetic with plain numbers works correctly.
+- **No Trailing Zeros on Integers**: Fixed the related issue where the integer `200` was displayed as `200.000` in compound expressions involving currency-valued variables.
+
 ## 0.1.25 - 2026-05-04
 
 ### Bug Fixes
