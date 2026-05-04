@@ -11,19 +11,19 @@
 
 ### Bug Fixes
 
-- **Глобальный hotkey не работал когда окно не в фокусе**: исправлена критическая регрессия на Wayland, из-за которой hotkey не активировал окно, если оно не было в фокусе. Причина: `win->requestActivate()` на Wayland требует XDG activation token, который отсутствует при вызове через D-Bus (KGlobalAccel). Теперь используется `KWindowSystem::activateWindow()`, который правильно обрабатывает Wayland activation protocol.
+- **Global hotkey did not work when the window was not focused**: fixed a critical Wayland regression where the hotkey did not activate the window when another application had focus. Root cause: `win->requestActivate()` on Wayland requires an XDG activation token, which is not available when triggered through D-Bus (KGlobalAccel). `KWindowSystem::activateWindow()` is now used to handle the Wayland activation protocol.
 
 ## 0.1.29 - 2026-05-04
 
 ### Bug Fixes
 
-- **Hotkey не работал после minimize (окончательное исправление)**: исправлена логика toggle-окна. Вместо ненадёжных `windowStates()`/`isExposed()` (оба некорректны на Wayland) теперь используется `isActive()` — окно скрывается только если оно видимо И имеет фокус. Минимизированное окно никогда не активно, поэтому hotkey всегда его восстанавливает. Бонус: если окно открыто но за другим приложением — hotkey выводит его на передний план вместо скрытия.
+- **Hotkey did not work after minimize (final fix)**: fixed the window toggle logic. Instead of unreliable `windowStates()`/`isExposed()` checks (both incorrect on Wayland), it now uses `isActive()`: the window is hidden only when it is visible and focused. A minimized window is never active, so the hotkey always restores it. Bonus: if the window is open behind another application, the hotkey brings it forward instead of hiding it.
 
 ## 0.1.28 - 2026-05-04
 
 ### Bug Fixes
 
-- **Minimize + hotkey/tray requires two presses (Wayland fix)**: На Wayland compositor управляет состоянием minimize сам и никогда не выставляет `Qt::WindowMinimized`, поэтому предыдущее исправление (0.1.27) не работало. Теперь используется `QWindow::isExposed()`, которое корректно возвращает `false` для свёрнутых окон как на X11, так и на Wayland.
+- **Minimize + hotkey/tray requires two presses (Wayland fix)**: on Wayland, the compositor owns the minimize state and never sets `Qt::WindowMinimized`, so the previous fix (0.1.27) did not work. `QWindow::isExposed()` is now used because it correctly returns `false` for minimized windows on both X11 and Wayland.
 
 ## 0.1.27 - 2026-05-04
 

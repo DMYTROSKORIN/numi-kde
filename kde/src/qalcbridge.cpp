@@ -520,7 +520,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     QList<LineResult> results;
     QStringList lines = source.split('\n');
 
-    // коллекционируем имена переменных для подсветки
+    // Collect variable names for highlighting.
     QSet<QString> variables;
     static QRegularExpression assignmentRegex(
         "^([A-Za-z_π\\p{L}][\\wπ\\p{L}]*)\\s*(?::=|=)\\s*(.+)$",
