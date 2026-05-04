@@ -41,9 +41,10 @@ Preprocessing currently handles:
 - `time` and `now`;
 - explicit date spans such as `today - 01.01.2000` and `01.01.2000 - 02.05.2026`;
 - explicit date arithmetic such as `01.01.2000 + 25 years`;
+- manual fiat conversion backed by Frankfurter rates;
 - manual crypto conversion for top CoinGecko symbols.
 
-Manual crypto conversion returns the target prefix with the formatted value, matching the rest of the conversion UI. For example, `1 BTC to EUR` displays as `EUR <value>`.
+Manual fiat and crypto conversions return the target prefix with the formatted value, matching the rest of the conversion UI. For example, `1 BTC to EUR` displays as `EUR <value>`.
 
 Date spans are formatted in English as a compact absolute calendar period plus total days, for example:
 

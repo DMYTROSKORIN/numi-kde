@@ -50,22 +50,34 @@ QalcBridge::QalcBridge(QObject *parent) : QObject(parent) {
     m_highlighter = new SyntaxHighlighter(m_calc);
 
     m_nam = new QNetworkAccessManager(this);
-    connect(m_nam, &QNetworkAccessManager::finished,
-            this, &QalcBridge::onCryptoReply);
 
-    // Fetch on startup, then refresh every hour
-    m_cryptoRefreshTimer = new QTimer(this);
-    m_cryptoRefreshTimer->setInterval(60 * 60 * 1000);
-    connect(m_cryptoRefreshTimer, &QTimer::timeout,
-            this, &QalcBridge::fetchCryptoRates);
-    m_cryptoRefreshTimer->start();
+    // Fetch on startup, then refresh every hour.
+    m_ratesRefreshTimer = new QTimer(this);
+    m_ratesRefreshTimer->setInterval(60 * 60 * 1000);
+    connect(m_ratesRefreshTimer, &QTimer::timeout, this, [this]() {
+        fetchFiatRates();
+        fetchCryptoRates();
+    });
+    m_ratesRefreshTimer->start();
 
+    fetchFiatRates();
     fetchCryptoRates();
 }
 
 QalcBridge::~QalcBridge() {
     delete m_highlighter;
     delete m_calc;
+}
+
+void QalcBridge::fetchFiatRates() {
+    m_networkStatus = NetworkStatus::Fetching;
+    emit networkStatusChanged();
+
+    auto *reply = m_nam->get(QNetworkRequest(
+        QUrl(QStringLiteral("https://api.frankfurter.dev/v2/rates?base=USD"))));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onFiatReply(reply);
+    });
 }
 
 void QalcBridge::fetchCryptoRates() {
@@ -79,7 +91,54 @@ void QalcBridge::fetchCryptoRates() {
     QString url = "https://api.coingecko.com/api/v3/simple/price?ids=" +
                   ids.join(",") +
                   "&vs_currencies=usd";
-    m_nam->get(QNetworkRequest(QUrl(url)));
+    auto *reply = m_nam->get(QNetworkRequest(QUrl(url)));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onCryptoReply(reply);
+    });
+}
+
+void QalcBridge::onFiatReply(QNetworkReply *reply) {
+    reply->deleteLater();
+    if (reply->error() != QNetworkReply::NoError) {
+        m_networkStatus = NetworkStatus::Error;
+        emit networkStatusChanged();
+        return;
+    }
+
+    const QJsonDocument document = QJsonDocument::fromJson(reply->readAll());
+    QJsonObject usdRates;
+    usdRates.insert(QStringLiteral("USD"), 1.0);
+
+    if (document.isArray()) {
+        const QJsonArray rows = document.array();
+        for (const QJsonValue &value : rows) {
+            const QJsonObject row = value.toObject();
+            if (row.value(QStringLiteral("base")).toString().toUpper() != QStringLiteral("USD"))
+                continue;
+
+            const QString quote = row.value(QStringLiteral("quote")).toString().toUpper();
+            const double usdToCurrency = row.value(QStringLiteral("rate")).toDouble();
+            if (!quote.isEmpty() && usdToCurrency > 0.0)
+                usdRates.insert(quote, 1.0 / usdToCurrency);
+        }
+    } else {
+        const QJsonObject quoteRates = document.object().value(QStringLiteral("rates")).toObject();
+        for (auto it = quoteRates.constBegin(); it != quoteRates.constEnd(); ++it) {
+            const double usdToCurrency = it.value().toDouble();
+            if (usdToCurrency > 0.0)
+                usdRates.insert(it.key().toUpper(), 1.0 / usdToCurrency);
+        }
+    }
+
+    if (usdRates.size() > 1) {
+        applyFiatRates(usdRates);
+        m_networkStatus = NetworkStatus::Success;
+        emit networkStatusChanged();
+        emit ratesUpdated();
+    } else {
+        m_networkStatus = NetworkStatus::Error;
+        emit networkStatusChanged();
+    }
 }
 
 void QalcBridge::onCryptoReply(QNetworkReply *reply) {
@@ -100,17 +159,52 @@ void QalcBridge::onCryptoReply(QNetworkReply *reply) {
         }
     }
     if (!rates.isEmpty()) {
+        applyCryptoRates(rates);
         m_networkStatus = NetworkStatus::Success;
         emit networkStatusChanged();
-        applyCryptoRates(rates);
-        emit cryptoRatesUpdated();
+        emit ratesUpdated();
     } else {
         m_networkStatus = NetworkStatus::Error;
         emit networkStatusChanged();
     }
 }
 
+void QalcBridge::applyFiatRates(const QJsonObject &rates) {
+    QMutexLocker locker(&m_calcMutex);
+
+    Unit *usd = m_calc->getUnit("USD");
+    if (!usd) return;
+
+    for (const QString &symbol : rates.keys()) {
+        const double usdPerCurrency = rates[symbol].toDouble();
+        if (usdPerCurrency <= 0.0) continue;
+        const QString normalized = symbol.toUpper();
+        m_fiatUsdRates.insert(normalized, usdPerCurrency);
+
+        if (normalized == QStringLiteral("USD"))
+            continue;
+
+        auto *unit = new AliasUnit(
+            "Currency",
+            normalized.toStdString(),
+            normalized.toStdString(),
+            normalized.toStdString(),
+            normalized.toStdString(),
+            usd,
+            std::to_string(usdPerCurrency),
+            1,
+            "",
+            false,
+            false,
+            true
+        );
+        m_calc->addUnit(unit, true);
+    }
+}
+
 void QalcBridge::applyCryptoRates(const QJsonObject &rates) {
+    QMutexLocker locker(&m_calcMutex);
+
     Unit *usd = m_calc->getUnit("USD");
     if (!usd) return;
 
@@ -361,11 +455,6 @@ static bool parseDisplayNumber(const QString &text, double *value)
     return true;
 }
 
-static bool isCryptoSymbol(const QHash<QString, double> &rates, const QString &symbol)
-{
-    return rates.contains(symbol.toUpper());
-}
-
 static QString totalKeyForExpression(const QString &trimmed)
 {
     static QRegularExpression conversionTarget(
@@ -414,16 +503,82 @@ static bool hasCalculationError(Calculator *calc)
     return hasError;
 }
 
-QString QalcBridge::convertCryptoExpression(const QString &expression, bool *converted) const
+bool QalcBridge::hasUsdRateForSymbol(const QString &symbol) const
+{
+    const QString normalized = symbol.toUpper();
+    return normalized == QStringLiteral("USD")
+        || m_fiatUsdRates.contains(normalized)
+        || m_cryptoUsdRates.contains(normalized);
+}
+
+double QalcBridge::usdRateForSymbol(const QString &symbol, bool *ok) const
+{
+    const QString normalized = symbol.toUpper();
+    if (normalized == QStringLiteral("USD")) {
+        *ok = true;
+        return 1.0;
+    }
+
+    const auto fiat = m_fiatUsdRates.constFind(normalized);
+    if (fiat != m_fiatUsdRates.constEnd()) {
+        *ok = true;
+        return fiat.value();
+    }
+
+    const auto crypto = m_cryptoUsdRates.constFind(normalized);
+    if (crypto != m_cryptoUsdRates.constEnd()) {
+        *ok = true;
+        return crypto.value();
+    }
+
+    if (!m_calc->getUnit(normalized.toStdString())) {
+        *ok = false;
+        return 0.0;
+    }
+
+    EvaluationOptions eo;
+    eo.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
+    eo.structuring = STRUCTURING_SIMPLIFY;
+    eo.parse_options.unknowns_enabled = false;
+
+    PrintOptions po;
+    po.number_fraction_format = FRACTION_DECIMAL;
+    po.base = 10;
+    po.min_decimals = 0;
+    po.max_decimals = 12;
+    po.use_min_decimals = false;
+    po.use_max_decimals = true;
+    po.digit_grouping = DIGIT_GROUPING_LOCALE;
+
+    m_calc->clearMessages();
+    MathStructure rateResult = m_calc->calculate(
+        QStringLiteral("1 %1 to USD").arg(normalized).toStdString(), eo);
+    if (hasCalculationError(m_calc) || rateResult.isUndefined() || rateResult.isInfinite()) {
+        *ok = false;
+        return 0.0;
+    }
+    if (rateResult.isNumber()) {
+        const double value = rateResult.number().floatValue();
+        *ok = std::isfinite(value) && value > 0.0;
+        return *ok ? value : 0.0;
+    }
+
+    const QString out = QString::fromStdString(m_calc->print(rateResult, 2000, po));
+    double value = 0.0;
+    *ok = parseDisplayNumber(out, &value) && value > 0.0;
+    return *ok ? value : 0.0;
+}
+
+QString QalcBridge::convertCurrencyExpression(const QString &expression, bool *converted) const
 {
     if (converted)
         *converted = false;
 
-    static QRegularExpression cryptoConversionRegex(
+    static QRegularExpression currencyConversionRegex(
         "^\\s*([+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+))\\s+([A-Za-z]{2,5})\\s+to\\s+([A-Za-z]{2,5})\\s*$",
         QRegularExpression::CaseInsensitiveOption);
 
-    const auto match = cryptoConversionRegex.match(expression);
+    const auto match = currencyConversionRegex.match(expression);
     if (!match.hasMatch())
         return {};
 
@@ -431,62 +586,14 @@ QString QalcBridge::convertCryptoExpression(const QString &expression, bool *con
     const QString from = match.captured(2).toUpper();
     const QString to = match.captured(3).toUpper();
 
-    auto rateFor = [this](const QString &symbol, bool *ok) -> double {
-        if (symbol == QStringLiteral("USD")) {
-            *ok = true;
-            return 1.0;
-        }
-        const auto it = m_cryptoUsdRates.constFind(symbol);
-        if (it == m_cryptoUsdRates.constEnd()) {
-            if (!m_calc->getUnit(symbol.toStdString())) {
-                *ok = false;
-                return 0.0;
-            }
-
-            EvaluationOptions eo;
-            eo.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
-            eo.structuring = STRUCTURING_SIMPLIFY;
-            eo.parse_options.unknowns_enabled = false;
-
-            PrintOptions po;
-            po.number_fraction_format = FRACTION_DECIMAL;
-            po.base = 10;
-            po.min_decimals = 0;
-            po.max_decimals = 12;
-            po.use_min_decimals = false;
-            po.use_max_decimals = true;
-            po.digit_grouping = DIGIT_GROUPING_LOCALE;
-
-            m_calc->clearMessages();
-            MathStructure rateResult = m_calc->calculate(
-                QStringLiteral("1 %1 to USD").arg(symbol).toStdString(), eo);
-            if (hasCalculationError(m_calc) || rateResult.isUndefined() || rateResult.isInfinite()) {
-                *ok = false;
-                return 0.0;
-            }
-            if (rateResult.isNumber()) {
-                const double value = rateResult.number().floatValue();
-                *ok = std::isfinite(value) && value > 0.0;
-                return *ok ? value : 0.0;
-            }
-
-            const QString out = QString::fromStdString(m_calc->print(rateResult, 2000, po));
-            double value = 0.0;
-            *ok = parseDisplayNumber(out, &value) && value > 0.0;
-            return *ok ? value : 0.0;
-        }
-        *ok = true;
-        return it.value();
-    };
-
     bool fromOk = false;
     bool toOk = false;
-    const bool includesCrypto = isCryptoSymbol(m_cryptoUsdRates, from) || isCryptoSymbol(m_cryptoUsdRates, to);
-    if (!includesCrypto)
+    const bool hasManagedRate = hasUsdRateForSymbol(from) || hasUsdRateForSymbol(to);
+    if (!hasManagedRate)
         return {};
 
-    const double fromRate = rateFor(from, &fromOk);
-    const double toRate = rateFor(to, &toOk);
+    const double fromRate = usdRateForSymbol(from, &fromOk);
+    const double toRate = usdRateForSymbol(to, &toOk);
     if (!fromOk || !toOk || toRate <= 0.0)
         return {};
 
@@ -618,7 +725,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         }
 
         // Cross-currency arithmetic: "AMT1 CURR1 ± AMT2 CURR2"
-        // Uses the same rate-via-USD approach as convertCryptoExpression to avoid
+        // Uses the same rate-via-USD approach as convertCurrencyExpression to avoid
         // libqalculate's print() converting results to the USD base currency.
         // E.g., "500 EUR - 100 USD" → rate(USD→EUR) → "EUR 415"
         static QRegularExpression crossCurrencyRegex(
@@ -630,39 +737,6 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 const QString curr1 = ccm.captured(2).toUpper();
                 const QString curr2 = ccm.captured(5).toUpper();
                 if (curr1 != curr2) {
-                    // Returns the value of 1 unit of sym in USD.
-                    auto usdRate = [this](const QString &sym, bool *ok) -> double {
-                        *ok = false;
-                        if (sym == QLatin1String("USD")) { *ok = true; return 1.0; }
-                        const auto it = m_cryptoUsdRates.constFind(sym);
-                        if (it != m_cryptoUsdRates.constEnd()) { *ok = true; return it.value(); }
-                        if (!m_calc->getUnit(sym.toStdString())) return 0.0;
-                        EvaluationOptions reo;
-                        reo.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
-                        reo.structuring = STRUCTURING_SIMPLIFY;
-                        reo.parse_options.unknowns_enabled = false;
-                        PrintOptions rpo;
-                        rpo.number_fraction_format = FRACTION_DECIMAL;
-                        rpo.base = 10;
-                        rpo.max_decimals = 12;
-                        rpo.use_max_decimals = true;
-                        rpo.digit_grouping = DIGIT_GROUPING_NONE;
-                        m_calc->clearMessages();
-                        MathStructure r = m_calc->calculate(
-                            QStringLiteral("1 %1 to USD").arg(sym).toStdString(), reo);
-                        if (hasCalculationError(m_calc) || r.isUndefined() || r.isInfinite())
-                            return 0.0;
-                        if (r.isNumber()) {
-                            const double v = r.number().floatValue();
-                            if (std::isfinite(v) && v > 0.0) { *ok = true; return v; }
-                            return 0.0;
-                        }
-                        const QString out = QString::fromStdString(m_calc->print(r, 2000, rpo));
-                        double v2 = 0.0;
-                        if (parseDisplayNumber(out, &v2) && v2 > 0.0) { *ok = true; return v2; }
-                        return 0.0;
-                    };
-
                     QString n1str = ccm.captured(1); n1str.replace(QLatin1Char(','), QLatin1Char('.'));
                     QString n2str = ccm.captured(4); n2str.replace(QLatin1Char(','), QLatin1Char('.'));
                     bool ok1 = false, ok2 = false;
@@ -670,8 +744,8 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                     const double n2 = n2str.toDouble(&ok2);
                     if (ok1 && ok2) {
                         bool r1ok = false, r2ok = false;
-                        const double rate1 = usdRate(curr1, &r1ok);
-                        const double rate2 = usdRate(curr2, &r2ok);
+                        const double rate1 = usdRateForSymbol(curr1, &r1ok);
+                        const double rate2 = usdRateForSymbol(curr2, &r2ok);
                         if (r1ok && r2ok && rate1 > 0.0) {
                             // n2 CURR2 = (n2 * rate2 / rate1) CURR1
                             const double n2InCurr1 = n2 * rate2 / rate1;
@@ -734,12 +808,12 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             continue;
         }
 
-        bool cryptoConverted = false;
-        const QString cryptoResult = convertCryptoExpression(line, &cryptoConverted);
-        if (cryptoConverted) {
+        bool currencyConverted = false;
+        const QString currencyResult = convertCurrencyExpression(line, &currencyConverted);
+        if (currencyConverted) {
             res.ok = true;
-            res.result = cryptoResult;
-            res.hasNumericValue = parseDisplayNumber(cryptoResult, &res.numericValue);
+            res.result = currencyResult;
+            res.hasNumericValue = parseDisplayNumber(currencyResult, &res.numericValue);
             res.totalKey = totalKey;
             results.append(res);
             continue;

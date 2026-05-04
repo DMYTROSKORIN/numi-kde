@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.32 - 2026-05-04
+
+### Changes
+
+- **Frankfurter fiat rates**: fiat currency conversion now uses `https://api.frankfurter.dev/v2/rates?base=USD` as the managed rate provider. Rates are converted into a local USD-based map and applied to libqalculate currency units.
+- **Unified currency conversion path**: fiat and crypto conversions now share the same USD-rate logic, so expressions such as `500 AED to USD`, `1 BTC to EUR`, and `500 EUR - 100 USD` use consistent conversion behavior.
+- **Stable fallback**: libqalculate exchange rates are still loaded as currency unit definitions and fallback data, but live fiat rates are refreshed from Frankfurter on startup and then hourly.
+
 ## 0.1.31 - 2026-05-04
 
 ### Bug Fixes

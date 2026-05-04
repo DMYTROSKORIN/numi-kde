@@ -61,7 +61,7 @@ You keep context. The app does the math.
 
 - Document-style calculations with one result per line.
 - Math, variables, percentages, units, dates and time.
-- Fiat conversion through `libqalculate`.
+- Live fiat conversion backed by Frankfurter rates.
 - Live top-crypto conversion backed by CoinGecko rates.
 - Target-prefixed conversion output, such as `USD 136.1471` and `EUR 67,059.8291`.
 - Inline `/help` rendered inside the editor with the same syntax highlighting as normal input.

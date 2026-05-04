@@ -26,7 +26,7 @@ DocumentModel::DocumentModel(QObject *parent)
     : QAbstractListModel(parent)
 {
     m_qalc = new QalcBridge(this);
-    connect(m_qalc, &QalcBridge::cryptoRatesUpdated, this, [this]() {
+    connect(m_qalc, &QalcBridge::ratesUpdated, this, [this]() {
         if (!m_source.trimmed().isEmpty() && m_source.trimmed() != QStringLiteral("/help"))
             evaluate();
     });

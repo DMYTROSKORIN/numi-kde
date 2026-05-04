@@ -37,27 +37,33 @@ public:
     QString getCompletion(const QString &prefix);
     QString highlightLine(const QString &line) const;
 
+    void fetchFiatRates();
     void fetchCryptoRates();
+    void applyFiatRates(const QJsonObject &rates);
     void applyCryptoRates(const QJsonObject &rates);
 
     enum class NetworkStatus { Idle, Fetching, Success, Error };
     NetworkStatus networkStatus() const { return m_networkStatus; }
 
 signals:
-    void cryptoRatesUpdated();
+    void ratesUpdated();
     void networkStatusChanged();
 
 private slots:
+    void onFiatReply(QNetworkReply *reply);
     void onCryptoReply(QNetworkReply *reply);
 
 private:
-    QString convertCryptoExpression(const QString &expression, bool *converted) const;
+    QString convertCurrencyExpression(const QString &expression, bool *converted) const;
+    double usdRateForSymbol(const QString &symbol, bool *ok) const;
+    bool hasUsdRateForSymbol(const QString &symbol) const;
 
     Calculator *m_calc;
     SyntaxHighlighter *m_highlighter;
     int m_decimalPlaces = 3;
     QNetworkAccessManager *m_nam;
-    QTimer *m_cryptoRefreshTimer;
+    QTimer *m_ratesRefreshTimer;
+    QHash<QString, double> m_fiatUsdRates;
     QHash<QString, double> m_cryptoUsdRates;
     mutable QMutex m_calcMutex;
     NetworkStatus m_networkStatus = NetworkStatus::Idle;

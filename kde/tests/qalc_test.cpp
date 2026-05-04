@@ -33,6 +33,13 @@ static void check(const char *name, bool condition, const QString &got, const ch
 }
 
 static void runSuite(QalcBridge &bridge) {
+    QJsonObject fiatRates;
+    fiatRates.insert("USD", 1.0);
+    fiatRates.insert("AED", 0.25);
+    fiatRates.insert("EUR", 1.25);
+    fiatRates.insert("UAH", 0.025);
+    bridge.applyFiatRates(fiatRates);
+
     auto eval = [&](const QString &expr) -> LineResult {
         auto results = bridge.evaluateDocument(expr);
         return results.isEmpty() ? LineResult{} : results.first();
@@ -270,9 +277,9 @@ static void runSuite(QalcBridge &bridge) {
     }
     {
         auto r = eval("500 AED to USD");
-        check("fiat conversion exposes numeric value",
-              r.ok && r.hasNumericValue && r.numericValue > 0.0 && r.totalKey == "USD",
-              QString("%1 (%2)").arg(r.result, QString::number(r.numericValue)), "numeric conversion");
+        check("Frankfurter fiat conversion uses injected USD rates",
+              r.ok && r.result == "USD 125" && r.hasNumericValue && r.numericValue == 125.0 && r.totalKey == "USD",
+              QString("%1 (%2)").arg(r.result, QString::number(r.numericValue)), "USD 125");
     }
 
     // ── Cryptocurrency conversion ───────────────────────────────────────────
@@ -298,9 +305,9 @@ static void runSuite(QalcBridge &bridge) {
               QString::number(ethToUsd.numericValue), "2500");
 
         auto btcToEur = eval("1 BTC to EUR");
-        check("1 BTC to EUR includes target currency prefix",
-              btcToEur.ok && btcToEur.result.startsWith("EUR ") && btcToEur.hasNumericValue && btcToEur.numericValue > 0.0,
-              btcToEur.result, "EUR <number>");
+        check("1 BTC to EUR uses Frankfurter fiat target rate",
+              btcToEur.ok && btcToEur.result == QStringLiteral("EUR %1").arg(QLocale().toString(40000)) && btcToEur.hasNumericValue && btcToEur.numericValue == 40000.0,
+              btcToEur.result, "EUR 40,000");
 
         auto btcToUah = eval("1 BTC to UAH");
         check("1 BTC to UAH supports fiat target",
@@ -416,12 +423,10 @@ static void runSuite(QalcBridge &bridge) {
               results.size() >= 1 ? results[0].result : "error", expected.toUtf8().constData());
     }
     {
-        // 500 EUR - 100 USD: convert 100 USD to EUR (≈85 EUR at ~0.85 rate), result ≈ 415 EUR
-        // We don't check exact value since exchange rates vary; just check currency prefix
         auto results = bridge.evaluateDocument("500 EUR - 100 USD");
-        check("cross-currency: 500 EUR - 100 USD starts with EUR",
-              results.size() == 1 && results[0].result.startsWith("EUR "),
-              results.size() >= 1 ? results[0].result : "error", "EUR ...");
+        check("cross-currency uses injected Frankfurter USD rates",
+              results.size() == 1 && results[0].result == "EUR 420",
+              results.size() >= 1 ? results[0].result : "error", "EUR 420");
     }
 }
 
