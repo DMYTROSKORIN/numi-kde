@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.28 - 2026-05-04
+
+### Bug Fixes
+
+- **Minimize + hotkey/tray requires two presses (Wayland fix)**: На Wayland compositor управляет состоянием minimize сам и никогда не выставляет `Qt::WindowMinimized`, поэтому предыдущее исправление (0.1.27) не работало. Теперь используется `QWindow::isExposed()`, которое корректно возвращает `false` для свёрнутых окон как на X11, так и на Wayland.
+
 ## 0.1.27 - 2026-05-04
 
 ### Bug Fixes

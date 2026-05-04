@@ -65,17 +65,16 @@ static void toggleWindow(QWindow *win, DocumentModel *model)
 {
     if (!win) return;
 
-    // A minimized window reports isVisible()==true but is not usable.
-    // Treat minimized the same as hidden: restore and raise it.
-    const bool minimized = win->windowState() & Qt::WindowMinimized;
-
-    if (win->isVisible() && !minimized) {
+    // On Wayland the compositor owns minimize state and never sets
+    // Qt::WindowMinimized, so windowStates() is unreliable.
+    // isExposed() correctly returns false for both minimized and hidden
+    // windows on both X11 and Wayland — use it as the visibility gate.
+    if (win->isVisible() && win->isExposed()) {
         if (!QMetaObject::invokeMethod(win, "hideWindow"))
             win->hide();
     } else {
         if (model)
             model->prepareShow();
-        win->setWindowStates(win->windowStates() & ~Qt::WindowMinimized);
         win->show();
         win->raise();
         win->requestActivate();
