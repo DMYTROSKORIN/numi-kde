@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.34 - 2026-05-04
+
+### UX & Interface
+
+- **Rebranded to Numi-KDE**: updated the application name to "Numi-KDE" in the main window title, application menu, and metadata to ensure consistent naming across the system.
+
+### Packaging
+
+- **Lean Ubuntu DEB build**: reduced the Ubuntu container dependency installation with `--no-install-recommends` and non-PTY dpkg output to keep the required DEB release job reliable.
+
 ## 0.1.33 - 2026-05-04
 
 ### Packaging

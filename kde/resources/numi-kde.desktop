@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Numi
+Name=Numi-KDE
 GenericName=Document Calculator
 Comment=A KDE-native document calculator for people who think in text
 Exec=numi-kde

@@ -10,7 +10,7 @@ Controls.ApplicationWindow {
     minimumWidth: 420
     minimumHeight: 320
     visible: false
-    title: qsTr("Numi")
+    title: qsTr("Numi-KDE")
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint
 
@@ -211,7 +211,7 @@ Controls.ApplicationWindow {
 
             Controls.Label {
                 anchors.centerIn: parent
-                text: "Numi"
+                text: "Numi-KDE"
                 color: root.numiTitle
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
