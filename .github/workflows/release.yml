@@ -67,8 +67,9 @@ jobs:
     steps:
       - name: Install build dependencies
         run: |
+          export DEBIAN_FRONTEND=noninteractive
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -o=Dpkg::Use-Pty=0 \
+          apt-get install -y --no-install-recommends \
             git ca-certificates cmake ninja-build g++ \
             qt6-base-dev qt6-declarative-dev \
             libkf6windowsystem-dev libkf6globalaccel-dev \
