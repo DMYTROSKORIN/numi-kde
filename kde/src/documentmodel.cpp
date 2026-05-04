@@ -120,6 +120,15 @@ bool DocumentModel::isWayland() const
     return KWindowSystem::isPlatformWayland();
 }
 
+QString DocumentModel::version() const
+{
+#ifdef NUMI_KDE_VERSION
+    return QStringLiteral(NUMI_KDE_VERSION);
+#else
+    return QStringLiteral("unknown");
+#endif
+}
+
 void DocumentModel::setAutostart(bool enable)
 {
     QString path = QDir::homePath() + "/.config/autostart/numi-kde.desktop";

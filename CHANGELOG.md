@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.25 - 2026-05-04
+
+### Bug Fixes
+
+- **Variable Substitution Fix**: Resolved an issue where variables assigned with currency conversions (e.g., `A = 500 AED to USD`) resulted in unsimplified expressions when used in subsequent calculations. Variables now preserve their mathematical structure instead of being treated as plain text.
+
+### UX & Interface
+
+- **Version Display**: Added the application version information to the bottom of the settings drawer for better version tracking.
+
 ## 0.1.24 - 2026-05-03
 
 ### UX & Interface

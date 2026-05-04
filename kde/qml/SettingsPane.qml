@@ -250,5 +250,24 @@ Item {
                 }
             }
         }
+
+        // Version info at the bottom
+        Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: "#3a3d47"
+            Layout.topMargin: 15
+            Layout.bottomMargin: 10
+        }
+
+        Text {
+            Layout.fillWidth: true
+            Layout.bottomMargin: 10
+            text: "Numi-KDE v" + (documentModel ? documentModel.version : "unknown")
+            color: Window.window ? Window.window.numiMuted : "#6b6d76"
+            font.pixelSize: 11
+            horizontalAlignment: Text.AlignHCenter
+            opacity: 0.8
+        }
     }
 }

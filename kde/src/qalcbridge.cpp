@@ -809,33 +809,31 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 if (hasCalculationError(m_calc) || rhsResult.isUndefined() || rhsResult.isInfinite()) {
                     res.ok = false;
                     res.error = "Error";
-                } else if (rhsResult.isNumber()) {
-                    double v = rhsResult.number().floatValue();
-                    if (!std::isfinite(v)) {
-                        res.ok = false;
-                        res.error = "Error";
+                } else {
+                    // Set the variable in the calculator.
+                    // We use an internal assignment expression to let libqalculate handle the variable update properly.
+                    QString assignment = QString("%1 := %2").arg(varName, rhs);
+                    m_calc->calculate(assignment.toStdString(), eo);
+
+                    if (rhsResult.isNumber()) {
+                        double v = rhsResult.number().floatValue();
+                        if (!std::isfinite(v)) {
+                            res.ok = false;
+                            res.error = "Error";
+                        } else {
+                            res.result = smartFormat(v, m_decimalPlaces);
+                            res.hasNumericValue = true;
+                            res.numericValue = v;
+                            res.totalKey = totalKey;
+                            res.ok = true;
+                        }
                     } else {
-                        QString formatted = smartFormat(v, m_decimalPlaces);
-                        m_calc->clearMessages();
-                        m_calc->calculate(
-                            QString("%1 := %2").arg(varName, formatted).toStdString(), eo);
-                        res.result = formatted;
-                        res.hasNumericValue = true;
-                        res.numericValue = v;
-                        res.totalKey = totalKey;
+                        QString rhsStr = QString::fromStdString(m_calc->print(rhsResult, 2000, po));
+                        res.result = rhsStr;
                         res.ok = !hasCalculationError(m_calc);
                         if (!res.ok)
                             res.error = "Error";
                     }
-                } else {
-                    QString rhsStr = QString::fromStdString(m_calc->print(rhsResult, 2000, po));
-                    m_calc->clearMessages();
-                    m_calc->calculate(
-                        QString("%1 := %2").arg(varName, rhsStr).toStdString(), eo);
-                    res.result = rhsStr;
-                    res.ok = !hasCalculationError(m_calc);
-                    if (!res.ok)
-                        res.error = "Error";
                 }
             } catch (...) {
                 res.ok = false;
