@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.35 - 2026-05-04
+
+### Features
+
+- **Hidden startup support**: added the `--hidden` command-line flag to start the application without showing the main window.
+- **Improved autostart behavior**: the application now uses the `--hidden` flag when launched via the "Launch at login" feature, ensuring it starts minimized in the system tray.
+
 ## 0.1.34 - 2026-05-04
 
 ### UX & Interface

@@ -140,7 +140,7 @@ void DocumentModel::setAutostart(bool enable)
             out << "[Desktop Entry]\n";
             out << "Type=Application\n";
             out << "Name=Numi-KDE\n";
-            out << "Exec=" << QCoreApplication::applicationFilePath() << "\n";
+            out << "Exec=" << QCoreApplication::applicationFilePath() << " --hidden\n";
             out << "Hidden=false\n";
             out << "NoDisplay=false\n";
             out << "X-GNOME-Autostart-enabled=true\n";

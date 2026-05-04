@@ -91,8 +91,10 @@ int main(int argc, char *argv[])
     }
     if (hasArgument(argc, argv, "--probe"))
         return runProbe(argc, argv);
-    if (hasArgument(argc, argv, "--help")) {
-        std::printf("Usage: numi-kde [--version] [--probe]\n");
+    if (hasArgument(argc, argv, "--hidden")) {
+        // Just continue to start the app in background
+    } else if (hasArgument(argc, argv, "--help")) {
+        std::printf("Usage: numi-kde [--version] [--probe] [--hidden]\n");
         return 0;
     }
 
@@ -110,6 +112,7 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
 
     DocumentModel documentModel;
+    const bool startHidden = hasArgument(argc, argv, "--hidden");
     QAction showHideAction;
     showHideAction.setObjectName(QStringLiteral("toggle-window"));
     ShortcutManager shortcutManager(&showHideAction);
@@ -150,10 +153,12 @@ int main(int argc, char *argv[])
 
     if (mainWindow) {
         documentModel.setKeepAbove(mainWindow->property("alwaysOnTop").toBool());
-        documentModel.prepareShow();
-        mainWindow->show();
-        mainWindow->raise();
-        mainWindow->requestActivate();
+        if (!startHidden) {
+            documentModel.prepareShow();
+            mainWindow->show();
+            mainWindow->raise();
+            mainWindow->requestActivate();
+        }
     }
 
     // ── System tray ──────────────────────────────────────────────────────
