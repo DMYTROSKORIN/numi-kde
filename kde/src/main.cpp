@@ -12,6 +12,7 @@
 #include <QKeySequence>
 #include <QDebug>
 #include <QStandardPaths>
+#include <KWindowSystem>
 #include <cstdio>
 
 #ifdef NUMI_KDE_HAVE_GLOBAL_ACCEL
@@ -76,8 +77,7 @@ static void toggleWindow(QWindow *win, DocumentModel *model)
         if (model)
             model->prepareShow();
         win->show();
-        win->raise();
-        win->requestActivate();
+        KWindowSystem::activateWindow(win);
     }
 }
 

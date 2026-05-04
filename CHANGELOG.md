@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.30 - 2026-05-04
+
+### Bug Fixes
+
+- **Глобальный hotkey не работал когда окно не в фокусе**: исправлена критическая регрессия на Wayland, из-за которой hotkey не активировал окно, если оно не было в фокусе. Причина: `win->requestActivate()` на Wayland требует XDG activation token, который отсутствует при вызове через D-Bus (KGlobalAccel). Теперь используется `KWindowSystem::activateWindow()`, который правильно обрабатывает Wayland activation protocol.
+
 ## 0.1.29 - 2026-05-04
 
 ### Bug Fixes
