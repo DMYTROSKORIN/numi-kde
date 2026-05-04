@@ -61,21 +61,19 @@ jobs:
   deb:
     name: Build DEB (Ubuntu)
     runs-on: ubuntu-latest
-    continue-on-error: true
-    # NOTE: Ubuntu package names need verification on a real Kubuntu/Ubuntu system.
-    # DEB Depends field (CPACK_DEBIAN_PACKAGE_DEPENDS) is not yet set in CMakeLists.txt.
-    # This job is informational — release publishes with RPM only.
+    container:
+      image: ubuntu:25.10
 
     steps:
       - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            cmake ninja-build g++ \
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            git ca-certificates cmake ninja-build g++ \
             qt6-base-dev qt6-declarative-dev \
             libkf6windowsystem-dev libkf6globalaccel-dev \
             libqalculate-dev \
-            dpkg-dev
+            dpkg-dev file
 
       - uses: actions/checkout@v4
 
@@ -96,10 +94,10 @@ jobs:
 
       - name: Install and probe DEB
         run: |
-          sudo apt-get install -y ./build/release/*.deb
+          apt-get install -y ./build/release/*.deb
           numi-kde --version
           numi-kde --probe
-          sudo apt-get remove -y numi-kde
+          apt-get remove -y numi-kde
 
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v4
@@ -109,7 +107,7 @@ jobs:
 
   release:
     name: Publish Release
-    needs: [rpm]
+    needs: [rpm, deb]
     runs-on: ubuntu-latest
 
     steps:
@@ -123,7 +121,6 @@ jobs:
 
       - name: Download DEB (if available)
         uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
           name: deb
           path: dist/

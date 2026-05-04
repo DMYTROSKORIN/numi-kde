@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(numi-kde-native VERSION 0.1.32 LANGUAGES CXX)
+project(numi-kde-native VERSION 0.1.33 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -142,5 +142,6 @@ endif()
 set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "DMYTRO SKORIN <dev@skorin.online>")
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 
 include(CPack)

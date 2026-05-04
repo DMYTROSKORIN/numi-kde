@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.33 - 2026-05-04
+
+### Packaging
+
+- **Restore DEB release support**: the Ubuntu packaging job now runs in an Ubuntu 25.10 container where KF6 development packages are available, and DEB builds are required for publishing a release.
+- **Debian runtime dependencies**: CPack now uses `dpkg-shlibdeps` so generated `.deb` packages include runtime library dependencies instead of an empty `Depends` field.
+
 ## 0.1.32 - 2026-05-04
 
 ### Changes
