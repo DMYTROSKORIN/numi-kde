@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.36 - 2026-05-07
+
+### Changes
+
+- **RPM-only packaging**: removed DEB package generation. `CPACK_GENERATOR` is now `RPM`
+  only. The DEB target was never published in CI; removing it eliminates a misleading
+  mismatch between the installer script and actual release assets.
+- **install.sh / uninstall.sh**: restricted to Fedora (`dnf`). Ubuntu/Debian branch removed.
+  Users on other distributions are directed to build from source.
+- **HTTP timeouts**: all outgoing network requests (Frankfurter, CoinGecko, GitHub Releases
+  API) now have a 10-second transfer timeout via `QNetworkRequest::setTransferTimeout`.
+- **User-Agent headers**: Frankfurter and CoinGecko requests now send
+  `User-Agent: numi-kde/<version>`, consistent with the existing GitHub API request.
+- **README**: added command-line flag reference (`--hidden`, `--version`, `--probe`,
+  `--help`); updated install section to clarify Fedora-only RPM distribution; improved
+  build-from-source instructions with per-distro dependency commands.
+- **docs/release.md**: updated release checklist to match RPM-only workflow; added
+  build artifacts policy and `git rm --cached` instructions.
+- **.gitignore**: added `_CPack_Packages/`, `kde/build*/`, `*.rpm`, `*.deb`,
+  `release-*/`, `SHA256SUMS` to prevent build artifacts from being committed.
+
 ## 0.1.35 - 2026-05-04
 
 ### Features

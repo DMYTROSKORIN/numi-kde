@@ -56,6 +56,7 @@ bool UpdateChecker::shouldAutoCheck()
 void UpdateChecker::checkAsync()
 {
     QNetworkRequest req(QUrl(QString::fromLatin1(kApiUrl)));
+    req.setTransferTimeout(10000);
     req.setRawHeader("Accept", "application/vnd.github+json");
     req.setRawHeader("User-Agent", "numi-kde/" NUMI_KDE_VERSION);
 

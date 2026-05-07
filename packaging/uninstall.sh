@@ -8,7 +8,7 @@ usage() {
   cat <<EOF
 Usage: uninstall.sh [OPTIONS]
 
-Remove numi-kde using the system package manager.
+Remove numi-kde using the system package manager (Fedora / RPM-based only).
 User settings and history are preserved by default.
 
 Options:
@@ -41,42 +41,24 @@ case "${ID:-}" in
   fedora)
     PKG_MGR="dnf"
     ;;
-  ubuntu|debian|linuxmint|pop)
-    PKG_MGR="apt-get"
-    ;;
   *)
-    die "unsupported distribution: ${ID:-unknown}"
+    die "unsupported distribution: ${ID:-unknown}.
+numi-kde ships RPM packages for Fedora only.
+On other distributions, remove the binary you built manually."
     ;;
 esac
 
 # ── Check whether installed ───────────────────────────────────────────────────
 step "Checking installation"
-case "$PKG_MGR" in
-  dnf)
-    if ! rpm -q "$PACKAGE_NAME" &>/dev/null; then
-      die "$PACKAGE_NAME is not installed"
-    fi
-    INSTALLED_VERSION=$(rpm -q --qf '%{VERSION}' "$PACKAGE_NAME")
-    ;;
-  apt-get)
-    if ! dpkg -s "$PACKAGE_NAME" &>/dev/null; then
-      die "$PACKAGE_NAME is not installed"
-    fi
-    INSTALLED_VERSION=$(dpkg-query -W -f='${Version}' "$PACKAGE_NAME")
-    ;;
-esac
+if ! rpm -q "$PACKAGE_NAME" &>/dev/null; then
+  die "$PACKAGE_NAME is not installed"
+fi
+INSTALLED_VERSION=$(rpm -q --qf '%{VERSION}' "$PACKAGE_NAME")
 log "found: $PACKAGE_NAME $INSTALLED_VERSION"
 
 # ── Remove ────────────────────────────────────────────────────────────────────
 step "Removing"
-case "$PKG_MGR" in
-  dnf)
-    sudo dnf remove -y "$PACKAGE_NAME"
-    ;;
-  apt-get)
-    sudo apt-get remove -y "$PACKAGE_NAME"
-    ;;
-esac
+sudo dnf remove -y "$PACKAGE_NAME"
 log "package removed"
 
 # ── Purge user data (optional) ────────────────────────────────────────────────

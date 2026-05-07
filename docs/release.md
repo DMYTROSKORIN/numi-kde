@@ -43,23 +43,93 @@ scripts/check-semgrep.sh
 Use `semgrep --config=auto` only as an optional manual or CI check where network
 access is expected.
 
+## Packaging
+
+The project ships **RPM only** (Fedora). DEB packages are not built or distributed.
+
+- `CPACK_GENERATOR "RPM"` in `kde/CMakeLists.txt` — only RPM is configured.
+- `install.sh` / `uninstall.sh` support Fedora (`dnf`) only.
+- For other distributions, users build from source (see README).
+
+> Do not add `CPACK_GENERATOR "DEB"` back. There is no CI job to build or test DEB,
+> and `install.sh` would fail on Ubuntu/Debian with a 404 when trying to download a
+> non-existent release asset.
+
+## Build Artifacts Policy
+
+Build directories and packaged files are **gitignored** and must never be committed:
+
+```
+_CPack_Packages/
+kde/build/
+kde/build-release/
+*.rpm  *.deb
+release-*/
+SHA256SUMS  (local — generated during release, not a source file)
+```
+
+If you accidentally staged a build artifact, remove it with:
+
+```sh
+git rm -r --cached _CPack_Packages/ kde/build/ kde/build-release/
+git rm --cached *.rpm *.deb SHA256SUMS 2>/dev/null || true
+```
+
 ## Release Checklist
 
 1. Fix the issue and keep unrelated refactors out.
 2. Bump `project(... VERSION X.Y.Z ...)` in `kde/CMakeLists.txt`.
 3. Add a top entry to `CHANGELOG.md`.
-4. Run:
+4. Build, test and package:
 
 ```sh
-cmake --build build/kde --target numi-kde numi-kde-tests
-ctest --test-dir build/kde --output-on-failure
-cmake --build build/kde-release -j$(nproc)
-./build/kde-release/numi-kde --probe
-./build/kde-release/numi-kde-tests
-cpack -G RPM --config build/kde-release/CPackConfig.cmake
+# Configure release build
+cmake -S kde -B kde/build-release -DCMAKE_BUILD_TYPE=Release
+
+# Build app + tests
+cmake --build kde/build-release --target numi-kde numi-kde-tests -j$(nproc)
+
+# Run tests
+ctest --test-dir kde/build-release --output-on-failure
+
+# Smoke test the binary
+./kde/build-release/numi-kde --probe
+
+# Build RPM
+cmake --build kde/build-release --target package
+# Result: kde/build-release/numi-kde-X.Y.Z-x86_64.rpm
 ```
 
-5. Generate `SHA256SUMS` for the release assets.
-6. Commit without AI co-author metadata.
-7. Create and push tag `vX.Y.Z`.
-8. Create GitHub Release with RPM, `install.sh`, `uninstall.sh`, and `SHA256SUMS`.
+5. Generate `SHA256SUMS` for the RPM only (do not commit this file):
+
+```sh
+cd kde/build-release
+sha256sum numi-kde-*.rpm > SHA256SUMS
+cat SHA256SUMS
+```
+
+6. Verify the RPM installs and probes cleanly (on a Fedora system):
+
+```sh
+sudo dnf install -y kde/build-release/numi-kde-*.rpm
+numi-kde --version
+numi-kde --probe
+sudo dnf remove -y numi-kde
+```
+
+7. Commit without AI co-author metadata:
+
+```sh
+git add kde/CMakeLists.txt CHANGELOG.md
+# (do NOT git add build artifacts)
+git commit -m "release: vX.Y.Z ..."
+```
+
+8. Create and push tag `vX.Y.Z`.
+9. Create GitHub Release — upload:
+   - `numi-kde-X.Y.Z-x86_64.rpm`
+   - `packaging/install.sh`
+   - `packaging/uninstall.sh`
+   - `SHA256SUMS`
+   
+   GitHub Actions will also build and upload the RPM automatically on tag push.

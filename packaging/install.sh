@@ -9,7 +9,7 @@ usage() {
   cat <<EOF
 Usage: install.sh [OPTIONS]
 
-Install numi-kde from GitHub Releases.
+Install numi-kde from GitHub Releases (Fedora / RPM-based systems only).
 
 Options:
   --dry-run    Show what would be done without making changes
@@ -18,6 +18,12 @@ Options:
 Environment:
   NUMI_KDE_VERSION  Install a specific version (e.g. v0.1.6).
                     Defaults to the latest release.
+
+Supported distributions:
+  Fedora (dnf)
+
+For other distributions, build from source:
+  https://github.com/DMYTROSKORIN/numi-kde#build-from-source
 EOF
 }
 
@@ -48,16 +54,12 @@ fi
 case "${ID:-}" in
   fedora)
     PKG_MGR="dnf"
-    PKG_EXT="rpm"
-    PKG_FILE="${PACKAGE_NAME}-${NUMI_KDE_VERSION:-VERSION}-x86_64.rpm"
-    ;;
-  ubuntu|debian|linuxmint|pop)
-    PKG_MGR="apt-get"
-    PKG_EXT="deb"
-    PKG_FILE="${PACKAGE_NAME}-${NUMI_KDE_VERSION:-VERSION}-x86_64.deb"
     ;;
   *)
-    die "unsupported distribution: ${ID:-unknown}. Supported: Fedora, Ubuntu, Debian"
+    die "unsupported distribution: ${ID:-unknown}.
+numi-kde ships RPM packages for Fedora only.
+On other distributions, build from source:
+  https://github.com/DMYTROSKORIN/numi-kde#build-from-source"
     ;;
 esac
 
@@ -86,8 +88,7 @@ else
   log "latest version: $VERSION"
 fi
 
-# Replace VERSION placeholder in filename
-PKG_FILE="${PKG_FILE/VERSION/${VERSION#v}}"
+PKG_FILE="${PACKAGE_NAME}-${VERSION#v}-x86_64.rpm"
 DOWNLOAD_BASE="https://github.com/${REPO}/releases/download/${VERSION}"
 PKG_URL="${DOWNLOAD_BASE}/${PKG_FILE}"
 SUMS_URL="${DOWNLOAD_BASE}/SHA256SUMS"
@@ -101,7 +102,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   log "[dry-run] would download $PKG_URL"
   log "[dry-run] would download $SUMS_URL"
   log "[dry-run] would verify checksum"
-  log "[dry-run] would run: sudo $PKG_MGR install ./$PKG_FILE"
+  log "[dry-run] would run: sudo dnf install ./$PKG_FILE"
   log "[dry-run] would run: numi-kde --probe"
   printf '\n\033[32mDry run complete — no changes made.\033[0m\n'
   exit 0
@@ -124,15 +125,7 @@ cd - >/dev/null
 # ── Install ───────────────────────────────────────────────────────────────────
 step "Installing"
 log "package: $PKG_FILE"
-
-case "$PKG_MGR" in
-  dnf)
-    sudo dnf install -y "$TMPDIR/$PKG_FILE"
-    ;;
-  apt-get)
-    sudo apt-get install -y "$TMPDIR/$PKG_FILE"
-    ;;
-esac
+sudo dnf install -y "$TMPDIR/$PKG_FILE"
 
 # ── Smoke test ────────────────────────────────────────────────────────────────
 step "Verifying installation"
@@ -141,3 +134,4 @@ numi-kde --probe || die "post-install probe failed"
 INSTALLED=$(numi-kde --version)
 printf '\n\033[32m%s installed.\033[0m\n' "$INSTALLED"
 printf 'Launch from the application menu or run: numi-kde\n'
+printf 'To start in background (tray only): numi-kde --hidden\n'

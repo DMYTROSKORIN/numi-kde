@@ -7,6 +7,10 @@
 #include "qalcbridge.h"
 #include "syntaxhighlighter.h"
 #include <libqalculate/qalculate.h>
+
+#ifndef NUMI_KDE_VERSION
+#define NUMI_KDE_VERSION "0.0.0"
+#endif
 #include <QStringList>
 #include <QRegularExpression>
 #include <QSet>
@@ -73,8 +77,10 @@ void QalcBridge::fetchFiatRates() {
     m_networkStatus = NetworkStatus::Fetching;
     emit networkStatusChanged();
 
-    auto *reply = m_nam->get(QNetworkRequest(
-        QUrl(QStringLiteral("https://api.frankfurter.dev/v2/rates?base=USD"))));
+    QNetworkRequest req(QUrl(QStringLiteral("https://api.frankfurter.dev/v2/rates?base=USD")));
+    req.setTransferTimeout(10000);
+    req.setRawHeader("User-Agent", "numi-kde/" NUMI_KDE_VERSION);
+    auto *reply = m_nam->get(req);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         onFiatReply(reply);
     });
@@ -88,10 +94,13 @@ void QalcBridge::fetchCryptoRates() {
     for (const auto &p : CRYPTO_LIST)
         ids << p.first;
 
-    QString url = "https://api.coingecko.com/api/v3/simple/price?ids=" +
-                  ids.join(",") +
-                  "&vs_currencies=usd";
-    auto *reply = m_nam->get(QNetworkRequest(QUrl(url)));
+    const QString url = QStringLiteral("https://api.coingecko.com/api/v3/simple/price?ids=")
+                        + ids.join(QLatin1Char(','))
+                        + QStringLiteral("&vs_currencies=usd");
+    QNetworkRequest req{QUrl(url)};
+    req.setTransferTimeout(10000);
+    req.setRawHeader("User-Agent", "numi-kde/" NUMI_KDE_VERSION);
+    auto *reply = m_nam->get(req);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         onCryptoReply(reply);
     });
@@ -551,9 +560,9 @@ double QalcBridge::usdRateForSymbol(const QString &symbol, bool *ok) const
     po.digit_grouping = DIGIT_GROUPING_LOCALE;
 
     m_calc->clearMessages();
-    MathStructure rateResult = m_calc->calculate(
-        QStringLiteral("1 %1 to USD").arg(normalized).toStdString(), eo);
-    if (hasCalculationError(m_calc) || rateResult.isUndefined() || rateResult.isInfinite()) {
+    MathStructure rateResult;
+    m_calc->calculate(&rateResult, QStringLiteral("1 %1 to USD").arg(normalized).toStdString(), 5000, eo);
+    if (m_calc->aborted() || hasCalculationError(m_calc) || rateResult.isUndefined() || rateResult.isInfinite()) {
         *ok = false;
         return 0.0;
     }
@@ -879,15 +888,17 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             QString rhs = applyPercentPreprocess(assignMatch.captured(2));
             try {
                 m_calc->clearMessages();
-                MathStructure rhsResult = m_calc->calculate(rhs.toStdString(), eo);
-                if (hasCalculationError(m_calc) || rhsResult.isUndefined() || rhsResult.isInfinite()) {
+                MathStructure rhsResult;
+                m_calc->calculate(&rhsResult, rhs.toStdString(), 5000, eo);
+                if (m_calc->aborted() || hasCalculationError(m_calc) || rhsResult.isUndefined() || rhsResult.isInfinite()) {
                     res.ok = false;
                     res.error = "Error";
                 } else {
                     // Set the variable in the calculator.
                     // We use an internal assignment expression to let libqalculate handle the variable update properly.
                     QString assignment = QString("%1 := %2").arg(varName, rhs);
-                    m_calc->calculate(assignment.toStdString(), eo);
+                    MathStructure _assignTmp;
+                    m_calc->calculate(&_assignTmp, assignment.toStdString(), 5000, eo);
 
                     if (rhsResult.isNumber()) {
                         double v = rhsResult.number().floatValue();
@@ -915,7 +926,8 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                             double numericForVar = 0.0;
                             if (parseDisplayNumber(rhsStr, &numericForVar) && std::isfinite(numericForVar)) {
                                 QString numAssignment = QString("%1 := %2").arg(varName).arg(numericForVar, 0, 'g', 15);
-                                m_calc->calculate(numAssignment.toStdString(), eo);
+                                MathStructure _numTmp;
+                                m_calc->calculate(&_numTmp, numAssignment.toStdString(), 5000, eo);
                                 res.hasNumericValue = true;
                                 res.numericValue = numericForVar;
                                 res.totalKey = totalKey;
@@ -957,8 +969,9 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             line = applyPercentPreprocess(line);
             try {
                 m_calc->clearMessages();
-                MathStructure result = m_calc->calculate(line.toStdString(), eo);
-                if (hasCalculationError(m_calc) || result.isUndefined() || result.isInfinite()) {
+                MathStructure result;
+                m_calc->calculate(&result, line.toStdString(), 5000, eo);
+                if (m_calc->aborted() || hasCalculationError(m_calc) || result.isUndefined() || result.isInfinite()) {
                     res.ok = false;
                     res.error = "Error";
                 } else if (result.isNumber()) {

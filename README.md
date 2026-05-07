@@ -15,7 +15,9 @@ Type expressions like notes. Get aligned results instantly. Keep the window smal
 
 ## Install
 
-Latest release:
+> **Supported:** Fedora (RPM). For other distributions — build from source (see below).
+
+Latest release (Fedora):
 
 ```sh
 curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/install.sh | bash
@@ -33,30 +35,45 @@ Install a specific version:
 curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/install.sh | NUMI_KDE_VERSION=v0.1.6 bash
 ```
 
-Dry run:
+Dry run (no changes made):
 
 ```sh
 curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/install.sh | bash -s -- --dry-run
 ```
 
-The installer detects Fedora (or other RPM-based systems), downloads the matching `.rpm` from GitHub Releases, verifies `SHA256SUMS`, installs through `dnf`, and runs `numi-kde --probe`.
+The installer downloads the `.rpm` from GitHub Releases, verifies `SHA256SUMS`, installs via `dnf`, and runs `numi-kde --probe` as a smoke test.
 
-### Manual Build (Ubuntu/Debian/Arch)
+### Build from Source (Arch, Ubuntu, Debian and others)
 
-If you are not on Fedora, you can build and install the application from source:
+If you are not on Fedora, build and install the application from source.
 
-1. **Install Dependencies**:
-   - **Ubuntu/Debian**: `sudo apt install cmake g++ qt6-base-dev qt6-declarative-dev libkf6windowsystem-dev libkf6globalaccel-dev libqalculate-dev`
-   - **Arch**: `sudo pacman -S cmake gcc qt6-base qt6-declarative kwindowsystem kglobalaccel libqalculate`
+**Arch Linux:**
 
-2. **Clone and Build**:
-   ```sh
-   git clone https://github.com/DMYTROSKORIN/numi-kde.git
-   cd numi-kde
-   cmake -S kde -B build -DCMAKE_BUILD_TYPE=Release
-   cmake --build build -j$(nproc)
-   sudo cmake --install build
-   ```
+```sh
+sudo pacman -S cmake gcc qt6-base qt6-declarative kwindowsystem kglobalaccel libqalculate
+```
+
+**Ubuntu 24.04 / Debian Bookworm:**
+
+```sh
+sudo apt install cmake g++ \
+  qt6-base-dev qt6-declarative-dev \
+  libkf6windowsystem-dev libkf6globalaccel-dev \
+  libqalculate-dev
+```
+
+> Ubuntu 22.04 LTS: KF6 packages are not available in the standard repositories.
+> Either use a PPA, or build KF6 from source, or use Ubuntu 24.04+.
+
+**Clone, build and install:**
+
+```sh
+git clone https://github.com/DMYTROSKORIN/numi-kde.git
+cd numi-kde
+cmake -S kde -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
+sudo cmake --install build
+```
 
 ## Why
 
@@ -103,14 +120,24 @@ You keep context. The app does the math.
 
 ## Keyboard
 
-- `Ctrl+Alt+1`: toggle the app globally.
+- `Ctrl+Alt+1`: toggle the app globally (configurable in Settings).
 - `Ctrl+N`: clear the current document.
 - `Tab`: complete units, functions and variables.
 - Click a result: copy it.
 
-## Build From Source
+## Command-line flags
 
-Fedora dependencies:
+| Flag | Description |
+|---|---|
+| `numi-kde` | Launch with the main window visible. |
+| `numi-kde --hidden` | Start silently in the system tray without showing the window. Useful for autostart at login. |
+| `numi-kde --version` | Print the version string and exit. |
+| `numi-kde --probe` | Run a self-test (evaluates `2+2` and `1 km to m`) and exit with code 0 on success. Used by the installer. |
+| `numi-kde --help` | Print usage and exit. |
+
+## Build From Source (Fedora)
+
+Install dependencies:
 
 ```sh
 sudo dnf install -y \
@@ -119,7 +146,7 @@ sudo dnf install -y \
   kf6-kwindowsystem-devel kf6-kglobalaccel-devel
 ```
 
-Build and test:
+Build and run tests:
 
 ```sh
 cmake -S kde -B build/kde
@@ -130,18 +157,28 @@ ctest --test-dir build/kde --output-on-failure
 ./build/kde/numi-kde
 ```
 
-Package:
+Build and package as RPM:
 
 ```sh
 cmake -S kde -B build/kde-release -DCMAKE_BUILD_TYPE=Release
+cmake --build build/kde-release --target numi-kde numi-kde-tests
+ctest --test-dir build/kde-release --output-on-failure
 cmake --build build/kde-release --target package
+# RPM is created at: build/kde-release/numi-kde-<version>-x86_64.rpm
+```
+
+Install the RPM:
+
+```sh
+sudo dnf install -y build/kde-release/numi-kde-*.rpm
+numi-kde --probe
 ```
 
 ## Project Status
 
 - Runtime: C++ / Qt 6 / QML.
 - Engine: `libqalculate`.
-- Packaging: `.rpm` / `.deb` release flow with GitHub-hosted installer scripts.
+- Packaging: `.rpm` for Fedora, built via GitHub Actions and distributed through GitHub Releases.
 - License: Apache License 2.0.
 
 ## Documentation

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(numi-kde-native VERSION 0.1.35 LANGUAGES CXX)
+project(numi-kde-native VERSION 0.1.36 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -130,7 +130,7 @@ set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/DMYTROSKORIN/numi-kde")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/../LICENSE")
 set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-${CMAKE_SYSTEM_PROCESSOR}")
 
-set(CPACK_GENERATOR "RPM;DEB")
+set(CPACK_GENERATOR "RPM")
 
 set(CPACK_RPM_PACKAGE_LICENSE "Apache-2.0")
 set(CPACK_RPM_PACKAGE_GROUP "Applications/Productivity")
@@ -138,10 +138,5 @@ set(CPACK_RPM_PACKAGE_REQUIRES "libqalculate, qt6-qtbase, qt6-qtbase-gui, qt6-qt
 if(KF6GlobalAccel_FOUND)
   string(APPEND CPACK_RPM_PACKAGE_REQUIRES ", kf6-kglobalaccel")
 endif()
-
-set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
-set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "DMYTRO SKORIN <dev@skorin.online>")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 
 include(CPack)
