@@ -20,25 +20,25 @@ Type expressions like notes. Get aligned results instantly. Keep the window smal
 Latest release (Fedora):
 
 ```sh
-curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/DMYTROSKORIN/numi-kde/main/packaging/install.sh | bash
 ```
 
 Uninstall:
 
 ```sh
-curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/DMYTROSKORIN/numi-kde/main/packaging/uninstall.sh | bash
 ```
 
 Install a specific version:
 
 ```sh
-curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/install.sh | NUMI_KDE_VERSION=v0.1.6 bash
+curl -fsSL https://raw.githubusercontent.com/DMYTROSKORIN/numi-kde/main/packaging/install.sh | NUMI_KDE_VERSION=v0.1.6 bash
 ```
 
 Dry run (no changes made):
 
 ```sh
-curl -fsSL https://github.com/DMYTROSKORIN/numi-kde/releases/latest/download/install.sh | bash -s -- --dry-run
+curl -fsSL https://raw.githubusercontent.com/DMYTROSKORIN/numi-kde/main/packaging/install.sh | bash -s -- --dry-run
 ```
 
 The installer downloads the `.rpm` from GitHub Releases, verifies `SHA256SUMS`, installs via `dnf`, and runs `numi-kde --probe` as a smoke test.
