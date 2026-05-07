@@ -149,28 +149,28 @@ sudo dnf install -y \
 Build and run tests:
 
 ```sh
-cmake -S kde -B build/kde
-cmake --build build/kde --target numi-kde numi-kde-tests
-ctest --test-dir build/kde --output-on-failure
-./build/kde/numi-kde --version
-./build/kde/numi-kde --probe
-./build/kde/numi-kde
+cmake -S kde -B kde/build
+cmake --build kde/build --target numi-kde numi-kde-tests
+ctest --test-dir kde/build --output-on-failure
+./kde/build/numi-kde --version
+./kde/build/numi-kde --probe
+./kde/build/numi-kde
 ```
 
 Build and package as RPM:
 
 ```sh
-cmake -S kde -B build/kde-release -DCMAKE_BUILD_TYPE=Release
-cmake --build build/kde-release --target numi-kde numi-kde-tests
-ctest --test-dir build/kde-release --output-on-failure
-cmake --build build/kde-release --target package
-# RPM is created at: build/kde-release/numi-kde-<version>-x86_64.rpm
+cmake -S kde -B kde/build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build kde/build-release --target numi-kde numi-kde-tests -j$(nproc)
+ctest --test-dir kde/build-release --output-on-failure
+cmake --build kde/build-release --target package
+# RPM is created at: kde/build-release/numi-kde-<version>-x86_64.rpm
 ```
 
 Install the RPM:
 
 ```sh
-sudo dnf install -y build/kde-release/numi-kde-*.rpm
+sudo dnf install -y kde/build-release/numi-kde-*.rpm
 numi-kde --probe
 ```
 

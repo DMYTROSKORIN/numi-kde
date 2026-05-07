@@ -23,7 +23,7 @@ Supported distributions:
   Fedora (dnf)
 
 For other distributions, build from source:
-  https://github.com/DMYTROSKORIN/numi-kde#build-from-source
+  https://github.com/DMYTROSKORIN/numi-kde#build-from-source-arch-ubuntu-debian-and-others
 EOF
 }
 
@@ -59,7 +59,7 @@ case "${ID:-}" in
     die "unsupported distribution: ${ID:-unknown}.
 numi-kde ships RPM packages for Fedora only.
 On other distributions, build from source:
-  https://github.com/DMYTROSKORIN/numi-kde#build-from-source"
+  https://github.com/DMYTROSKORIN/numi-kde#build-from-source-arch-ubuntu-debian-and-others"
     ;;
 esac
 
