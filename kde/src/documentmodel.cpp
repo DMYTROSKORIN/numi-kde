@@ -34,6 +34,7 @@ DocumentModel::DocumentModel(QObject *parent)
     QSettings settings("numi-kde", "numi-kde");
     m_history = settings.value("history").value<QVariantList>();
     m_decimalPlaces = settings.value("decimalPlaces", 3).toInt();
+    m_defaultCurrency = settings.value("defaultCurrency", "USD").toString().toUpper();
 
     m_debounceTimer = new QTimer(this);
     m_debounceTimer->setSingleShot(true);
@@ -101,6 +102,19 @@ void DocumentModel::setDecimalPlaces(int places)
     QSettings settings("numi-kde", "numi-kde");
     settings.setValue("decimalPlaces", m_decimalPlaces);
     emit decimalPlacesChanged();
+    evaluate();
+}
+
+QString DocumentModel::defaultCurrency() const { return m_defaultCurrency; }
+
+void DocumentModel::setDefaultCurrency(const QString &currency)
+{
+    const QString upper = currency.trimmed().toUpper();
+    if (m_defaultCurrency == upper) return;
+    m_defaultCurrency = upper.isEmpty() ? QStringLiteral("USD") : upper;
+    QSettings settings("numi-kde", "numi-kde");
+    settings.setValue("defaultCurrency", m_defaultCurrency);
+    emit defaultCurrencyChanged();
     evaluate();
 }
 
@@ -425,6 +439,7 @@ void DocumentModel::reloadKWinRules()
 void DocumentModel::evaluate()
 {
     m_qalc->setDecimalPlaces(m_decimalPlaces);
+    m_qalc->setDefaultCurrency(m_defaultCurrency);
     
     // Cancel previous evaluation if still running. 
     // QalcBridge's mutex will ensure the background thread finishes its current atomic evaluateDocument call.

@@ -168,6 +168,53 @@ Item {
                 }
 
                 ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Text {
+                        text: "Default currency"
+                        color: Window.window ? Window.window.numiText : "#f0f0f3"
+                        font.pixelSize: 13
+                    }
+
+                    Controls.TextField {
+                        id: defaultCurrencyField
+                        Layout.fillWidth: true
+                        text: documentModel ? documentModel.defaultCurrency : "USD"
+                        maximumLength: 5
+                        validator: RegularExpressionValidator { regularExpression: /[A-Za-z]{0,5}/ }
+                        color: Window.window ? Window.window.numiText : "#f0f0f3"
+                        selectedTextColor: "#22242a"
+                        selectionColor: "#6fc4e8"
+                        font.pixelSize: 13
+                        placeholderText: "USD"
+                        placeholderTextColor: Window.window ? Window.window.numiMuted : "#6b6d76"
+                        onEditingFinished: {
+                            if (documentModel)
+                                documentModel.defaultCurrency = text.toUpperCase()
+                            text = documentModel ? documentModel.defaultCurrency : "USD"
+                        }
+                        background: Rectangle {
+                            radius: 4
+                            color: "#1d1f25"
+                            border.color: defaultCurrencyField.activeFocus
+                                          ? (Window.window ? Window.window.numiBlue : "#6fc4e8")
+                                          : "#343742"
+                            border.width: 1
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Used when mixing cryptocurrencies (e.g. 1 BTC + 1 ETH → " +
+                              (documentModel ? documentModel.defaultCurrency : "USD") + ")"
+                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
+                        font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                ColumnLayout {
                     id: hotkeyColumn
                     Layout.fillWidth: true
                     spacing: 8

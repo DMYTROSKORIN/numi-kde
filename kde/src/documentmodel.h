@@ -20,6 +20,7 @@ class DocumentModel : public QAbstractListModel
     Q_PROPERTY(bool hasTotal READ hasTotal NOTIFY linesChanged)
     Q_PROPERTY(QVariantList history READ history NOTIFY historyChanged)
     Q_PROPERTY(int decimalPlaces READ decimalPlaces WRITE setDecimalPlaces NOTIFY decimalPlacesChanged)
+    Q_PROPERTY(QString defaultCurrency READ defaultCurrency WRITE setDefaultCurrency NOTIFY defaultCurrencyChanged)
     Q_PROPERTY(double total READ total NOTIFY linesChanged)
     Q_PROPERTY(bool autostart READ autostart WRITE setAutostart NOTIFY autostartChanged)
     Q_PROPERTY(int networkStatus READ networkStatus NOTIFY networkStatusChanged)
@@ -46,6 +47,8 @@ public:
     QVariantList history() const;
     int decimalPlaces() const;
     void setDecimalPlaces(int places);
+    QString defaultCurrency() const;
+    void setDefaultCurrency(const QString &currency);
     double total() const;
     bool autostart() const;
     void setAutostart(bool enable);
@@ -72,6 +75,7 @@ signals:
     void linesChanged();
     void historyChanged();
     void decimalPlacesChanged();
+    void defaultCurrencyChanged();
     void autostartChanged();
     void networkStatusChanged();
 
@@ -90,6 +94,7 @@ private:
     QalcBridge *m_qalc;
     QVariantList m_history;
     int m_decimalPlaces = 3;
+    QString m_defaultCurrency = QStringLiteral("USD");
     double m_total = 0.0;
     bool m_kwinRuleApplied = false;
     bool m_keepAbove = true;

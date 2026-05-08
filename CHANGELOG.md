@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.38 - 2026-05-08
+
+### Features
+
+- **Default currency setting**: added a "Default currency" field in Settings. Controls
+  the output currency for mixed-cryptocurrency expressions where no explicit target is
+  given (e.g. `1 BTC + 1 ETH` → `USD` by default). Accepts any supported currency code
+  (USD, EUR, UAH, …). Persisted across sessions.
+
 ## 0.1.37 - 2026-05-08
 
 ### Fixes

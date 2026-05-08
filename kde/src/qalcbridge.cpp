@@ -245,6 +245,11 @@ void QalcBridge::setDecimalPlaces(int places) {
     m_decimalPlaces = places;
 }
 
+void QalcBridge::setDefaultCurrency(const QString &currency) {
+    const QString upper = currency.trimmed().toUpper();
+    m_defaultCurrency = upper.isEmpty() ? QStringLiteral("USD") : upper;
+}
+
 // Format a number: no trailing zeros for integers, max m_decimalPlaces otherwise.
 // Uses system locale for thousands separators.
 static QString smartFormat(double value, int maxDecimals) {
@@ -782,14 +787,36 @@ bool QalcBridge::tryEvaluateCurrencyExpr(const QString &rawExpr,
     if (!hasAnyCurrency)
         return false;
 
-    // Determine output currency: explicit "to CURR" wins; else first tagged term
+    // Determine output currency:
+    //   1. Explicit "to CURR" wins.
+    //   2. When terms mix different currencies and the first tagged term is a
+    //      cryptocurrency, fall back to m_defaultCurrency (e.g. "1 BTC + 1 ETH" → USD).
+    //   3. Otherwise use the first tagged term's currency.
     QString outputCurrency = targetCurrency;
     if (outputCurrency.isEmpty()) {
+        // Collect distinct currency tags across all terms
+        QString firstCurrency;
+        QSet<QString> distinctCurrencies;
         for (const auto &t : terms) {
             if (!t.second.currency.isEmpty()) {
-                outputCurrency = t.second.currency;
-                break;
+                if (firstCurrency.isEmpty())
+                    firstCurrency = t.second.currency;
+                distinctCurrencies.insert(t.second.currency);
             }
+        }
+
+        if (firstCurrency.isEmpty())
+            return false;
+
+        // When the first currency is a crypto and there are multiple distinct
+        // currencies in the expression, use the configured default output currency.
+        if (distinctCurrencies.size() > 1
+                && m_cryptoUsdRates.contains(firstCurrency)
+                && !m_defaultCurrency.isEmpty()
+                && hasUsdRateForSymbol(m_defaultCurrency)) {
+            outputCurrency = m_defaultCurrency;
+        } else {
+            outputCurrency = firstCurrency;
         }
     }
     if (outputCurrency.isEmpty())

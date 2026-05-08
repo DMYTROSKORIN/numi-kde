@@ -41,6 +41,7 @@ public:
     void fetchCryptoRates();
     void applyFiatRates(const QJsonObject &rates);
     void applyCryptoRates(const QJsonObject &rates);
+    void setDefaultCurrency(const QString &currency);
 
     enum class NetworkStatus { Idle, Fetching, Success, Error };
     NetworkStatus networkStatus() const { return m_networkStatus; }
@@ -69,6 +70,9 @@ private:
     // Per-document variable state: populated during evaluateDocument, cleared each run.
     QHash<QString, QString> m_varCurrencyTag;  // varName → currency symbol (e.g. "USD")
     QHash<QString, double>  m_varNumericValue; // varName → numeric value in that currency
+    // Fallback output currency for mixed-crypto expressions (e.g. "1 BTC + 1 ETH").
+    // Defaults to "USD". Configurable via Settings.
+    QString m_defaultCurrency = QStringLiteral("USD");
     mutable QMutex m_calcMutex;
     NetworkStatus m_networkStatus = NetworkStatus::Idle;
 };
