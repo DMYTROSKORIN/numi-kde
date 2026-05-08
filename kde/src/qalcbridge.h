@@ -55,6 +55,7 @@ private slots:
 
 private:
     QString convertCurrencyExpression(const QString &expression, bool *converted) const;
+    bool tryEvaluateCurrencyExpr(const QString &expr, QString *outResult, QString *outCurrency) const;
     double usdRateForSymbol(const QString &symbol, bool *ok) const;
     bool hasUsdRateForSymbol(const QString &symbol) const;
 
@@ -65,6 +66,9 @@ private:
     QTimer *m_ratesRefreshTimer;
     QHash<QString, double> m_fiatUsdRates;
     QHash<QString, double> m_cryptoUsdRates;
+    // Per-document variable state: populated during evaluateDocument, cleared each run.
+    QHash<QString, QString> m_varCurrencyTag;  // varName → currency symbol (e.g. "USD")
+    QHash<QString, double>  m_varNumericValue; // varName → numeric value in that currency
     mutable QMutex m_calcMutex;
     NetworkStatus m_networkStatus = NetworkStatus::Idle;
 };

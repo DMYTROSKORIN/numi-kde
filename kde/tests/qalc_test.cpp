@@ -160,6 +160,65 @@ static void runSuite(QalcBridge &bridge) {
               results.size() >= 2 ? results[1].result : "size<2",
               "single computed number > 200");
     }
+
+    // ── Currency variable arithmetic (m_varCurrencyTag) ──────────────────────
+    {
+        // A = 500 AED to USD → A has tag USD (125); A + 200 USD must be "USD 325"
+        auto r = bridge.evaluateDocument("A = 500 AED to USD\nA + 200 USD");
+        bool ok = r.size() == 2
+               && r[1].ok
+               && !r[1].result.contains('+')
+               && r[1].result.startsWith("USD ");
+        check("VAR + N CURR: A + 200 USD gives single USD result",
+              ok, r.size() >= 2 ? r[1].result : "size<2", "USD 325");
+    }
+    {
+        // A + USD 200 (prefix style currency)
+        auto r = bridge.evaluateDocument("A = 500 AED to USD\nA + USD 200");
+        bool ok = r.size() == 2
+               && r[1].ok
+               && !r[1].result.contains('+')
+               && r[1].result.startsWith("USD ");
+        check("VAR + CURR N: A + USD 200 gives single USD result",
+              ok, r.size() >= 2 ? r[1].result : "size<2", "USD 325");
+    }
+    {
+        // A = 500 AED to USD (125 USD); A + 200 USD = USD 325; result carries tag
+        auto r = bridge.evaluateDocument("A = 500 AED to USD\nA + 200 USD");
+        bool ok = r.size() == 2 && r[1].ok && r[1].result == "USD 325";
+        check("VAR + N CURR: exact result is USD 325",
+              ok, r.size() >= 2 ? r[1].result : "size<2", "USD 325");
+    }
+    {
+        // B + C where both have same tag (EUR)
+        // B = 500 AED to EUR = 500 * 0.25 / 1.25 = 100 EUR
+        // C = 300 AED to EUR = 300 * 0.25 / 1.25 = 60 EUR
+        // B + C = 160 EUR
+        auto r = bridge.evaluateDocument("B = 500 AED to EUR\nC = 300 AED to EUR\nB + C");
+        bool ok = r.size() == 3
+               && r[2].ok
+               && !r[2].result.contains('+')
+               && r[2].result.startsWith("EUR ");
+        check("VAR1 + VAR2 same currency gives single result",
+              ok, r.size() >= 3 ? r[2].result : "size<3", "EUR 160");
+    }
+    {
+        // Assignment with conversion in RHS: A = 500 AED to EUR
+        // 500 AED * 0.25 USD/AED / 1.25 USD/EUR = 100 EUR
+        auto r = bridge.evaluateDocument("A = 500 AED to EUR");
+        bool ok = r.size() == 1 && r[0].ok && r[0].result == "EUR 100";
+        check("assignment RHS conversion: A = 500 AED to EUR gives EUR 100",
+              ok, r.size() >= 1 ? r[0].result : "size<1", "EUR 100");
+    }
+    {
+        // Multi-currency sum in assignment RHS: A = 500 AED + 400 AED (same currency)
+        // 500 * 0.25 + 400 * 0.25 = 225 USD
+        // (both are AED, output in AED: 500 + 400 = 900 AED)
+        auto r = bridge.evaluateDocument("A = 500 AED + 400 AED");
+        bool ok = r.size() == 1 && r[0].ok && r[0].result == "AED 900";
+        check("assignment RHS same-currency sum: A = 500 AED + 400 AED = AED 900",
+              ok, r.size() >= 1 ? r[0].result : "size<1", "AED 900");
+    }
     {
         // Integers must never show trailing .000 in results.
         auto results = bridge.evaluateDocument("200 + 0");

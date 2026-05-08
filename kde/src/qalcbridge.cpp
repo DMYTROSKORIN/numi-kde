@@ -611,6 +611,220 @@ QString QalcBridge::convertCurrencyExpression(const QString &expression, bool *c
     return QStringLiteral("%1 %2").arg(to, smartFormat(amount * fromRate / toRate, m_decimalPlaces));
 }
 
+// Unified currency evaluator.
+//
+// Parses `expr` as a sum of signed terms where each term is one of:
+//   NUMBER CURRENCY   (e.g. "200 USD", "1 BTC")
+//   CURRENCY NUMBER   (e.g. "USD 200")
+//   NUMBER            (dimensionless — treated as output currency units)
+//   VARIABLE          (resolved via m_varCurrencyTag / m_varNumericValue)
+//
+// An optional trailing "to CURR" / "in CURR" overrides the output currency.
+// Output currency defaults to the first term that carries a currency tag.
+//
+// Returns false when the expression contains no currency context at all
+// (pure math / dates / physics units) so it safely falls through to libqalculate.
+bool QalcBridge::tryEvaluateCurrencyExpr(const QString &rawExpr,
+                                          QString *outResult,
+                                          QString *outCurrency) const
+{
+    QString expr = rawExpr.trimmed();
+    if (expr.isEmpty())
+        return false;
+
+    // Strip trailing "to CURR" / "in CURR"
+    QString targetCurrency;
+    {
+        static QRegularExpression toRx(
+            "\\b(?:to|in)\\s+([A-Za-z]{2,5})\\s*$",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = toRx.match(expr);
+        if (m.hasMatch()) {
+            const QString c = m.captured(1).toUpper();
+            if (hasUsdRateForSymbol(c)) {
+                targetCurrency = c;
+                expr = expr.left(m.capturedStart()).trimmed();
+            }
+        }
+    }
+
+    // Split into signed chunks on "  +  " or "  -  " (operator surrounded by spaces).
+    // Leading unary sign is consumed first.
+    QVector<QPair<int, QString>> chunks; // (sign, chunk_text)
+    {
+        int initialSign = 1;
+        if (!expr.isEmpty() && expr[0] == QLatin1Char('-')) {
+            initialSign = -1;
+            expr = expr.mid(1).trimmed();
+        } else if (!expr.isEmpty() && expr[0] == QLatin1Char('+')) {
+            expr = expr.mid(1).trimmed();
+        }
+
+        static QRegularExpression opRx(R"(\s+([+-])\s+)");
+        QRegularExpressionMatchIterator it = opRx.globalMatch(expr);
+        int start = 0;
+        int nextSign = initialSign;
+        QStringList parts;
+        QVector<int> signs;
+
+        while (it.hasNext()) {
+            const auto m = it.next();
+            parts.append(expr.mid(start, m.capturedStart() - start).trimmed());
+            signs.append(nextSign);
+            nextSign = (m.captured(1) == QLatin1String("-")) ? -1 : 1;
+            start = m.capturedEnd();
+        }
+        parts.append(expr.mid(start).trimmed());
+        signs.append(nextSign);
+
+        for (int i = 0; i < parts.size(); ++i)
+            if (!parts[i].isEmpty())
+                chunks.append({signs[i], parts[i]});
+    }
+
+    if (chunks.isEmpty())
+        return false;
+
+    // Parse each chunk into (amount, currency).
+    struct Term { double amount; QString currency; };
+    QVector<QPair<int, Term>> terms;
+    bool hasAnyCurrency = false;
+
+    static QRegularExpression numCurrRx("^(\\d+(?:[.,]\\d+)?)\\s+([A-Za-z]{3,5})$");
+    static QRegularExpression currNumRx("^([A-Za-z]{3,5})\\s+(\\d+(?:[.,]\\d+)?)$");
+    static QRegularExpression plainNumRx("^([+-]?\\d+(?:[.,]\\d+)?)$");
+
+    for (const auto &chunk : chunks) {
+        const QString &s = chunk.second;
+        Term t;
+
+        // 1. Variable with currency tag
+        if (m_varCurrencyTag.contains(s)) {
+            t.amount   = m_varNumericValue.value(s, 0.0);
+            t.currency = m_varCurrencyTag.value(s);
+            hasAnyCurrency = true;
+            terms.append({chunk.first, t});
+            continue;
+        }
+
+        // 2. Variable without currency tag (plain numeric variable)
+        if (m_varNumericValue.contains(s)) {
+            t.amount   = m_varNumericValue.value(s);
+            t.currency = QString();
+            terms.append({chunk.first, t});
+            continue;
+        }
+
+        // 3. NUMBER CURRENCY  (e.g. "200 USD", "1 BTC")
+        {
+            const auto m = numCurrRx.match(s);
+            if (m.hasMatch()) {
+                const QString curr = m.captured(2).toUpper();
+                if (hasUsdRateForSymbol(curr)) {
+                    QString n = m.captured(1);
+                    n.replace(QLatin1Char(','), QLatin1Char('.'));
+                    bool ok = false;
+                    const double v = n.toDouble(&ok);
+                    if (ok) {
+                        t.amount = v;
+                        t.currency = curr;
+                        hasAnyCurrency = true;
+                        terms.append({chunk.first, t});
+                        continue;
+                    }
+                }
+            }
+        }
+
+        // 4. CURRENCY NUMBER  (e.g. "USD 200", "BTC 1")
+        {
+            const auto m = currNumRx.match(s);
+            if (m.hasMatch()) {
+                const QString curr = m.captured(1).toUpper();
+                if (hasUsdRateForSymbol(curr)) {
+                    QString n = m.captured(2);
+                    n.replace(QLatin1Char(','), QLatin1Char('.'));
+                    bool ok = false;
+                    const double v = n.toDouble(&ok);
+                    if (ok) {
+                        t.amount = v;
+                        t.currency = curr;
+                        hasAnyCurrency = true;
+                        terms.append({chunk.first, t});
+                        continue;
+                    }
+                }
+            }
+        }
+
+        // 5. Plain NUMBER (dimensionless — inherits output currency)
+        {
+            const auto m = plainNumRx.match(s);
+            if (m.hasMatch()) {
+                QString n = m.captured(1);
+                n.replace(QLatin1Char(','), QLatin1Char('.'));
+                bool ok = false;
+                const double v = n.toDouble(&ok);
+                if (ok) {
+                    t.amount = v;
+                    t.currency = QString();
+                    terms.append({chunk.first, t});
+                    continue;
+                }
+            }
+        }
+
+        // Unrecognised chunk — not a currency expression we can handle
+        return false;
+    }
+
+    // No currency context at all → let libqalculate handle it
+    if (!hasAnyCurrency)
+        return false;
+
+    // Determine output currency: explicit "to CURR" wins; else first tagged term
+    QString outputCurrency = targetCurrency;
+    if (outputCurrency.isEmpty()) {
+        for (const auto &t : terms) {
+            if (!t.second.currency.isEmpty()) {
+                outputCurrency = t.second.currency;
+                break;
+            }
+        }
+    }
+    if (outputCurrency.isEmpty())
+        return false;
+
+    bool outRateOk = false;
+    const double outRate = usdRateForSymbol(outputCurrency, &outRateOk);
+    if (!outRateOk || outRate <= 0.0)
+        return false;
+
+    // Sum all terms in output currency
+    double total = 0.0;
+    for (const auto &t : terms) {
+        const double  amount = t.second.amount;
+        const QString &curr  = t.second.currency;
+
+        double inOutput;
+        if (curr.isEmpty() || curr == outputCurrency) {
+            inOutput = amount;
+        } else {
+            bool termOk = false;
+            const double termRate = usdRateForSymbol(curr, &termOk);
+            if (!termOk || termRate <= 0.0)
+                return false;
+            inOutput = amount * termRate / outRate;
+        }
+        total += t.first * inOutput;
+    }
+
+    *outResult = outputCurrency + QLatin1Char(' ') + smartFormat(total, m_decimalPlaces);
+    if (outCurrency)
+        *outCurrency = outputCurrency;
+    return true;
+}
+
 QString QalcBridge::highlightLine(const QString &line) const
 {
     return m_highlighter->highlightLine(line, {});
@@ -618,6 +832,10 @@ QString QalcBridge::highlightLine(const QString &line) const
 
 QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     QMutexLocker locker(&m_calcMutex);
+
+    // Clear per-document variable state from any previous run.
+    m_varCurrencyTag.clear();
+    m_varNumericValue.clear();
 
     // Clear user-defined variables from previous evaluations.
     // We collect names first to avoid iterator invalidation during removal.
@@ -699,6 +917,21 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         // Support ':' as division operator (e.g. 2:4 -> 2/4)
         static QRegularExpression colonDivRegex("(?<=\\d)\\s*:\\s*(?=\\d)");
         line.replace(colonDivRegex, "/");
+
+        // Unified currency evaluator: handles variables with currency tags, multi-currency
+        // sums, cross-crypto arithmetic, and explicit conversions — all via our rate tables.
+        // Must run before libqalculate to prevent it from choosing an arbitrary output unit.
+        {
+            QString currResult, currTag;
+            if (tryEvaluateCurrencyExpr(line.trimmed(), &currResult, &currTag)) {
+                res.ok = true;
+                res.result = currResult;
+                res.hasNumericValue = parseDisplayNumber(currResult, &res.numericValue);
+                res.totalKey = totalKey;
+                results.append(res);
+                continue;
+            }
+        }
 
         // Numi-style arithmetic: "CURRENCY AMOUNT ± NUMBER" → compute directly.
         // We bypass libqalculate here because its print() converts currency
@@ -886,6 +1119,35 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             }
 
             QString rhs = applyPercentPreprocess(assignMatch.captured(2));
+
+            // Try currency evaluation on the RHS before libqalculate.
+            // This handles "VAR = N CURR to CURR2", "VAR = N CURR1 + M CURR2", etc.
+            {
+                QString currResult, currTag;
+                if (tryEvaluateCurrencyExpr(rhs, &currResult, &currTag)) {
+                    double numVal = 0.0;
+                    parseDisplayNumber(currResult, &numVal);
+                    if (std::isfinite(numVal)) {
+                        m_varCurrencyTag[varName]  = currTag;
+                        m_varNumericValue[varName] = numVal;
+                        // Store as plain number in libqalculate so arithmetic with
+                        // other variables continues to work.
+                        const QString qa = QStringLiteral("%1 := %2")
+                                            .arg(varName)
+                                            .arg(numVal, 0, 'g', 15);
+                        MathStructure tmp;
+                        m_calc->calculate(&tmp, qa.toStdString(), 5000, eo);
+                        res.ok = true;
+                        res.result = currResult;
+                        res.hasNumericValue = true;
+                        res.numericValue = numVal;
+                        res.totalKey = totalKey;
+                        results.append(res);
+                        continue;
+                    }
+                }
+            }
+
             try {
                 m_calc->clearMessages();
                 MathStructure rhsResult;
@@ -906,6 +1168,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                             res.ok = false;
                             res.error = "Error";
                         } else {
+                            m_varNumericValue[varName] = v;
                             res.result = smartFormat(v, m_decimalPlaces);
                             res.hasNumericValue = true;
                             res.numericValue = v;
@@ -919,12 +1182,14 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                         if (!res.ok) {
                             res.error = "Error";
                         } else {
-                            // Re-assign with the plain numeric value so that arithmetic like
-                            // A+200 works when A holds a currency-valued result (e.g. A = 500 AED to USD).
-                            // Without this, libqalculate stores the expression and later can't add
-                            // a dimensionless number to a currency-tagged value.
+                            // Re-assign as plain number so downstream arithmetic works.
+                            // Currency-bearing RHS expressions are now intercepted above by
+                            // tryEvaluateCurrencyExpr; this branch handles non-currency
+                            // non-scalar results from libqalculate (e.g. unit conversions
+                            // that libqalculate resolved on its own).
                             double numericForVar = 0.0;
                             if (parseDisplayNumber(rhsStr, &numericForVar) && std::isfinite(numericForVar)) {
+                                m_varNumericValue[varName] = numericForVar;
                                 QString numAssignment = QString("%1 := %2").arg(varName).arg(numericForVar, 0, 'g', 15);
                                 MathStructure _numTmp;
                                 m_calc->calculate(&_numTmp, numAssignment.toStdString(), 5000, eo);
