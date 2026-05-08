@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.39 - 2026-05-08
+
+### Fixes
+
+- **Settings panel width**: the settings drawer now scales with the window width
+  (`min(windowWidth, 380 px)`) instead of being fixed at 280 px.
+- **Cursor alignment**: switched highlight-layer row height from `fontMetrics.height`
+  to `fontMetrics.lineSpacing` so the HTML overlay and the plain-text cursor stay
+  in sync across all font sizes. Cursor delegate now has an explicit `height` equal
+  to `lineSpacing`.
+- **Default currency for fiat mixes**: the default-currency setting now applies to
+  all mixed-currency expressions (e.g. `4000 EUR + 500 USD + 34000 AED → USD`),
+  not only to cross-crypto sums.
+- **Operators without spaces**: currency expressions like `D+F` or `1 BTC+1 ETH`
+  (operator not surrounded by spaces) are now parsed correctly.
+
 ## 0.1.38 - 2026-05-08
 
 ### Features

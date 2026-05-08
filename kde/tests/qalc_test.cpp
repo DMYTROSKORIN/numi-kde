@@ -482,8 +482,18 @@ static void runSuite(QalcBridge &bridge) {
               results.size() >= 1 ? results[0].result : "error", expected.toUtf8().constData());
     }
     {
+        // Mixed currencies now output in the default currency (USD by default).
+        // 500 EUR * 1.25 USD/EUR - 100 USD = 625 - 100 = 525 USD
         auto results = bridge.evaluateDocument("500 EUR - 100 USD");
-        check("cross-currency uses injected Frankfurter USD rates",
+        check("cross-currency uses default currency as output",
+              results.size() == 1 && results[0].result == "USD 525",
+              results.size() >= 1 ? results[0].result : "error", "USD 525");
+    }
+    {
+        // Explicit "to CURR" still overrides default currency.
+        // 500 EUR - 100 USD → EUR: 500 - 100/1.25 = 500 - 80 = 420 EUR
+        auto results = bridge.evaluateDocument("500 EUR - 100 USD to EUR");
+        check("explicit to EUR overrides default currency in mixed expression",
               results.size() == 1 && results[0].result == "EUR 420",
               results.size() >= 1 ? results[0].result : "error", "EUR 420");
     }

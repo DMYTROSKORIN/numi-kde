@@ -665,7 +665,7 @@ bool QalcBridge::tryEvaluateCurrencyExpr(const QString &rawExpr,
             expr = expr.mid(1).trimmed();
         }
 
-        static QRegularExpression opRx(R"(\s+([+-])\s+)");
+        static QRegularExpression opRx(R"((?<=[A-Za-z\d])\s*([+-])\s*(?=[A-Za-z\d(]))");
         QRegularExpressionMatchIterator it = opRx.globalMatch(expr);
         int start = 0;
         int nextSign = initialSign;
@@ -808,10 +808,8 @@ bool QalcBridge::tryEvaluateCurrencyExpr(const QString &rawExpr,
         if (firstCurrency.isEmpty())
             return false;
 
-        // When the first currency is a crypto and there are multiple distinct
-        // currencies in the expression, use the configured default output currency.
+        // When terms mix different currencies, use the configured default output currency.
         if (distinctCurrencies.size() > 1
-                && m_cryptoUsdRates.contains(firstCurrency)
                 && !m_defaultCurrency.isEmpty()
                 && hasUsdRateForSymbol(m_defaultCurrency)) {
             outputCurrency = m_defaultCurrency;

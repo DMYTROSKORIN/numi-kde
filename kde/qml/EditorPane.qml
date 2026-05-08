@@ -15,7 +15,7 @@ Controls.ScrollView {
     readonly property alias flickable: editor
 
     // lineH comes from font metrics so overlay rows match TextArea line height
-    readonly property real lineH: fontMetrics.height
+    readonly property real lineH: fontMetrics.lineSpacing
     readonly property string monoFont: "Menlo, Monaco, Consolas, monospace"
     property int monoSize: 16
 
@@ -70,6 +70,7 @@ Controls.ScrollView {
             selectionColor: "#6643505b"
             cursorDelegate: Rectangle {
                 width: 2
+                height: root.lineH
                 color: root.textColor
                 visible: editor.cursorVisible
             }
