@@ -695,8 +695,8 @@ bool QalcBridge::tryEvaluateCurrencyExpr(const QString &rawExpr,
     QVector<QPair<int, Term>> terms;
     bool hasAnyCurrency = false;
 
-    static QRegularExpression numCurrRx("^(\\d+(?:[.,]\\d+)?)\\s+([A-Za-z]{3,5})$");
-    static QRegularExpression currNumRx("^([A-Za-z]{3,5})\\s+(\\d+(?:[.,]\\d+)?)$");
+    static QRegularExpression numCurrRx("^(\\d+(?:[.,]\\d+)?)\\s*([A-Za-z]{3,5})$");
+    static QRegularExpression currNumRx("^([A-Za-z]{3,5})\\s*(\\d+(?:[.,]\\d+)?)$");
     static QRegularExpression plainNumRx("^([+-]?\\d+(?:[.,]\\d+)?)$");
 
     for (const auto &chunk : chunks) {
