@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.40 - 2026-05-09
+
+### Fixes
+
+- **No-space currency parsing**: expressions like `1BTC`, `1.5ETH`, `USD100` now
+  parse correctly — regex changed from `\s+` to `\s*` in `numCurrRx`/`currNumRx`.
+
+### UI
+
+- **Animated cursor**: cursor is now accent-yellow, vertically centered
+  (`height = ascent + descent`), with a smooth blink cycle — 500 ms pause →
+  150 ms fade-out → 350 ms pause → 150 ms fade-in.
+
 ## 0.1.39 - 2026-05-08
 
 ### Fixes
