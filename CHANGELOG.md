@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.37 - 2026-05-08
+
+### Fixes
+
+- **Currency variable arithmetic**: variables assigned a currency-valued result
+  (e.g. `A = 500 AED to USD`) now carry a currency tag. Subsequent expressions
+  correctly produce labelled currency results in all forms:
+  - `A + 200` → `USD 325` (was `336.147` without the USD label)
+  - `A + 200 USD` / `A + USD 200` → `USD 325` (was unsimplified `USD 200 + 136.147`)
+  - `B + C` where both variables hold currency values → correct single-currency sum
+- **Assignment RHS currency handling**: expressions like `A = 10 BTC to EUR` or
+  `A = 1 BTC + 1 ETH` now go through the custom currency evaluator instead of
+  libqalculate directly. `A = 10 BTC to EUR` no longer returns Error; multi-crypto
+  sums no longer output a random fiat currency (EUR) chosen by libqalculate's
+  internal unit registry.
+
 ## 0.1.36 - 2026-05-07
 
 ### Changes
