@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.43 - 2026-05-09
+
+### Fixes
+
+- **History — Ctrl+N**: current session is now saved to history before the document
+  is cleared, so content typed before Ctrl+N is no longer lost.
+- **History — hide window**: current session is now saved when the window is hidden
+  (hotkey, `–` or `×` button), not only on app quit or opening the history panel.
+
 ## 0.1.42 - 2026-05-09
 
 ### UI

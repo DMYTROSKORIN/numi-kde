@@ -84,6 +84,7 @@ Controls.ApplicationWindow {
     }
 
     function hideWindow() {
+        if (typeof documentModel !== "undefined") documentModel.saveSession()
         restorePositionTimer.stop()
         positionSaveEnabled = false
         root.hide()

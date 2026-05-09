@@ -71,6 +71,7 @@ Item {
         sequence: "Ctrl+N"
         context: Qt.ApplicationShortcut
         onActivated: {
+            if (documentModel) documentModel.saveSession()
             page.sourceText = ""
             documentModel.source = ""
         }
