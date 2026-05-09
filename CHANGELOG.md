@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.44 - 2026-05-09
+
+### UI
+
+- **Settings panel**: version label is now a clickable link to the GitHub project page;
+  turns blue and underlined on hover (acts as About).
+
 ## 0.1.43 - 2026-05-09
 
 ### Fixes

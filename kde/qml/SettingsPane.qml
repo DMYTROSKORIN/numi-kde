@@ -333,10 +333,18 @@ Item {
             Layout.fillWidth: true
             Layout.bottomMargin: 10
             text: "Numi-KDE v" + (documentModel ? documentModel.version : "unknown")
-            color: Window.window ? Window.window.numiMuted : "#6b6d76"
+            color: aboutHover.hovered
+                   ? (Window.window ? Window.window.numiBlue : "#6fc4e8")
+                   : (Window.window ? Window.window.numiMuted : "#6b6d76")
             font.pixelSize: 11
+            font.underline: aboutHover.hovered
             horizontalAlignment: Text.AlignHCenter
             opacity: 0.8
+
+            HoverHandler { id: aboutHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler {
+                onTapped: Qt.openUrlExternally("https://github.com/DMYTROSKORIN/numi-kde")
+            }
         }
     }
 }
