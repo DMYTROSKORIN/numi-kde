@@ -171,10 +171,39 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    Text {
-                        text: "Default currency"
-                        color: Window.window ? Window.window.numiText : "#f0f0f3"
-                        font.pixelSize: 13
+                    RowLayout {
+                        spacing: 6
+                        Text {
+                            text: "Default currency"
+                            color: Window.window ? Window.window.numiText : "#f0f0f3"
+                            font.pixelSize: 13
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        Item {
+                            width: 16
+                            height: 16
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 14; height: 14; radius: 7
+                                color: "transparent"
+                                border.color: Window.window ? Window.window.numiMuted : "#6b6d76"
+                                border.width: 1
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                text: "?"
+                                color: Window.window ? Window.window.numiMuted : "#6b6d76"
+                                font.pixelSize: 10
+                                font.weight: Font.DemiBold
+                            }
+                            HoverHandler { id: currencyHelpHover }
+                            Controls.ToolTip {
+                                visible: currencyHelpHover.hovered
+                                text: "Used when mixing cryptocurrencies\n(e.g. 1 BTC + 1 ETH → " +
+                                      (documentModel ? documentModel.defaultCurrency : "USD") + ")"
+                                delay: 200
+                            }
+                        }
                     }
 
                     Controls.TextField {
@@ -204,14 +233,6 @@ Item {
                         }
                     }
 
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Used when mixing cryptocurrencies (e.g. 1 BTC + 1 ETH → " +
-                              (documentModel ? documentModel.defaultCurrency : "USD") + ")"
-                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
-                        font.pixelSize: 11
-                        wrapMode: Text.WordWrap
-                    }
                 }
 
                 ColumnLayout {

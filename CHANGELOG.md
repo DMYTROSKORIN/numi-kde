@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.41 - 2026-05-09
+
+### UI
+
+- **Settings panel**: removed hint text below "Default currency" field; tooltip with the same
+  hint is now shown on hover over the `?` icon next to the label — keeps the panel narrower.
+
 ## 0.1.40 - 2026-05-09
 
 ### Fixes
