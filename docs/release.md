@@ -80,54 +80,35 @@ git rm --cached *.rpm *.deb SHA256SUMS 2>/dev/null || true
 1. Fix the issue and keep unrelated refactors out.
 2. Bump `project(... VERSION X.Y.Z ...)` in `kde/CMakeLists.txt`.
 3. Add a top entry to `CHANGELOG.md`.
-4. Build, test and package:
+4. (Optional) Verify locally before tagging:
 
 ```sh
-# Configure release build
-cmake -S kde -B kde/build-release -DCMAKE_BUILD_TYPE=Release
-
-# Build app + tests
-cmake --build kde/build-release --target numi-kde numi-kde-tests -j$(nproc)
-
-# Run tests
-ctest --test-dir kde/build-release --output-on-failure
-
-# Smoke test the binary
-./kde/build-release/numi-kde --probe
-
-# Build RPM
-cmake --build kde/build-release --target package
-# Result: kde/build-release/numi-kde-X.Y.Z-x86_64.rpm
+cmake -S kde -B kde/build -DCMAKE_BUILD_TYPE=Release
+cmake --build kde/build --target numi-kde numi-kde-tests -j$(nproc)
+./kde/build/numi-kde-tests
 ```
 
-5. Verify the RPM installs and probes cleanly (on a Fedora system):
-
-```sh
-sudo dnf install -y kde/build-release/numi-kde-*.rpm
-numi-kde --version
-numi-kde --probe
-sudo dnf remove -y numi-kde
-```
-
-6. Commit without AI co-author metadata:
+5. Commit and push to main:
 
 ```sh
 git add kde/CMakeLists.txt CHANGELOG.md
 # (do NOT git add build artifacts)
-git commit -m "release: vX.Y.Z ..."
+git commit -m "vX.Y.Z: <description>"
 git push origin main
 ```
 
-7. Create the GitHub Release (this also creates the tag, which triggers CI):
+6. Tag and push — **this triggers CI and publishes the release:**
 
 ```sh
-gh release create vX.Y.Z \
-  kde/build-release/numi-kde-X.Y.Z-x86_64.rpm \
-  --title "vX.Y.Z" \
-  --notes "..."
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-GitHub Actions triggers on the tag push, builds the RPM independently in a clean
-Fedora container, and uploads `numi-kde-X.Y.Z-x86_64.rpm`, `install.sh`,
-`uninstall.sh`, and `SHA256SUMS` to the release automatically. You do not need to
-generate or upload `SHA256SUMS` manually — CI overwrites it.
+CI builds the RPM in a clean Fedora container, runs all tests, and publishes the
+GitHub Release with `numi-kde-X.Y.Z-x86_64.rpm`, `install.sh`, `uninstall.sh`,
+and `SHA256SUMS` — all in one atomic step.
+
+> **Never** use `gh release create <file>` or upload the RPM manually.
+> Doing so creates a race condition: the local RPM is uploaded immediately, then CI
+> replaces it with the CI-built one while generating SHA256SUMS — leaving a window
+> where `install.sh` downloads the RPM but gets a 404 on SHA256SUMS.
