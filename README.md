@@ -14,11 +14,6 @@
 
 ![Numi-KDE — inline /help screen](docs/screenshot.png)
 
-> [!CAUTION]
-> **Early development — expect bugs.** The app is usable but not production-ready. Features may change or break between releases. Test before relying on it for real work.
-
----
-
 ## What is this?
 
 Most calculators force you into buttons, modes, history panels, and copy-paste loops. `numi-kde` treats your calculations as a small live document:
