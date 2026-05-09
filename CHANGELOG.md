@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.48 - 2026-05-09
+
+### Fix
+
+- **Editor**: Enter key was consumed by the autocomplete popup handler even when the
+  popup was closed, breaking new-line input. Fixed by explicitly passing the event
+  through when popup is not visible.
+
 ## 0.1.47 - 2026-05-09
 
 ### UI

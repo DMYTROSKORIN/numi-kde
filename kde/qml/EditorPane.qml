@@ -175,7 +175,12 @@ Controls.ScrollView {
             }
 
             Keys.onReturnPressed: (event) => {
-                if (completionPopup.visible) completionPopup.close()
+                if (completionPopup.visible) {
+                    completionPopup.close()
+                    event.accepted = true
+                } else {
+                    event.accepted = false
+                }
             }
 
             Keys.onEscapePressed: (event) => {
