@@ -71,7 +71,7 @@ void UpdateChecker::checkAsync()
         const QString tag = obj.value(QStringLiteral("tag_name")).toString();
         const QString url = obj.value(QStringLiteral("html_url")).toString();
         const bool found = !tag.isEmpty() && isNewerVersion(tag, QStringLiteral(NUMI_KDE_VERSION));
-        if (found)
+        if (found && url.startsWith(QStringLiteral("https://github.com/DMYTROSKORIN/numi-kde")))
             emit updateAvailable(tag, QUrl(url));
         emit checkFinished(found);
     });

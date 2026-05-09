@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.45 - 2026-05-09
+
+### Security
+
+- **Update checker**: validate release URL from GitHub API before opening — must start
+  with `https://github.com/DMYTROSKORIN/numi-kde` to prevent opening unexpected URLs.
+
+### Docs
+
+- Added `CLAUDE.md` — structural description of the project for AI agents.
+- `README.md`: document CMake ≥ 3.24 build requirement.
+
 ## 0.1.44 - 2026-05-09
 
 ### UI

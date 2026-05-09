@@ -101,6 +101,8 @@ sudo apt install cmake g++ \
 
 **Clone, build and install:**
 
+> Requires **CMake ≥ 3.24**.
+
 ```sh
 git clone https://github.com/DMYTROSKORIN/numi-kde.git
 cd numi-kde
