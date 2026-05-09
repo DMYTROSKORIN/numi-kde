@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.46 - 2026-05-09
+
+### UI
+
+- **Help drawer**: `/help` command and new `?` button in the bottom-left now open a
+  right-side drawer with clickable examples. Clicking any example loads it into the
+  document (saves current session first). Replaces the old inline overlay.
+- **Tab autocomplete popup**: Tab now shows a dropdown list of completions with keyboard
+  navigation (Tab/↓ = next, ↑ = prev, Enter = confirm, Esc = restore original word).
+  Single-match still completes silently. Case-insensitive prefix matching (USD, EUR, BTC
+  now complete from lowercase "usd", "eur", "btc").
+
 ## 0.1.45 - 2026-05-09
 
 ### Security

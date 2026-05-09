@@ -1342,6 +1342,15 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     return results;
 }
 
+// Case-insensitive prefix match against a libqalculate name (std::string).
+static bool caseInsensitivePrefixMatch(const std::string &name, const std::string &lowerPrefix)
+{
+    if (name.size() < lowerPrefix.size()) return false;
+    for (size_t i = 0; i < lowerPrefix.size(); ++i)
+        if (std::tolower((unsigned char)name[i]) != (unsigned char)lowerPrefix[i]) return false;
+    return true;
+}
+
 QString QalcBridge::getCompletion(const QString &prefix) {
     if (prefix.isEmpty()) return prefix;
 
@@ -1353,7 +1362,7 @@ QString QalcBridge::getCompletion(const QString &prefix) {
         if (!u) break;
         for (size_t j = 0; j < u->countNames(); ++j) {
             const std::string &name = u->getName(j).name;
-            if (name.find(p) == 0) matches << QString::fromStdString(name);
+            if (caseInsensitivePrefixMatch(name, p)) matches << QString::fromStdString(name);
         }
     }
     for (size_t i = 0; ; ++i) {
@@ -1361,7 +1370,7 @@ QString QalcBridge::getCompletion(const QString &prefix) {
         if (!v) break;
         for (size_t j = 0; j < v->countNames(); ++j) {
             const std::string &name = v->getName(j).name;
-            if (name.find(p) == 0) matches << QString::fromStdString(name);
+            if (caseInsensitivePrefixMatch(name, p)) matches << QString::fromStdString(name);
         }
     }
     for (size_t i = 0; ; ++i) {
@@ -1369,7 +1378,7 @@ QString QalcBridge::getCompletion(const QString &prefix) {
         if (!f) break;
         for (size_t j = 0; j < f->countNames(); ++j) {
             const std::string &name = f->getName(j).name;
-            if (name.find(p) == 0) matches << QString::fromStdString(name);
+            if (caseInsensitivePrefixMatch(name, p)) matches << QString::fromStdString(name);
         }
     }
 
@@ -1395,4 +1404,52 @@ QString QalcBridge::getCompletion(const QString &prefix) {
         common = common.left(j);
     }
     return common.isEmpty() ? prefix : common;
+}
+
+QStringList QalcBridge::getCompletions(const QString &prefix) {
+    if (prefix.isEmpty()) return {};
+
+    QStringList matches;
+    std::string p = prefix.toLower().toStdString();
+
+    // Only include identifier-like names (no slashes, carets, etc.)
+    auto addIfMatch = [&](const std::string &name) {
+        if (name.empty() || name.size() > 20) return;
+        for (char c : name)
+            if (!std::isalnum((unsigned char)c) && c != '_') return;
+        if (caseInsensitivePrefixMatch(name, p))
+            matches << QString::fromStdString(name);
+    };
+
+    for (size_t i = 0; ; ++i) {
+        Unit *u = m_calc->getUnit(i);
+        if (!u) break;
+        for (size_t j = 0; j < u->countNames(); ++j)
+            addIfMatch(u->getName(j).name);
+    }
+    for (size_t i = 0; ; ++i) {
+        Variable *v = m_calc->getVariable(i);
+        if (!v) break;
+        for (size_t j = 0; j < v->countNames(); ++j)
+            addIfMatch(v->getName(j).name);
+    }
+    for (size_t i = 0; ; ++i) {
+        MathFunction *f = m_calc->getFunction(i);
+        if (!f) break;
+        for (size_t j = 0; j < f->countNames(); ++j)
+            addIfMatch(f->getName(j).name);
+    }
+
+    static const QStringList keywords = {
+        "today", "tomorrow", "yesterday", "now",
+        "days", "weeks", "months", "years"
+    };
+    for (const auto &kw : keywords) {
+        if (kw.startsWith(prefix, Qt::CaseInsensitive)) matches << kw;
+    }
+
+    matches.removeDuplicates();
+    matches.sort(Qt::CaseInsensitive);
+    if (matches.size() > 12) matches = matches.mid(0, 12);
+    return matches;
 }

@@ -7,6 +7,7 @@ Item {
 
     property string sourceText: ""
     property var settingsWindow: null
+    property var helpDrawer: null
     property bool showResultsSeparator: true
     readonly property int editorMinimumWidth: 230
     readonly property int baseResultMinimumWidth: 96
@@ -118,56 +119,14 @@ Item {
                 text: page.sourceText
                 onTextChanged: {
                     page.sourceText = text
-                    documentModel.source = text
-                }
-
-                Column {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.topMargin: editor.lineH + 10
-                    z: 30
-                    visible: (page.sourceText || "").trim() === "/help"
-                    spacing: 3
-
-                    Repeater {
-                        model: [
-                            { label: "Math", text: "2 + 2    3^2    sqrt(16)    sin(pi/2)" },
-                            { label: "Variables", text: "A = 800 - 200    B := A * 2    B + 50" },
-                            { label: "Units", text: "10 m to ft    1 hour in min    50 kg to lbs" },
-                            { label: "Area", text: "10 m^2 to ft^2    5 ha to acre    1 km^2 to m^2" },
-                            { label: "Data", text: "1 GB to MB    5 GiB to MiB    100 Mb to Gb" },
-                            { label: "Speed", text: "60 km/h to mph    30 m/s to km/h" },
-                            { label: "Money", text: "500 EUR - 100 USD    1 BTC to UAH    400 USD to ETH" },
-                            { label: "Dates", text: "today + 2 weeks    today - 01.01.2000    01.01.2000 + 25 years" },
-                            { label: "Percent", text: "20% of 500    10% from 200" },
-                            { label: "Keys", text: "Tab completes    Ctrl+N clears    click result to copy" }
-                        ]
-                        delegate: Row {
-                            width: parent.width
-                            spacing: 12
-
-                            Text {
-                                width: Math.max(86, editor.monoSize * 6)
-                                text: modelData.label
-                                color: Window.window.numiBlue
-                                font.family: editor.monoFont
-                                font.pixelSize: editor.monoSize
-                                font.weight: Font.DemiBold
-                            }
-
-                            Text {
-                                width: parent.width - x
-                                text: documentModel ? documentModel.highlightExample(modelData.text) : modelData.text
-                                textFormat: Text.RichText
-                                color: Window.window.numiText
-                                wrapMode: Text.WordWrap
-                                lineHeight: 1.05
-                                font.family: editor.monoFont
-                                font.pixelSize: editor.monoSize
-                            }
-                        }
+                    let trimmed = text.trim().toLowerCase()
+                    if (trimmed === "/help") {
+                        documentModel.source = ""
+                        page.sourceText = ""
+                        if (page.helpDrawer) page.helpDrawer.open()
+                        return
                     }
+                    documentModel.source = text
                 }
             }
 
@@ -305,6 +264,37 @@ Item {
         background: Rectangle {
             radius: 5
             color: settingsButton.down ? Window.window.controlPressed : settingsButton.hovered ? Window.window.controlHover : "transparent"
+        }
+    }
+
+    Controls.Button {
+        id: helpButton
+
+        anchors.left: settingsButton.right
+        anchors.leftMargin: 4
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 7
+        width: 30
+        height: 30
+        padding: 0
+        text: "?"
+        hoverEnabled: true
+
+        onClicked: { if (page.helpDrawer) page.helpDrawer.open() }
+
+        contentItem: Text {
+            text: helpButton.text
+            color: Window.window.numiMuted
+            opacity: 0.75
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            font.pixelSize: 18
+            font.weight: Font.DemiBold
+        }
+
+        background: Rectangle {
+            radius: 5
+            color: helpButton.down ? Window.window.controlPressed : helpButton.hovered ? Window.window.controlHover : "transparent"
         }
     }
 }

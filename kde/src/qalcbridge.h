@@ -35,6 +35,7 @@ public:
     QList<LineResult> evaluateDocument(const QString &source);
     void setDecimalPlaces(int places);
     QString getCompletion(const QString &prefix);
+    QStringList getCompletions(const QString &prefix);
     QString highlightLine(const QString &line) const;
 
     void fetchFiatRates();

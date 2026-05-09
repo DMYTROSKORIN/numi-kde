@@ -252,6 +252,11 @@ QString DocumentModel::completeWord(const QString &prefix)
     return m_qalc->getCompletion(prefix);
 }
 
+QStringList DocumentModel::getCompletions(const QString &prefix)
+{
+    return m_qalc->getCompletions(prefix);
+}
+
 QString DocumentModel::highlightExample(const QString &line) const
 {
     return m_qalc->highlightLine(line);
