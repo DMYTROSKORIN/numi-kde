@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.42 - 2026-05-09
+
+### UI
+
+- **Settings panel**: reduced width from 380 px to 210 px; shortened "Result column width"
+  label to "Result width"; disabled horizontal scrolling in the settings scroll view.
+
 ## 0.1.41 - 2026-05-09
 
 ### UI

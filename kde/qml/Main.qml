@@ -410,7 +410,7 @@ Controls.ApplicationWindow {
 
     Controls.Drawer {
         id: settingsDrawer
-        width: Math.min(root.width, 380)
+        width: Math.min(root.width, 210)
         height: root.height
         edge: Qt.LeftEdge
         dragMargin: 0

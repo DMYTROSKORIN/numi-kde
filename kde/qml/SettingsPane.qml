@@ -38,6 +38,7 @@ Item {
             Layout.fillHeight: true
             clip: true
             Controls.ScrollBar.vertical.policy: Controls.ScrollBar.AsNeeded
+            Controls.ScrollBar.horizontal.policy: Controls.ScrollBar.AlwaysOff
 
             ColumnLayout {
                 id: settingsColumn
@@ -141,7 +142,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
                     Text {
-                        text: "Result column width: " + (Window.window ? Window.window.resultWidth : 124) + " px"
+                        text: "Result width: " + (Window.window ? Window.window.resultWidth : 124) + " px"
                         color: Window.window ? Window.window.numiText : "#f0f0f3"
                         font.pixelSize: 13
                     }
