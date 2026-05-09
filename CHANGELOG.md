@@ -1,12 +1,14 @@
 # Changelog
 
-## 0.1.46 - 2026-05-09
+## 0.1.47 - 2026-05-09
 
 ### UI
 
-- **Help drawer**: `/help` command and new `?` button in the bottom-left now open a
-  right-side drawer with clickable examples. Clicking any example loads it into the
-  document (saves current session first). Replaces the old inline overlay.
+- **Help overlay**: `?` button at bottom-left toggles an inline help overlay covering
+  the editor area. Button is ~15% smaller; turns blue while overlay is active.
+  No more `/help` placeholder text — cleaner empty state on launch.
+  Improved examples: temperature (`100 °C to F`), percent with add (`500 + 20%`),
+  variable chaining (`price = 1200   tax = price * 0.2   price + tax`).
 - **Tab autocomplete popup**: Tab now shows a dropdown list of completions with keyboard
   navigation (Tab/↓ = next, ↑ = prev, Enter = confirm, Esc = restore original word).
   Single-match still completes silently. Case-insensitive prefix matching (USD, EUR, BTC
