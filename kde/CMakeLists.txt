@@ -54,7 +54,6 @@ qt_add_qml_module(numi-kde
     qml/ResultsPane.qml
     qml/SettingsPane.qml
     qml/HistoryPane.qml
-    qml/HelpPane.qml
 )
 
 target_link_libraries(numi-kde

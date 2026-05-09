@@ -297,7 +297,6 @@ Controls.ApplicationWindow {
             anchors.bottom: parent.bottom
             settingsWindow: settingsWindow
             showResultsSeparator: root.showResultsSeparator
-            helpDrawer: helpDrawer
         }
 
         ResizeHandle {
@@ -447,24 +446,4 @@ Controls.ApplicationWindow {
         }
     }
 
-    Controls.Drawer {
-        id: helpDrawer
-        width: Math.min(root.width, 240)
-        height: root.height
-        edge: Qt.RightEdge
-        dragMargin: 0
-        background: Rectangle {
-            color: root.numiWindow
-            border.color: "#3a3d47"
-            border.width: 1
-        }
-
-        HelpPane {
-            anchors.fill: parent
-            onExampleSelected: (text) => {
-                documentModel.source = text
-                helpDrawer.close()
-            }
-        }
-    }
 }

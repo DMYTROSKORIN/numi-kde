@@ -7,8 +7,8 @@ Item {
 
     property string sourceText: ""
     property var settingsWindow: null
-    property var helpDrawer: null
     property bool showResultsSeparator: true
+    property bool _showHelp: false
     readonly property int editorMinimumWidth: 230
     readonly property int baseResultMinimumWidth: 96
     readonly property int resultMaximumWidth: 720
@@ -114,19 +114,71 @@ Item {
                 accentBlue: Window.window.numiBlue
                 mutedColor: Window.window.numiMuted
                 highlightModel: documentModel
-                placeholderText: "/help"
+                placeholderText: ""
                 monoSize: Window.window ? Window.window.fontSize : 16
                 text: page.sourceText
                 onTextChanged: {
                     page.sourceText = text
-                    let trimmed = text.trim().toLowerCase()
-                    if (trimmed === "/help") {
-                        documentModel.source = ""
-                        page.sourceText = ""
-                        if (page.helpDrawer) page.helpDrawer.open()
-                        return
-                    }
                     documentModel.source = text
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    z: 30
+                    visible: page._showHelp
+                    color: Window.window ? Window.window.numiWindow : "#22242a"
+
+                    Controls.ScrollView {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        Controls.ScrollBar.horizontal.policy: Controls.ScrollBar.AlwaysOff
+                        clip: true
+
+                        Column {
+                            width: parent.width
+                            spacing: 7
+
+                            Repeater {
+                                model: [
+                                    { label: "Math",      text: "2 + 2    3^2    sqrt(16)    sin(pi/2)    abs(-5)" },
+                                    { label: "Variables", text: "price = 1200    tax = price * 0.2    price + tax" },
+                                    { label: "Units",     text: "10 m to ft    1 hour in min    50 kg to lbs    100 °C to F" },
+                                    { label: "Area",      text: "10 m^2 to ft^2    5 ha to acre    1 km^2 to m^2" },
+                                    { label: "Data",      text: "1 GB to MB    5 GiB to MiB    100 Mb to Gb" },
+                                    { label: "Speed",     text: "60 km/h to mph    30 m/s to km/h" },
+                                    { label: "Money",     text: "500 EUR - 100 USD    1 BTC to UAH    400 USD to ETH" },
+                                    { label: "Dates",     text: "today + 2 weeks    today - 01.01.2000    01.01.2000 + 25 years" },
+                                    { label: "Percent",   text: "20% of 500    10% from 200    500 + 20%" },
+                                    { label: "Keys",      text: "Tab — autocomplete    Ctrl+N — clear    Click result — copy" }
+                                ]
+
+                                delegate: Row {
+                                    width: parent.width
+                                    spacing: 12
+
+                                    Text {
+                                        width: Math.max(80, editor.monoSize * 5.5)
+                                        text: modelData.label
+                                        color: Window.window ? Window.window.numiBlue : "#6fc4e8"
+                                        font.family: editor.monoFont
+                                        font.pixelSize: editor.monoSize - 1
+                                        font.weight: Font.DemiBold
+                                    }
+
+                                    Text {
+                                        width: parent.width - x
+                                        text: documentModel ? documentModel.highlightExample(modelData.text) : modelData.text
+                                        textFormat: Text.RichText
+                                        color: Window.window ? Window.window.numiText : "#f0f0f3"
+                                        wrapMode: Text.WordWrap
+                                        lineHeight: 1.1
+                                        font.family: editor.monoFont
+                                        font.pixelSize: editor.monoSize - 1
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -273,22 +325,23 @@ Item {
         anchors.left: settingsButton.right
         anchors.leftMargin: 4
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 7
-        width: 30
-        height: 30
+        anchors.bottomMargin: 9
+        width: 26
+        height: 26
         padding: 0
         text: "?"
         hoverEnabled: true
 
-        onClicked: { if (page.helpDrawer) page.helpDrawer.open() }
+        onClicked: page._showHelp = !page._showHelp
 
         contentItem: Text {
             text: helpButton.text
-            color: Window.window.numiMuted
-            opacity: 0.75
+            color: page._showHelp ? (Window.window ? Window.window.numiBlue : "#6fc4e8")
+                                  : (Window.window ? Window.window.numiMuted : "#6b6d76")
+            opacity: 0.85
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
-            font.pixelSize: 18
+            font.pixelSize: 15
             font.weight: Font.DemiBold
         }
 
