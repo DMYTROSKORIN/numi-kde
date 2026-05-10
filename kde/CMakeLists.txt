@@ -107,8 +107,14 @@ target_link_libraries(numi-kde-tests
     Qt6::Concurrent
     Qt6::Widgets
     Qt6::Test
+    Qt6::Qml
+    Qt6::Quick
+    Qt6::QuickControls2
     KF6::WindowSystem
     ${QALCULATE_LIBRARIES}
+)
+target_compile_definitions(numi-kde-tests PRIVATE
+  NUMI_KDE_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml"
 )
 set_target_properties(numi-kde-tests PROPERTIES
   AUTOMOC ON
@@ -116,7 +122,8 @@ set_target_properties(numi-kde-tests PROPERTIES
 
 add_test(NAME qalc-math COMMAND numi-kde-tests qalc)
 add_test(NAME documentmodel COMMAND numi-kde-tests documentmodel)
-set_tests_properties(qalc-math documentmodel PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+add_test(NAME editor-keyhandlers COMMAND numi-kde-tests editor)
+set_tests_properties(qalc-math documentmodel editor-keyhandlers PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # ── Packaging ────────────────────────────────────────────────────────────────
 set(CPACK_PACKAGE_NAME "numi-kde")

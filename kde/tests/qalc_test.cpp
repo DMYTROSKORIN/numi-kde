@@ -9,7 +9,34 @@
 #include <QString>
 #include <QList>
 #include <QTemporaryDir>
+#include <QQuickView>
+#include <QQmlContext>
+#include <QQuickItem>
 #include <cstdio>
+
+// Minimal mock for EditorPane QML tests — only Q_INVOKABLEs accessed by EditorPane.qml
+class MockDocumentModel : public QObject {
+    Q_OBJECT
+public:
+    explicit MockDocumentModel(QObject *parent = nullptr) : QObject(parent) {}
+
+    Q_INVOKABLE QStringList getCompletions(const QString &prefix) {
+        m_lastQuery = prefix;
+        if (prefix.compare("kil", Qt::CaseInsensitive) == 0)
+            return {"kilogram", "kilometer", "kilowatt"};
+        if (prefix.compare("km", Qt::CaseInsensitive) == 0)
+            return {"km"};
+        return {};
+    }
+    Q_INVOKABLE QString completeWord(const QString &p) { return p; }
+    Q_INVOKABLE QString highlightExample(const QString &t) { return t; }
+    Q_INVOKABLE void saveSession() {}
+
+    QString lastQuery() const { return m_lastQuery; }
+
+private:
+    QString m_lastQuery;
+};
 
 struct TestCase {
     const char *name;
@@ -497,6 +524,84 @@ static void runSuite(QalcBridge &bridge) {
               results.size() == 1 && results[0].result == "EUR 420",
               results.size() >= 1 ? results[0].result : "error", "EUR 420");
     }
+
+    // ── getCompletions ────────────────────────────────────────────────────────
+    // Math function names are guaranteed plain ASCII identifiers in libqalculate.
+    {
+        // "si" matches sin, sinh, sign, etc. — at least 2 results expected.
+        auto list = bridge.getCompletions("si");
+        check("getCompletions 'si' returns multiple results (sin, sinh…)",
+              list.size() > 1, QString::number(list.size()), ">1");
+    }
+    {
+        // All returned names must actually start with the queried prefix.
+        auto list = bridge.getCompletions("si");
+        bool allMatch = !list.isEmpty() && std::all_of(list.cbegin(), list.cend(),
+            [](const QString &s) { return s.toLower().startsWith("si"); });
+        check("getCompletions results all start with the query prefix",
+              allMatch, allMatch ? QString("ok (%1)").arg(list.join(", ")) : list.join(", "),
+              "all start with 'si'");
+    }
+    {
+        // Crypto currencies added above; lowercase prefix must match (BTC is uppercase).
+        auto list = bridge.getCompletions("btc");
+        check("getCompletions case-insensitive 'btc' finds 'BTC'",
+              !list.isEmpty() && list[0].toUpper() == "BTC",
+              list.isEmpty() ? "empty" : list[0], "BTC");
+    }
+    {
+        auto list = bridge.getCompletions("eth");
+        check("getCompletions case-insensitive 'eth' finds 'ETH'",
+              !list.isEmpty() && list[0].toUpper() == "ETH",
+              list.isEmpty() ? "empty" : list[0], "ETH");
+    }
+    {
+        // Single match for a unique crypto ticker.
+        auto list = bridge.getCompletions("BTC");
+        check("getCompletions uppercase 'BTC' finds 'BTC'",
+              !list.isEmpty() && list[0] == "BTC",
+              list.isEmpty() ? "empty" : list[0], "BTC");
+    }
+    {
+        auto list = bridge.getCompletions("xyznoexist");
+        check("getCompletions no match returns empty list",
+              list.isEmpty(), QString::number(list.size()), "0");
+    }
+    {
+        auto list = bridge.getCompletions("");
+        check("getCompletions empty prefix returns empty list",
+              list.isEmpty(), QString::number(list.size()), "0");
+    }
+    {
+        auto list = bridge.getCompletions("si");
+        check("getCompletions respects max 12 results",
+              list.size() <= 12, QString::number(list.size()), "<=12");
+    }
+    {
+        auto list = bridge.getCompletions("si");
+        bool sorted = true;
+        for (int i = 1; i < list.size(); ++i) {
+            if (list[i].toLower() < list[i-1].toLower()) { sorted = false; break; }
+        }
+        check("getCompletions results sorted alphabetically",
+              !list.isEmpty() && sorted,
+              sorted ? QString("ok (%1 items)").arg(list.size()) : list.join(", "),
+              "sorted");
+    }
+    {
+        // Each result must be a plain identifier (no slashes, spaces, carets).
+        auto list = bridge.getCompletions("si");
+        bool clean = true;
+        for (const auto &item : list) {
+            if (item.contains('/') || item.contains(' ') || item.contains('^')) {
+                clean = false; break;
+            }
+        }
+        check("getCompletions results contain only identifier characters",
+              !list.isEmpty() && clean,
+              clean ? QString("ok (%1 items)").arg(list.size()) : "bad item found",
+              "no / ^ spaces");
+    }
 }
 
 #include <QSignalSpy>
@@ -615,6 +720,122 @@ static void runDocumentModelSuite() {
         check("DocumentModel help examples use shared syntax highlighting", ok,
               html, "highlighted AED/USD/to");
     }
+
+    // ── getCompletions via DocumentModel ─────────────────────────────────────
+    {
+        // "si" matches plain-identifier function names (sigma, sign, etc.).
+        QStringList completions = model.getCompletions("si");
+        check("DocumentModel getCompletions 'si' returns results",
+              !completions.isEmpty(), QString::number(completions.size()), ">0");
+    }
+    {
+        // "btc" is a crypto injected as clean AliasUnit — known to work.
+        QStringList completions = model.getCompletions("btc");
+        check("DocumentModel getCompletions 'btc' finds a BTC-prefixed result",
+              !completions.isEmpty() && completions[0].toUpper().startsWith("BTC"),
+              completions.isEmpty() ? "empty" : completions[0], "BTC*");
+    }
+    {
+        QStringList completions = model.getCompletions("");
+        check("DocumentModel getCompletions empty prefix returns empty",
+              completions.isEmpty(), QString::number(completions.size()), "0");
+    }
+}
+
+// ── EditorPane QML key handler tests ─────────────────────────────────────────
+// These test that key handlers in EditorPane.qml do not accidentally consume
+// events (e.g. the v0.1.48 regression where Enter never created a new line).
+static void runEditorSuite() {
+    MockDocumentModel mock;
+
+    QQuickView view;
+    view.rootContext()->setContextProperty("documentModel", &mock);
+    view.setSource(QUrl::fromLocalFile(QStringLiteral(NUMI_KDE_QML_DIR "/EditorPane.qml")));
+    view.setResizeMode(QQuickView::SizeRootObjectToView);
+    view.resize(600, 400);
+    view.show();
+    QTest::qWait(300);
+
+    QQuickItem *root = view.rootObject();
+    if (!root || view.status() != QQuickView::Ready) {
+        check("EditorPane QML loads successfully", false,
+              view.errors().isEmpty() ? "null root" : view.errors().first().toString(),
+              "Ready");
+        return;
+    }
+    check("EditorPane QML loads successfully", true, "ok", "ok");
+
+    root->forceActiveFocus();
+    QTest::qWait(100);
+
+    auto setText = [&](const QString &t) {
+        root->setProperty("text", t);
+        QTest::qWait(30);
+        QTest::keyClick(&view, Qt::Key_End, Qt::ControlModifier);
+        QTest::qWait(20);
+    };
+
+    // ── Regression: Enter must create a new line (broke in v0.1.47) ──────────
+    {
+        setText("2 + 2");
+        QTest::keyClick(&view, Qt::Key_Return);
+        QTest::qWait(60);
+        QString text = root->property("text").toString();
+        check("Enter key creates new line (regression: popup handler must not consume Enter)",
+              text.contains('\n'),
+              QString("got: \"%1\"").arg(text.left(30)), "2 + 2\\n");
+    }
+
+    // ── Multiple Enter presses each create a new line ─────────────────────────
+    {
+        setText("line1");
+        QTest::keyClick(&view, Qt::Key_Return);
+        QTest::keyClick(&view, Qt::Key_Return);
+        QTest::qWait(60);
+        int newlines = root->property("text").toString().count('\n');
+        check("Multiple Enter presses produce multiple new lines",
+              newlines >= 2, QString::number(newlines), ">=2");
+    }
+
+    // ── Tab with no completions leaves text unchanged ─────────────────────────
+    {
+        setText("xyznoexist");
+        QString before = root->property("text").toString().trimmed();
+        QTest::keyClick(&view, Qt::Key_Tab);
+        QTest::qWait(60);
+        QString after = root->property("text").toString().trimmed();
+        check("Tab with no match leaves text unchanged",
+              after == before, after, before.toUtf8().constData());
+    }
+
+    // ── Tab queries getCompletions with the current word ─────────────────────
+    {
+        setText("kil");
+        QTest::keyClick(&view, Qt::Key_Tab);
+        QTest::qWait(60);
+        check("Tab key passes word prefix to getCompletions",
+              mock.lastQuery().compare("kil", Qt::CaseInsensitive) == 0,
+              mock.lastQuery(), "kil");
+    }
+
+    // ── Tab with single match completes without popup ─────────────────────────
+    {
+        setText("km");
+        QTest::keyClick(&view, Qt::Key_Tab);
+        QTest::qWait(60);
+        check("Tab with single match queries getCompletions",
+              mock.lastQuery().compare("km", Qt::CaseInsensitive) == 0,
+              mock.lastQuery(), "km");
+    }
+
+    // ── Esc key does not crash the editor ─────────────────────────────────────
+    {
+        setText("hello");
+        QTest::keyClick(&view, Qt::Key_Escape);
+        QTest::qWait(60);
+        check("Esc key does not crash the editor",
+              view.rootObject() != nullptr, "ok", "ok");
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -634,18 +855,22 @@ int main(int argc, char *argv[]) {
     app.setOrganizationName("numi-kde");
 
     const QString suite = argc > 1 ? QString::fromLocal8Bit(argv[1]) : QStringLiteral("qalc");
-    std::printf("=== numi-kde %s Test Suite ===\n\n",
-                suite == QStringLiteral("documentmodel") ? "DocumentModel" : "QalcBridge");
 
     if (suite == QStringLiteral("documentmodel")) {
+        std::printf("=== numi-kde DocumentModel Test Suite ===\n\n");
         runDocumentModelSuite();
+    } else if (suite == QStringLiteral("editor")) {
+        std::printf("=== numi-kde Editor Key Handler Test Suite ===\n\n");
+        runEditorSuite();
     } else {
+        std::printf("=== numi-kde QalcBridge Test Suite ===\n\n");
         QalcBridge bridge;
         bridge.setDecimalPlaces(3);
-
         runSuite(bridge);
     }
 
     std::printf("\n=== Results: %d passed, %d failed ===\n", passed, failed);
     return failed > 0 ? 1 : 0;
 }
+
+#include "qalc_test.moc"
