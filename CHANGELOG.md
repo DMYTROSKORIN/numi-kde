@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.49 - 2026-05-10
+
+### Tests
+
+- Added 31 new tests (101 total): `getCompletions` coverage for QalcBridge and
+  DocumentModel (prefix match, case-insensitive crypto tickers, max 12 results,
+  alphabetical sort, identifier-only output); new `editor` suite via QQuickView
+  with mock model — regression test for Enter key, Tab completion queries, Esc.
+- CMake: `editor-keyhandlers` added as a CTest target with offscreen platform.
+
 ## 0.1.48 - 2026-05-09
 
 ### Fix
