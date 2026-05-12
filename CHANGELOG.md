@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.56 - 2026-05-12
+
+### Fix
+
+- **Comment color**: `#` comment lines now use the same orange `#fb923c` as user variables instead of cyan `#22d3ee`
+- **Tab autocomplete prefix**: `getCompletions` and `_getWordStart` now extract only the last word when the segment after the operator contains spaces (e.g. `today - 30 da` → prefix `da` → completes to `days`); previously "30 da" was used as prefix and matched nothing, or "30 da" was deleted instead of just "da"
+
 ## 0.1.55 - 2026-05-12
 
 ### Fix

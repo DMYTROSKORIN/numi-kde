@@ -1457,6 +1457,9 @@ QStringList QalcBridge::getCompletions(const QString &lineContext) {
     int lead = 0;
     while (lead < prefix.length() && prefix[lead] == ' ') ++lead;
     prefix = prefix.mid(lead);
+    // Take only the last space-separated token so "30 da" → "da"
+    int lastSpace = prefix.lastIndexOf(' ');
+    if (lastSpace != -1) prefix = prefix.mid(lastSpace + 1);
 
     if (prefix.isEmpty()) return {};
 

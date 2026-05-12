@@ -116,6 +116,10 @@ Controls.ScrollView {
                 }
                 let start = sepIdx === -1 ? lineStart : sepIdx + 1
                 while (start < pos && txt[start] === ' ') start++
+                // Advance to the last word when segment contains spaces (e.g. "30 da" → "da")
+                for (let i = pos - 1; i > start; i--) {
+                    if (txt[i] === ' ') { start = i + 1; break }
+                }
                 return start
             }
 

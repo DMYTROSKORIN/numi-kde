@@ -26,6 +26,9 @@ public:
             return {"kilogram", "kilometer", "kilowatt"};
         if (prefix.compare("km", Qt::CaseInsensitive) == 0)
             return {"km"};
+        // Used to test last-word extraction: lineContext "200 - 30 da" ends with "da"
+        if (prefix.endsWith("da", Qt::CaseInsensitive))
+            return {"days"};
         return {};
     }
     Q_INVOKABLE QString completeWord(const QString &p) { return p; }
@@ -620,6 +623,13 @@ static void runSuite(QalcBridge &bridge) {
               list.isEmpty() ? "empty" : list[0].section('\t', 0, 0), "myvar");
     }
     {
+        // "today - 30 da": separator is '-', after it " 30 da" → last word = "da" → matches "days"
+        auto list = bridge.getCompletions("today - 30 da");
+        check("getCompletions extracts last word 'da' from 'today - 30 da'",
+              !list.isEmpty() && list[0].section('\t', 0, 0).toLower().startsWith("da"),
+              list.isEmpty() ? "empty" : list[0].section('\t', 0, 0), "days");
+    }
+    {
         auto list = bridge.getCompletions("xyznoexist");
         check("getCompletions no match returns empty list",
               list.isEmpty(), QString::number(list.size()), "0");
@@ -882,6 +892,19 @@ static void runEditorSuite() {
         check("Tab with single match queries getCompletions",
               mock.lastQuery().compare("km", Qt::CaseInsensitive) == 0,
               mock.lastQuery(), "km");
+    }
+
+    // ── Tab replaces only the current word, not the number before it ─────────
+    // Regression: "200 - 30 da" + Tab → _getWordStart must return position of 'd',
+    // not '3'. Without last-word fix, "30 da" was removed instead of just "da".
+    {
+        setText("100\n200 - 30 da");
+        QTest::keyClick(&view, Qt::Key_Tab);
+        QTest::qWait(80);
+        QString text = root->property("text").toString();
+        check("Tab with 'N WORD' pattern replaces only the word, not the number before it",
+              text.startsWith("100\n") && text.contains("200 - 30 ") && !text.contains("200 - days"),
+              QString("got: \"%1\"").arg(text.left(50)), "100\\n200 - 30 days");
     }
 
     // ── Tab on non-first line must NOT erase preceding lines ─────────────────

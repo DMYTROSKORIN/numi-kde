@@ -26,7 +26,9 @@ QString SyntaxHighlighter::highlightLine(const QString &line,
                                           const QStringList &multiWordVarsSorted)
 {
     if (line.trimmed().startsWith("#")) {
-        return QString("<span style=\"color:#22d3ee\">%1</span>").arg(escapeHtml(line));
+        return QString("<span style=\"color:%1\">%2</span>")
+               .arg(QLatin1String(USER_VAR_COLOR))
+               .arg(escapeHtml(line));
     }
 
     if (multiWordVarsSorted.isEmpty()) {
