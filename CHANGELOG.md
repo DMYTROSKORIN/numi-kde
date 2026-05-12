@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.58 - 2026-05-13
+
+### Fix
+
+- **`time + N unit`**: expressions like `time + 60 min` or `time - 30 s` now compute the correct result (current time ± offset → `HH:mm:ss`); previously `time` in arithmetic context fell through to libqalculate which returned garbage (`60.00 min + 0.86`)
+- **Tab on time/unit words**: `seconds`, `minutes`, `hours` added to the Tab-completion keyword list; `260 seconds` + Tab now correctly completes `seconds`
+- **Multi-word variable Tab**: typing the first word(s) of a multi-word variable followed by a space and Tab now completes the full variable name (e.g. `Var name ` + Tab → `Var name extended`); previously the trailing-space prefix yielded an empty match and Tab did nothing
+- **Compound unit `.00`**: results like `4.00 min + 20.00 s` now display as `4 min + 20 s` — libqalculate `print()` no longer forces `min_decimals` for non-numeric compound expressions
+
 ## 0.1.57 - 2026-05-13
 
 ### Fix

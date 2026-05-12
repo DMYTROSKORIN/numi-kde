@@ -383,6 +383,34 @@ static bool tryDateDifference(const QString &trimmed, QString *result)
     return false;
 }
 
+static bool tryTimeArithmetic(const QString &trimmed, QString *result)
+{
+    static QRegularExpression timeArithRx(
+        "^\\s*(?:time|now)\\s*([+-])\\s*(\\d+(?:[.,]\\d+)?)\\s*(s|sec|second|seconds|min|minute|minutes|h|hour|hours)\\s*$",
+        QRegularExpression::CaseInsensitiveOption);
+    const auto match = timeArithRx.match(trimmed);
+    if (!match.hasMatch()) return false;
+    const int sign = (match.captured(1) == QStringLiteral("+")) ? 1 : -1;
+    QString amountStr = match.captured(2);
+    amountStr.replace(QLatin1Char(','), QLatin1Char('.'));
+    const double amount = amountStr.toDouble();
+    const QString unit = match.captured(3).toLower();
+    int secs = 0;
+    if (unit == QStringLiteral("s") || unit == QStringLiteral("sec")
+            || unit == QStringLiteral("second") || unit == QStringLiteral("seconds"))
+        secs = qRound(amount);
+    else if (unit == QStringLiteral("min") || unit == QStringLiteral("minute")
+             || unit == QStringLiteral("minutes"))
+        secs = qRound(amount * 60.0);
+    else if (unit == QStringLiteral("h") || unit == QStringLiteral("hour")
+             || unit == QStringLiteral("hours"))
+        secs = qRound(amount * 3600.0);
+    else
+        return false;
+    *result = QTime::currentTime().addSecs(sign * secs).toString(QStringLiteral("HH:mm:ss"));
+    return true;
+}
+
 static bool tryDateArithmetic(const QString &trimmed, QString *result)
 {
     static QRegularExpression dateMath(
@@ -922,6 +950,11 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     po.use_max_decimals = true;
     po.digit_grouping = DIGIT_GROUPING_LOCALE;
 
+    // For compound unit expressions (non-numeric libqalculate results): don't force
+    // trailing zeros — "4 min + 20 s" is cleaner than "4.00 min + 20.00 s".
+    PrintOptions po_display = po;
+    po_display.min_decimals = 0;
+
     // Replaces multi-word display names with their underscore-normalised internal names
     // so libqalculate can handle them. Single-word names are stored as-is and need no substitution.
     auto substituteVars = [&](const QString &text) -> QString {
@@ -1086,6 +1119,16 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             continue;
         }
 
+        {
+            QString timeArithResult;
+            if (tryTimeArithmetic(trimmed, &timeArithResult)) {
+                res.ok = true;
+                res.result = timeArithResult;
+                results.append(res);
+                continue;
+            }
+        }
+
         QString dateDifferenceResult;
         if (tryDateDifference(trimmed, &dateDifferenceResult)) {
             res.ok = true;
@@ -1240,7 +1283,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                             res.ok = true;
                         }
                     } else {
-                        QString rhsStr = QString::fromStdString(m_calc->print(rhsResult, 2000, po));
+                        QString rhsStr = QString::fromStdString(m_calc->print(rhsResult, 2000, po_display));
                         res.result = rhsStr;
                         res.ok = !hasCalculationError(m_calc);
                         if (!res.ok) {
@@ -1316,7 +1359,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 } else {
                     MathStructure resVal = result;
                     resVal.expand(eo);
-                    QString out = QString::fromStdString(m_calc->print(resVal, 2000, po));
+                    QString out = QString::fromStdString(m_calc->print(resVal, 2000, po_display));
                     // Strip surrounding quotes (dates, strings)
                     if (out.startsWith('"') && out.endsWith('"'))
                         out = out.mid(1, out.length() - 2);
@@ -1446,45 +1489,51 @@ QString QalcBridge::getCompletion(const QString &prefix) {
 QStringList QalcBridge::getCompletions(const QString &lineContext) {
     if (lineContext.trimmed().isEmpty()) return {};
 
-    // Extract the "current token" = text after the last operator/separator on this line.
+    // Extract the "current segment" = text after the last operator/separator on this line.
     static const QString separators = QStringLiteral("+-*/()=^%,;");
     int sepPos = -1;
     for (int i = lineContext.length() - 1; i >= 0; --i) {
         if (separators.contains(lineContext[i])) { sepPos = i; break; }
     }
-    QString prefix = lineContext.mid(sepPos + 1);
-    // Strip leading whitespace from the prefix
+    QString segment = lineContext.mid(sepPos + 1);
     int lead = 0;
-    while (lead < prefix.length() && prefix[lead] == ' ') ++lead;
-    prefix = prefix.mid(lead);
-    // Take only the last space-separated token so "30 da" → "da"
-    int lastSpace = prefix.lastIndexOf(' ');
-    if (lastSpace != -1) prefix = prefix.mid(lastSpace + 1);
+    while (lead < segment.length() && segment[lead] == ' ') ++lead;
+    segment = segment.mid(lead);
 
-    if (prefix.isEmpty()) return {};
+    // For keyword matching: last space-separated token ("30 da" → "da").
+    const int lastSpace = segment.lastIndexOf(' ');
+    const QString lastWord = lastSpace != -1 ? segment.mid(lastSpace + 1) : segment;
+
+    // For user-variable matching: full segment trimmed ("Var name " → "Var name")
+    // so that typing a complete first word + space can complete multi-word variables.
+    const QString segmentTrimmed = segment.trimmed();
+
+    if (segmentTrimmed.isEmpty()) return {};
 
     QStringList result;
     QSet<QString> seen;
 
-    // User-defined variables (primary: shown with their last computed value)
+    // User-defined variables: match against full segment (supports multi-word completions).
     for (auto it = m_displayToInternal.constBegin(); it != m_displayToInternal.constEnd(); ++it) {
         const QString &displayName = it.key();
-        if (displayName.startsWith(prefix, Qt::CaseInsensitive) && !seen.contains(displayName)) {
+        if (displayName.startsWith(segmentTrimmed, Qt::CaseInsensitive) && !seen.contains(displayName)) {
             seen.insert(displayName);
-            QString value = m_userVarDisplayValues.value(displayName);
-            result << (displayName + '\t' + value);
+            result << (displayName + '\t' + m_userVarDisplayValues.value(displayName));
         }
     }
 
-    // Keywords (shown without value description)
-    static const QStringList keywords = {
-        "today", "tomorrow", "yesterday", "now",
-        "days", "weeks", "months", "years"
-    };
-    for (const auto &kw : keywords) {
-        if (kw.startsWith(prefix, Qt::CaseInsensitive) && !seen.contains(kw)) {
-            seen.insert(kw);
-            result << (kw + '\t');
+    // Keywords: match against last word only (single-token, never multi-word).
+    if (!lastWord.isEmpty()) {
+        static const QStringList keywords = {
+            "today", "tomorrow", "yesterday", "now",
+            "days", "weeks", "months", "years",
+            "seconds", "minutes", "hours"
+        };
+        for (const auto &kw : keywords) {
+            if (kw.startsWith(lastWord, Qt::CaseInsensitive) && !seen.contains(kw)) {
+                seen.insert(kw);
+                result << (kw + '\t');
+            }
         }
     }
 

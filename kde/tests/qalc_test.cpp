@@ -23,12 +23,15 @@ public:
     Q_INVOKABLE QStringList getCompletions(const QString &prefix) {
         m_lastQuery = prefix;
         if (prefix.compare("kil", Qt::CaseInsensitive) == 0)
-            return {"kilogram", "kilometer", "kilowatt"};
+            return {"kilogram\t", "kilometer\t", "kilowatt\t"};
         if (prefix.compare("km", Qt::CaseInsensitive) == 0)
-            return {"km"};
+            return {"km\t"};
         // Used to test last-word extraction: lineContext "200 - 30 da" ends with "da"
         if (prefix.endsWith("da", Qt::CaseInsensitive))
-            return {"days"};
+            return {"days\t"};
+        // Multi-word variable test: segment "Var name" (with or without trailing space)
+        if (prefix.trimmed().compare("Var name", Qt::CaseInsensitive) == 0)
+            return {"Var name extended\t1000"};
         return {};
     }
     Q_INVOKABLE QString completeWord(const QString &p) { return p; }
@@ -331,6 +334,24 @@ static void runSuite(QalcBridge &bridge) {
         auto r = eval("now");
         check("now returns current date and time", r.ok && r.result.contains(' '),
               r.result, "yyyy-MM-dd HH:mm:ss");
+    }
+    {
+        auto r = eval("time + 60 min");
+        const bool isTime = r.ok && r.result.length() == 8
+                         && r.result[2] == ':' && r.result[5] == ':';
+        check("time + 60 min returns HH:mm:ss", isTime, r.result, "HH:mm:ss");
+    }
+    {
+        auto r = eval("time - 30 s");
+        const bool isTime = r.ok && r.result.length() == 8
+                         && r.result[2] == ':' && r.result[5] == ':';
+        check("time - 30 s returns HH:mm:ss", isTime, r.result, "HH:mm:ss");
+    }
+    {
+        auto r = eval("time + 2 h");
+        const bool isTime = r.ok && r.result.length() == 8
+                         && r.result[2] == ':' && r.result[5] == ':';
+        check("time + 2 h returns HH:mm:ss", isTime, r.result, "HH:mm:ss");
     }
     {
         const QString date = QDate::currentDate().addYears(-2).addDays(-5).toString("dd.MM.yyyy");
@@ -665,6 +686,47 @@ static void runSuite(QalcBridge &bridge) {
               clean ? QString("ok (%1 items)").arg(list.size()) : "bad item found",
               "no / ^");
     }
+    {
+        // "seconds" is now a keyword: "260 seconds" → prefix after separator = none,
+        // segment = "260 seconds", lastWord = "seconds"
+        auto list = bridge.getCompletions("260 seconds");
+        check("getCompletions 'seconds' keyword matched in '260 seconds'",
+              !list.isEmpty() && list[0].section('\t', 0, 0) == "seconds",
+              list.isEmpty() ? "empty" : list[0].section('\t', 0, 0), "seconds");
+    }
+    {
+        // "minutes" keyword
+        auto list = bridge.getCompletions("30 min");
+        check("getCompletions 'min' matches 'minutes' keyword",
+              !list.isEmpty() && list[0].section('\t', 0, 0).startsWith("min"),
+              list.isEmpty() ? "empty" : list[0].section('\t', 0, 0), "minutes");
+    }
+    {
+        // "hours" keyword
+        auto list = bridge.getCompletions("2 ho");
+        check("getCompletions 'ho' matches 'hours' keyword",
+              !list.isEmpty() && list[0].section('\t', 0, 0) == "hours",
+              list.isEmpty() ? "empty" : list[0].section('\t', 0, 0), "hours");
+    }
+    {
+        // Multi-word variable completion: "Что такое " (trailing space) matches
+        // a variable defined as "Что такое переменная".
+        bridge.evaluateDocument(QString::fromUtf8("Что такое переменная = 1000"));
+        auto list = bridge.getCompletions(QString::fromUtf8("Что такое "));
+        check("getCompletions matches multi-word variable on trailing-space prefix",
+              !list.isEmpty() && list[0].section('\t', 0, 0) == QString::fromUtf8("Что такое переменная"),
+              list.isEmpty() ? "empty" : list[0].section('\t', 0, 0),
+              "Что такое переменная");
+    }
+    {
+        // Compound unit result should have no forced .00 when places=2
+        bridge.setDecimalPlaces(2);
+        auto r = eval("260 seconds");
+        check("260 seconds compound result has no .00 trailing zeros (places=2)",
+              r.ok && !r.result.isEmpty() && !r.result.contains(".00"),
+              r.result, "4 min + 20 s");
+        bridge.setDecimalPlaces(0);
+    }
 }
 
 #include <QSignalSpy>
@@ -931,6 +993,19 @@ static void runEditorSuite() {
         check("Tab completion on line 3 inserts the completion on line 3",
               !thirdLine.isEmpty() && thirdLine != "kil",
               QString("line3: \"%1\"").arg(thirdLine), "kilogram/kilometer/kilowatt");
+    }
+
+    // ── Multi-word variable completion via trailing space ────────────────────
+    // "Var name " + Tab → getCompletions returns "Var name extended\t1000"
+    // → should replace the full segment "Var name " with "Var name extended"
+    {
+        setText("Var name ");
+        QTest::keyClick(&view, Qt::Key_Tab);
+        QTest::qWait(80);
+        QString text = root->property("text").toString().trimmed();
+        check("Tab with trailing space completes multi-word variable (replaces full segment)",
+              text == "Var name extended",
+              QString("got: \"%1\"").arg(text), "Var name extended");
     }
 
     // ── Esc key does not crash the editor ─────────────────────────────────────

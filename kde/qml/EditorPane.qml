@@ -99,11 +99,14 @@ Controls.ScrollView {
             opacity: editor.text === "" ? 0.15 : 1.0
 
             property int _wordStart: 0
+            property int _segmentStart: 0
+            property int _replaceFrom: 0
+            property bool _useSegmentStart: false
             property string _originalWord: ""
             property bool _applyingCompletion: false
 
-            // Returns the absolute position in editor.text where the current completion prefix starts.
-            // Goes back to the last operator or line beginning, skipping leading spaces.
+            // Returns the start of the last word in the current segment
+            // (advances past internal spaces, e.g. "30 da" → position of 'd').
             function _getWordStart() {
                 let pos = editor.cursorPosition
                 let txt = editor.text
@@ -123,15 +126,38 @@ Controls.ScrollView {
                 return start
             }
 
+            // Returns the start of the full segment (after last separator, leading spaces stripped)
+            // without the last-word advance — used as the replace origin for multi-word completions.
+            function _getSegmentStart() {
+                let pos = editor.cursorPosition
+                let txt = editor.text
+                let lineStart = pos
+                while (lineStart > 0 && txt[lineStart - 1] !== '\n') lineStart--
+                const separators = "+-*/()=^%,;"
+                let sepIdx = -1
+                for (let i = pos - 1; i >= lineStart; i--) {
+                    if (separators.includes(txt[i])) { sepIdx = i; break }
+                }
+                let start = sepIdx === -1 ? lineStart : sepIdx + 1
+                while (start < pos && txt[start] === ' ') start++
+                return start
+            }
+
             function _applyItem(index) {
                 let item = completionPopup.model[index]
                 if (!item) return
-                // model entries are "name\tvalue" — extract just the name
                 let name = item.split('\t')[0]
+                // Multi-word completions replace from segment start; single-word completions
+                // replace from last-word start — unless the segment ends with a trailing
+                // space (_useSegmentStart), in which case we always use segment start.
+                let replaceFrom = (name.includes(' ') || editor._useSegmentStart)
+                                  ? editor._segmentStart
+                                  : editor._wordStart
+                editor._replaceFrom = replaceFrom
                 editor._applyingCompletion = true
-                editor.remove(editor._wordStart, editor.cursorPosition)
-                editor.insert(editor._wordStart, name)
-                editor.cursorPosition = editor._wordStart + name.length
+                editor.remove(replaceFrom, editor.cursorPosition)
+                editor.insert(replaceFrom, name)
+                editor.cursorPosition = replaceFrom + name.length
                 editor._applyingCompletion = false
             }
 
@@ -146,7 +172,6 @@ Controls.ScrollView {
                 let pos = editor.cursorPosition
                 if (pos === 0) return
 
-                // Build the line context (from line start to cursor) for the completion engine
                 let txt = editor.text
                 let lineStart = pos
                 while (lineStart > 0 && txt[lineStart - 1] !== '\n') lineStart--
@@ -156,20 +181,28 @@ Controls.ScrollView {
                 let completions = documentModel.getCompletions(lineContext)
                 if (completions.length === 0) return
 
-                let start = editor._getWordStart()
-                editor._wordStart = start
+                let wordStart = editor._getWordStart()
+                let segStart = editor._getSegmentStart()
+                editor._wordStart = wordStart
+                editor._segmentStart = segStart
+                // When wordStart == pos the segment ends with a trailing space:
+                // always replace from segStart regardless of completion type.
+                editor._useSegmentStart = (wordStart === pos)
 
                 if (completions.length === 1) {
                     let name = completions[0].split('\t')[0]
+                    let replaceFrom = (name.includes(' ') || editor._useSegmentStart) ? segStart : wordStart
                     editor._applyingCompletion = true
-                    editor.remove(start, pos)
-                    editor.insert(start, name)
-                    editor.cursorPosition = start + name.length
+                    editor.remove(replaceFrom, pos)
+                    editor.insert(replaceFrom, name)
+                    editor.cursorPosition = replaceFrom + name.length
                     editor._applyingCompletion = false
                     return
                 }
 
-                editor._originalWord = txt.substring(start, pos)
+                let firstName = completions[0].split('\t')[0]
+                let firstReplaceFrom = (firstName.includes(' ') || editor._useSegmentStart) ? segStart : wordStart
+                editor._originalWord = txt.substring(firstReplaceFrom, pos)
                 completionPopup.model = completions
                 completionPopup.currentIndex = 0
                 editor._applyItem(0)
@@ -218,9 +251,9 @@ Controls.ScrollView {
                 }
                 event.accepted = true
                 editor._applyingCompletion = true
-                editor.remove(editor._wordStart, editor.cursorPosition)
-                editor.insert(editor._wordStart, editor._originalWord)
-                editor.cursorPosition = editor._wordStart + editor._originalWord.length
+                editor.remove(editor._replaceFrom, editor.cursorPosition)
+                editor.insert(editor._replaceFrom, editor._originalWord)
+                editor.cursorPosition = editor._replaceFrom + editor._originalWord.length
                 editor._applyingCompletion = false
                 completionPopup.close()
             }
