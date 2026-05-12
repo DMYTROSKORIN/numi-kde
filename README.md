@@ -132,7 +132,8 @@ sudo dnf install -y kde/build-release/numi-kde-*.rpm
 | **Math** | Arithmetic, variables, functions — `sqrt`, `sin`, `log` and more |
 | **Unit conversion** | Length, weight, speed, area, data, time — natural syntax like `10 m to ft` |
 | **Currency** | Live fiat rates via Frankfurter · top crypto via CoinGecko |
-| **Date math** | `today + 2 weeks` · `01.01.2000 + 25 years` · spans in years/months/days |
+| **Date math** | `today/now/tomorrow/yesterday ± N days/weeks/months/years` · `01.01.2000 + 25 years` · spans like `today - 01.01.2000` |
+| **Time arithmetic** | `time + 60 min` · `time - 30 s` — current time ± offset → `HH:mm:ss` |
 | **Percentages** | `20% of 500` · `10% from 200` |
 | **Variables** | `A = 800 - 200` · `B := A * 2` · `B + 50` |
 | **Inline help** | Type `/help` — rendered inside the editor with full syntax highlighting |
@@ -148,7 +149,7 @@ sudo dnf install -y kde/build-release/numi-kde-*.rpm
 |---|---|
 | `Ctrl+Alt+1` | Toggle the window globally (configurable in Settings) |
 | `Ctrl+N` | Clear the current document |
-| `Tab` | Autocomplete units, functions and variables |
+| `Tab` | Autocomplete units, functions, keywords (`today`, `seconds`, …) and variables |
 | Click a result | Copy it to clipboard |
 
 ---

@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-05-02.
+Last updated: 2026-05-13.
 
 ## Product Shape
 
@@ -38,9 +38,12 @@ Preprocessing currently handles:
 - `20% from/of X`;
 - incomplete input suppression;
 - explicit division-by-zero error;
-- `time` and `now`;
-- explicit date spans such as `today - 01.01.2000` and `01.01.2000 - 02.05.2026`;
-- explicit date arithmetic such as `01.01.2000 + 25 years`;
+- `time` / `now` as standalone keywords → current time / datetime string;
+- `time|now ± N seconds/minutes/hours` → `HH:mm:ss` (`tryTimeArithmetic`);
+- date spans: `today - 01.01.2000`, `01.01.2000 - 02.05.2026`, `date - today` → English calendar span;
+- date arithmetic with explicit dates: `01.01.2000 + 25 years` → `DD.MM.YYYY`;
+- date arithmetic with named dates: `today/now/tomorrow/yesterday ± N days/weeks/months/years` → `DD.MM.YYYY`;
+- multi-word variable names with spaces (e.g. `monthly income = 5000`), stored with underscore-normalised internal names;
 - manual fiat conversion backed by Frankfurter rates;
 - manual crypto conversion for top CoinGecko symbols.
 

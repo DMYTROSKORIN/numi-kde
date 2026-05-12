@@ -10,7 +10,12 @@ It describes architecture, conventions, and workflow. Read it fully before makin
 - **Never add `Co-Authored-By`** lines to commits — ever
 - **Never change code without owner approval** — propose first, implement after explicit confirmation
 - **Release**: tag-push only — see Release Process below. Never `gh release create <file>`
-- **Tests must pass** before any commit: `./kde/build/numi-kde-tests` (70 tests)
+- **Tests must pass** before any commit — run all three suites:
+  ```
+  ./kde/build/numi-kde-tests qalc
+  ./kde/build/numi-kde-tests documentmodel
+  ./kde/build/numi-kde-tests editor
+  ```
 
 ---
 

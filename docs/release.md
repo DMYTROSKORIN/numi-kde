@@ -85,7 +85,9 @@ git rm --cached *.rpm *.deb SHA256SUMS 2>/dev/null || true
 ```sh
 cmake -S kde -B kde/build -DCMAKE_BUILD_TYPE=Release
 cmake --build kde/build --target numi-kde numi-kde-tests -j$(nproc)
-./kde/build/numi-kde-tests
+./kde/build/numi-kde-tests qalc
+./kde/build/numi-kde-tests documentmodel
+./kde/build/numi-kde-tests editor
 ```
 
 5. Commit and push to main:
