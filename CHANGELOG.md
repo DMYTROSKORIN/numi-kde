@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.53 - 2026-05-12
+
+### Fix
+
+- **Decimal places in results**: `smartFormat` now uses `locale.toString(value, 'f', maxDecimals)` without stripping trailing zeros — all numeric results show exactly the configured number of decimal places, consistent with the Total footer
+- **libqalculate output precision**: set `po.min_decimals = m_decimalPlaces` and `po.use_min_decimals = true` so unit conversion and other non-numeric results also respect the decimal places setting
+
 ## 0.1.52 - 2026-05-12
 
 ### Fix

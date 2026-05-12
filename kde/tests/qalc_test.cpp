@@ -65,6 +65,7 @@ static void runSuite(QalcBridge &bridge) {
     fiatRates.insert("AED", 0.25);
     fiatRates.insert("EUR", 1.25);
     fiatRates.insert("UAH", 0.025);
+    bridge.setDecimalPlaces(0); // baseline: integers shown without decimal point
     bridge.applyFiatRates(fiatRates);
 
     auto eval = [&](const QString &expr) -> LineResult {
@@ -94,15 +95,34 @@ static void runSuite(QalcBridge &bridge) {
         check("2 ^ 10 = 1,024", r.ok && r.result == QLocale().toString(1024), r.result, "1,024");
     }
 
-    // ── No trailing zeros on integers ─────────────────────────────────────────
+    // ── decimal places = 0: integers have no decimal point ────────────────────
     {
         auto r = eval("500 + 0");
-        check("500 no trailing zeros", r.ok && r.result == "500", r.result, "500");
+        check("places=0: 500 shows without decimal point", r.ok && r.result == "500", r.result, "500");
     }
     {
         auto r = eval("1000 / 2");
-        check("1000/2 = 500 no decimals", r.ok && r.result == "500", r.result, "500");
+        check("places=0: 1000/2 = 500 shows without decimal point", r.ok && r.result == "500", r.result, "500");
     }
+
+    // ── Decimal places display (configurable precision) ───────────────────────
+    bridge.setDecimalPlaces(2);
+    {
+        auto r = eval("10000 + 1");
+        check("places=2: integer 10001 shows as 10,001.00",
+              r.ok && r.result == QLocale().toString(10001.0, 'f', 2), r.result, "10,001.00");
+    }
+    {
+        auto r = eval("500 + 0");
+        check("places=2: integer 500 shows as 500.00",
+              r.ok && r.result == QLocale().toString(500.0, 'f', 2), r.result, "500.00");
+    }
+    {
+        auto r = eval("1 / 3");
+        check("places=2: 1/3 shows as 0.33",
+              r.ok && r.result == QLocale().toString(1.0/3.0, 'f', 2), r.result, "0.33");
+    }
+    bridge.setDecimalPlaces(0); // reset
 
     // ── Decimal results ───────────────────────────────────────────────────────
     bridge.setDecimalPlaces(3);
@@ -114,6 +134,7 @@ static void runSuite(QalcBridge &bridge) {
         auto r = eval("22 / 7");
         check("22/7 ≈ 3.143", r.ok && r.result.startsWith("3."), r.result, "3.143...");
     }
+    bridge.setDecimalPlaces(0); // reset for subsequent integer-result sections
 
     // ── Percentage ────────────────────────────────────────────────────────────
     {
@@ -256,10 +277,10 @@ static void runSuite(QalcBridge &bridge) {
               ok, r.size() >= 1 ? r[0].result : "size<1", "300");
     }
     {
-        // Integers must never show trailing .000 in results.
+        // With places=0, integers show without decimal point.
         auto results = bridge.evaluateDocument("200 + 0");
         bool ok = results.size() == 1 && results[0].ok && results[0].result == "200";
-        check("integer result has no trailing zeros (200+0 = \"200\")", ok,
+        check("places=0: 200+0 shows as \"200\" (no decimal point)", ok,
               results.size() >= 1 ? results[0].result : "size<1", "200");
     }
 
@@ -378,6 +399,7 @@ static void runSuite(QalcBridge &bridge) {
     }
 
     // ── Cryptocurrency conversion ───────────────────────────────────────────
+    bridge.setDecimalPlaces(2); // crypto results often fractional; test with 2 places
     {
         QJsonObject rates;
         rates.insert("BTC", 50000.0);
@@ -385,24 +407,24 @@ static void runSuite(QalcBridge &bridge) {
         bridge.applyCryptoRates(rates);
 
         auto btcToEth = eval("1 BTC to ETH");
-        check("1 BTC to ETH = ETH 20", btcToEth.ok && btcToEth.result == "ETH 20",
-              btcToEth.result, "ETH 20");
+        check("1 BTC to ETH = ETH 20.00", btcToEth.ok && btcToEth.result == "ETH 20.00",
+              btcToEth.result, "ETH 20.00");
 
         auto usdToEth = eval("400 USD to ETH");
         check("400 USD to ETH = ETH 0.16", usdToEth.ok && usdToEth.result == "ETH 0.16",
               usdToEth.result, "ETH 0.16");
 
         auto ethToUsd = eval("1 ETH to USD");
-        check("1 ETH to USD = USD 2,500", ethToUsd.ok && ethToUsd.result == QStringLiteral("USD %1").arg(QLocale().toString(2500)),
-              ethToUsd.result, "USD 2,500");
+        check("1 ETH to USD = USD 2,500.00", ethToUsd.ok && ethToUsd.result == QStringLiteral("USD %1").arg(QLocale().toString(2500.0, 'f', 2)),
+              ethToUsd.result, "USD 2,500.00");
         check("crypto conversion exposes numeric value",
               ethToUsd.hasNumericValue && ethToUsd.numericValue == 2500.0,
               QString::number(ethToUsd.numericValue), "2500");
 
         auto btcToEur = eval("1 BTC to EUR");
         check("1 BTC to EUR uses Frankfurter fiat target rate",
-              btcToEur.ok && btcToEur.result == QStringLiteral("EUR %1").arg(QLocale().toString(40000)) && btcToEur.hasNumericValue && btcToEur.numericValue == 40000.0,
-              btcToEur.result, "EUR 40,000");
+              btcToEur.ok && btcToEur.result == QStringLiteral("EUR %1").arg(QLocale().toString(40000.0, 'f', 2)) && btcToEur.hasNumericValue && btcToEur.numericValue == 40000.0,
+              btcToEur.result, "EUR 40,000.00");
 
         auto btcToUah = eval("1 BTC to UAH");
         check("1 BTC to UAH supports fiat target",
@@ -422,11 +444,12 @@ static void runSuite(QalcBridge &bridge) {
                 : "size<2",
               "two numeric conversion rows");
     }
+    bridge.setDecimalPlaces(3); // switch to 3 places for math functions with irrational results
 
     // ── Math functions ────────────────────────────────────────────────────────
     {
         auto r = eval("sqrt(9)");
-        check("sqrt(9) = 3", r.ok && r.result == "3", r.result, "3");
+        check("sqrt(9) = 3.000", r.ok && r.result == QLocale().toString(3.0, 'f', 3), r.result, "3.000");
     }
     {
         auto r = eval("sqrt(2)");
@@ -434,8 +457,9 @@ static void runSuite(QalcBridge &bridge) {
     }
     {
         auto r = eval("abs(-5)");
-        check("abs(-5) = 5", r.ok && r.result == "5", r.result, "5");
+        check("abs(-5) = 5.000", r.ok && r.result == QLocale().toString(5.0, 'f', 3), r.result, "5.000");
     }
+    bridge.setDecimalPlaces(0); // reset
 
     // ── Total across multiple lines ───────────────────────────────────────────
     {
@@ -483,9 +507,11 @@ static void runSuite(QalcBridge &bridge) {
               results.size() >= 2 ? results[1].result : "no results", "50");
     }
     {
+        bridge.setDecimalPlaces(1); // 0.5 needs at least 1 decimal place to display correctly
         auto results = bridge.evaluateDocument("2 : 4");
         check("colon division support (2 : 4 = 0.5)",
               results.size() == 1 && results[0].result == "0.5", results.size() >= 1 ? results[0].result : "error", "0.5");
+        bridge.setDecimalPlaces(0);
     }
     {
         auto results = bridge.evaluateDocument("asdasdasd");
@@ -505,10 +531,12 @@ static void runSuite(QalcBridge &bridge) {
               results.size() == 1 && results[0].result.isEmpty() && results[0].ok, "junk shown", "empty");
     }
     {
+        bridge.setDecimalPlaces(3); // need 3 places to preserve the .414 part
         auto results = bridge.evaluateDocument("7,486,332.414 + 1");
         check("robust thousands separator removal",
-              results.size() == 1 && results[0].result == QLocale().toString(7486333.414, 'f', 3), 
+              results.size() == 1 && results[0].result == QLocale().toString(7486333.414, 'f', 3),
               results.size() >= 1 ? results[0].result : "error", "7,486,333.414");
+        bridge.setDecimalPlaces(0);
     }
     {
         auto results = bridge.evaluateDocument("UAH 22045 - 600");
@@ -520,6 +548,8 @@ static void runSuite(QalcBridge &bridge) {
     {
         // Mixed currencies now output in the default currency (USD by default).
         // 500 EUR * 1.25 USD/EUR - 100 USD = 625 - 100 = 525 USD
+        // uses places=0 so result is "USD 525" without decimal point
+        bridge.setDecimalPlaces(0);
         auto results = bridge.evaluateDocument("500 EUR - 100 USD");
         check("cross-currency uses default currency as output",
               results.size() == 1 && results[0].result == "USD 525",

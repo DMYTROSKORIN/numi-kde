@@ -250,25 +250,12 @@ void QalcBridge::setDefaultCurrency(const QString &currency) {
     m_defaultCurrency = upper.isEmpty() ? QStringLiteral("USD") : upper;
 }
 
-// Format a number: no trailing zeros for integers, max m_decimalPlaces otherwise.
-// Uses system locale for thousands separators.
+// Format a number with exactly maxDecimals decimal places.
+// Uses system locale for thousands separators and decimal point.
 static QString smartFormat(double value, int maxDecimals) {
     if (std::isinf(value) || std::isnan(value)) return QString::number(value);
-
     QLocale locale;
-    // For whole numbers, we still want to avoid .000 if they are exactly integers
-    if (value == std::floor(value) && std::abs(value) < 1e15) {
-        return locale.toString(static_cast<long long>(value));
-    }
-
-    QString s = locale.toString(value, 'f', maxDecimals);
-
-    // Remove unnecessary trailing zeros and the decimal point if it becomes empty
-    if (s.contains(locale.decimalPoint())) {
-        while (s.endsWith(QLatin1Char('0'))) s.chop(1);
-        if (s.endsWith(locale.decimalPoint())) s.chop(1);
-    }
-    return s;
+    return locale.toString(value, 'f', maxDecimals);
 }
 
 static QString pluralize(int value, const QString &one, const QString &many)
@@ -929,9 +916,9 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     PrintOptions po;
     po.number_fraction_format = FRACTION_DECIMAL;
     po.base = 10;
-    po.min_decimals = 0;
+    po.min_decimals = m_decimalPlaces;
     po.max_decimals = m_decimalPlaces;
-    po.use_min_decimals = false;
+    po.use_min_decimals = true;
     po.use_max_decimals = true;
     po.digit_grouping = DIGIT_GROUPING_LOCALE;
 
