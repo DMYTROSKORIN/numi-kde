@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.55 - 2026-05-12
+
+### Fix
+
+- **Probe check**: `--probe` now compares `numericValue == 4.0` instead of `result == "4"` — was failing since v0.1.53 when `smartFormat` started appending decimal places to all results
+
 ## 0.1.54 - 2026-05-12
 
 ### Fix

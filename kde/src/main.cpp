@@ -46,7 +46,8 @@ static int runProbe(int argc, char *argv[])
     const auto results = bridge.evaluateDocument(QStringLiteral("2 + 2\n1 km to m"));
     const bool ok = results.size() == 2
                  && results.at(0).ok
-                 && results.at(0).result == QStringLiteral("4")
+                 && results.at(0).hasNumericValue
+                 && results.at(0).numericValue == 4.0
                  && results.at(1).ok
                  && results.at(1).hasNumericValue
                  && results.at(1).numericValue == 1000.0;
