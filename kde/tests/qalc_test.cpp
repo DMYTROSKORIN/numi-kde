@@ -777,11 +777,12 @@ static void runDocumentModelSuite() {
               help, "empty result");
     }
     {
+        // AED/USD are currency entities → yellow #ffd35a; "to" is a keyword → yellow #ffd35a
         const QString html = model.highlightExample("500 AED to USD");
-        bool ok = html.contains("#6fc4e8") && html.contains("AED") && html.contains("USD")
-               && html.contains("#ffd35a") && html.contains("to");
+        bool ok = html.contains("#ffd35a") && html.contains("AED")
+               && html.contains("USD")   && html.contains("to");
         check("DocumentModel help examples use shared syntax highlighting", ok,
-              html, "highlighted AED/USD/to");
+              html, "highlighted AED/USD/to in yellow");
     }
 
     // ── getCompletions via DocumentModel ─────────────────────────────────────

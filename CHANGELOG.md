@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.57 - 2026-05-13
+
+### Fix
+
+- **Color scheme** — matches original Numi palette:
+  - User variable names: **light blue** `#6bc5f8` (was orange `#fb923c`)
+  - Comment lines (`#...`): **amber** `#e09030` (was blue `#6bc5f8`)
+  - Math operators (`+`, `-`, `=`, `*`, `/`, `%`, `(`, `)`): **default white** — no span (was yellow)
+  - Keywords (`to`, `as`, `today`, etc.) and units/currencies (`km`, `USD`): **yellow** `#ffd35a` (unchanged)
+
 ## 0.1.56 - 2026-05-12
 
 ### Fix

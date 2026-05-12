@@ -8,7 +8,8 @@
 #include <libqalculate/qalculate.h>
 #include <algorithm>
 
-static const char *USER_VAR_COLOR = "#fb923c";
+static const char *USER_VAR_COLOR = "#6bc5f8";   // light blue — user variable names
+static const char *COMMENT_COLOR  = "#e09030";   // amber    — # comment lines
 
 SyntaxHighlighter::SyntaxHighlighter(Calculator *calc) : m_calc(calc) {
     // Ported regex from highlight.js
@@ -27,7 +28,7 @@ QString SyntaxHighlighter::highlightLine(const QString &line,
 {
     if (line.trimmed().startsWith("#")) {
         return QString("<span style=\"color:%1\">%2</span>")
-               .arg(QLatin1String(USER_VAR_COLOR))
+               .arg(QLatin1String(COMMENT_COLOR))
                .arg(escapeHtml(line));
     }
 
@@ -105,7 +106,7 @@ QString SyntaxHighlighter::tokenizeSegment(const QString &text, const QSet<QStri
         } else if (kind == "operator") {
             result += QString("<span style=\"color:#ffd35a\">%1</span>").arg(escaped);
         } else if (kind == "entity") {
-            result += QString("<span style=\"color:#6fc4e8\">%1</span>").arg(escaped);
+            result += QString("<span style=\"color:#ffd35a\">%1</span>").arg(escaped);
         } else {
             result += escaped;
         }
@@ -126,10 +127,10 @@ QString SyntaxHighlighter::classify(const QString &token, const QSet<QString> &v
     QString lower = token.toLower();
     QString kind;
 
-    if (m_operatorWords.contains(lower) || m_operatorSymbols.contains(token)) {
-        kind = "operator";
-    } else if (token == "%" || token == "*" || token == "/") {
-        kind = "entity";
+    if (m_operatorWords.contains(lower)) {
+        kind = "operator";  // keywords (to, as, today…) → yellow
+    } else if (m_operatorSymbols.contains(token) || token == "%" || token == "*" || token == "/") {
+        kind = "";  // math operators (+, -, =, *, /, %) → default white, no span
     } else {
         // Check for currency (uppercase, 3-5 chars)
         static QRegularExpression currencyRegex("^[A-Z]{3,5}$");
