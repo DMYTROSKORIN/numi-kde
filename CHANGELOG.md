@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.52 - 2026-05-12
+
+### Fix
+
+- **Cursor**: replaced custom Item+Rectangle with `Rectangle { height: editor.cursorRectangle.height }` — cursor now uses Qt's actual line height, eliminating cumulative drift on later lines
+- **Total formatting**: switched from `parseFloat(...toFixed())` to `Number.toLocaleString(Qt.locale(), 'f', places)` — Total now shows thousands separator and respects the decimal places setting
+- **Total copy**: same fix applied to clipboard copy on Total click
+
 ## 0.1.51 - 2026-05-12
 
 ### Fix

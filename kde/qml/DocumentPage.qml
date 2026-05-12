@@ -40,8 +40,7 @@ Item {
     function totalLabelText() {
         if (!documentModel || !documentModel.hasTotal) return ""
         let places = documentModel.decimalPlaces
-        let val = parseFloat(documentModel.total.toFixed(places))
-        return "Total: " + val
+        return "Total: " + documentModel.total.toLocaleString(Qt.locale(), 'f', places)
     }
 
     Column {
@@ -280,8 +279,8 @@ Item {
                     onClicked: {
                         if (documentModel) {
                             let places = documentModel.decimalPlaces
-                            let val = parseFloat(documentModel.total.toFixed(places))
-                            documentModel.copyText(String(val))
+                            documentModel.copyText(
+                                documentModel.total.toLocaleString(Qt.locale(), 'f', places))
                         }
                     }
                 }

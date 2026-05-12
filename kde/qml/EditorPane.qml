@@ -69,26 +69,20 @@ Controls.ScrollView {
             color: "transparent"
             selectedTextColor: "transparent"
             selectionColor: "#6643505b"
-            cursorDelegate: Item {
+            cursorDelegate: Rectangle {
                 width: 2
-                height: root.lineH
+                height: editor.cursorRectangle.height
+                color: root.accentYellow
+                visible: editor.cursorVisible
 
-                Rectangle {
-                    width: 2
-                    height: fontMetrics.ascent + fontMetrics.descent
-                    color: root.accentYellow
-                    anchors.top: parent.top
-                    visible: editor.cursorVisible
-
-                    SequentialAnimation on opacity {
-                        running: editor.activeFocus
-                        loops: Animation.Infinite
-                        onStopped: parent.opacity = 1.0
-                        PauseAnimation  { duration: 500 }
-                        NumberAnimation { to: 0; duration: 150 }
-                        PauseAnimation  { duration: 350 }
-                        NumberAnimation { to: 1; duration: 150 }
-                    }
+                SequentialAnimation on opacity {
+                    running: editor.activeFocus
+                    loops: Animation.Infinite
+                    onStopped: parent.opacity = 1.0
+                    PauseAnimation  { duration: 500 }
+                    NumberAnimation { to: 0; duration: 150 }
+                    PauseAnimation  { duration: 350 }
+                    NumberAnimation { to: 1; duration: 150 }
                 }
             }
             font.family: root.monoFont
