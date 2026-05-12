@@ -77,7 +77,7 @@ Controls.ScrollView {
                     width: 2
                     height: fontMetrics.ascent + fontMetrics.descent
                     color: root.accentYellow
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.top: parent.top
                     visible: editor.cursorVisible
 
                     SequentialAnimation on opacity {

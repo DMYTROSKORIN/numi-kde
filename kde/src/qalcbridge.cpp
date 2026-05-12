@@ -887,10 +887,14 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     static QRegularExpression assignmentRegex(
         "^([\\p{L}_][\\p{L}\\d_ ]*?)\\s*(?::=|=)\\s*(.+)$",
         QRegularExpression::UseUnicodePropertiesOption);
+    // Looser regex for pre-scan: detects variable name even if RHS is empty ("VarName =")
+    static QRegularExpression varNameRegex(
+        "^([\\p{L}_][\\p{L}\\d_ ]*?)\\s*(?::=|=)",
+        QRegularExpression::UseUnicodePropertiesOption);
     for (const QString &rawLn : lines) {
         QString t = rawLn.trimmed();
         if (t.startsWith('#') || t.isEmpty()) continue;
-        auto m = assignmentRegex.match(t);
+        auto m = varNameRegex.match(t);
         if (!m.hasMatch()) continue;
         QString displayName = m.captured(1).trimmed();
         if (displayName.isEmpty()) continue;
@@ -1180,12 +1184,20 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 continue;
             }
 
+            // Strip "(annotation) = value" prefix from RHS — Numi syntax for labeled assignments.
+            // e.g., "X = (label) = 100 + 200": (label) is an annotation, 100+200 is the actual value.
+            static QRegularExpression annotationPrefixRe(R"(^\(.*?\)\s*[=:]=?\s*(.+)$)");
+            QString rawRhs = assignMatch.captured(2).trimmed();
+            auto annM = annotationPrefixRe.match(rawRhs);
+            if (annM.hasMatch())
+                rawRhs = annM.captured(1).trimmed();
+
             // Preprocess RHS: substitute multi-word display names, then apply percent patterns.
-            QString rhs = applyPercentPreprocess(substituteVars(assignMatch.captured(2)));
+            QString rhs = applyPercentPreprocess(substituteVars(rawRhs));
 
             // Try currency evaluation on the RHS before libqalculate.
             // tryEvaluateCurrencyExpr looks up m_varCurrencyTag by display name — pass original RHS.
-            QString rhsForCurrency = applyPercentPreprocess(assignMatch.captured(2));
+            QString rhsForCurrency = applyPercentPreprocess(rawRhs);
             {
                 QString currResult, currTag;
                 if (tryEvaluateCurrencyExpr(rhsForCurrency, &currResult, &currTag)) {

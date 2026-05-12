@@ -247,6 +247,15 @@ static void runSuite(QalcBridge &bridge) {
               ok, r.size() >= 1 ? r[0].result : "size<1", "AED 900");
     }
     {
+        // Numi-style labeled assignment: "VAR = (annotation) = value"
+        // The parenthesized annotation is stripped; only the numeric expression is evaluated.
+        auto r = bridge.evaluateDocument("X = (description) = 100 + 200");
+        bool ok = r.size() == 1 && r[0].ok && r[0].hasNumericValue
+                  && std::abs(r[0].numericValue - 300.0) < 0.001;
+        check("labeled assignment: X = (description) = 100 + 200 gives 300",
+              ok, r.size() >= 1 ? r[0].result : "size<1", "300");
+    }
+    {
         // Integers must never show trailing .000 in results.
         auto results = bridge.evaluateDocument("200 + 0");
         bool ok = results.size() == 1 && results[0].ok && results[0].result == "200";

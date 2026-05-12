@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.51 - 2026-05-12
+
+### Fix
+
+- **Variable color**: changed from orange (`#fb923c`) to yellow (`#f0c040`) to match original Numi palette
+- **Variable highlight without value**: `Переменная =` (no RHS yet) now immediately highlights the name in variable color; pre-scan uses a looser regex that doesn't require a value after `=`
+- **Labeled assignment**: `X = (annotation) = value` pattern now correctly evaluates to the numeric expression; the parenthesized annotation prefix is stripped before evaluation — matches Numi's behavior
+- **Cursor centering**: cursor bar now anchored to line top instead of vertically centered within lineSpacing, fixing the downward offset caused by trailing leading space
+
+### Tests
+
+- 103 tests (82 QalcBridge + 14 DocumentModel + 7 Editor): added `labeled assignment` test for `(annotation) = value` pattern
+
 ## 0.1.50 - 2026-05-12
 
 ### Features
