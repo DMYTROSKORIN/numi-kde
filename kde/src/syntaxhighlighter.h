@@ -3,7 +3,9 @@
 
 #include <QString>
 #include <QSet>
+#include <QStringList>
 #include <QRegularExpression>
+#include <QHash>
 
 class Calculator;
 
@@ -11,9 +13,14 @@ class SyntaxHighlighter {
 public:
     explicit SyntaxHighlighter(Calculator *calc);
 
-    QString highlightLine(const QString &line, const QSet<QString> &variables);
+    // singleWordVars: user-defined variable names without spaces (matched by tokenizer)
+    // multiWordVarsSorted: user-defined variable names with spaces, sorted by length descending
+    QString highlightLine(const QString &line,
+                          const QSet<QString> &singleWordVars,
+                          const QStringList &multiWordVarsSorted = {});
 
 private:
+    QString tokenizeSegment(const QString &text, const QSet<QString> &variables);
     QString escapeHtml(const QString &input);
     QString escapeWhitespace(const QString &input);
     QString classify(const QString &token, const QSet<QString> &variables);

@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QString>
 #include <QList>
+#include <QMap>
 #include <QTimer>
 #include <QJsonObject>
 #include <QHash>
@@ -35,7 +36,7 @@ public:
     QList<LineResult> evaluateDocument(const QString &source);
     void setDecimalPlaces(int places);
     QString getCompletion(const QString &prefix);
-    QStringList getCompletions(const QString &prefix);
+    QStringList getCompletions(const QString &lineContext);
     QString highlightLine(const QString &line) const;
 
     void fetchFiatRates();
@@ -69,8 +70,12 @@ private:
     QHash<QString, double> m_fiatUsdRates;
     QHash<QString, double> m_cryptoUsdRates;
     // Per-document variable state: populated during evaluateDocument, cleared each run.
-    QHash<QString, QString> m_varCurrencyTag;  // varName → currency symbol (e.g. "USD")
-    QHash<QString, double>  m_varNumericValue; // varName → numeric value in that currency
+    QHash<QString, QString> m_varCurrencyTag;  // displayName → currency symbol (e.g. "USD")
+    QHash<QString, double>  m_varNumericValue; // displayName → numeric value in that currency
+    // User variable name mapping: display name (may contain spaces) ↔ internal (underscore) name.
+    QMap<QString, QString> m_displayToInternal;   // "Слоны в обороте" → "Слоны_в_обороте"
+    QMap<QString, QString> m_internalToDisplay;   // reverse
+    QMap<QString, QString> m_userVarDisplayValues; // displayName → last formatted value for autocomplete
     // Fallback output currency for mixed-crypto expressions (e.g. "1 BTC + 1 ETH").
     // Defaults to "USD". Configurable via Settings.
     QString m_defaultCurrency = QStringLiteral("USD");

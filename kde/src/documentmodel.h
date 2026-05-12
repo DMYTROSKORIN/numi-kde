@@ -68,7 +68,7 @@ public:
     Q_INVOKABLE void restoreSession(int index);
     Q_INVOKABLE void clearHistory();
     Q_INVOKABLE QString completeWord(const QString &prefix);
-    Q_INVOKABLE QStringList getCompletions(const QString &prefix);
+    Q_INVOKABLE QStringList getCompletions(const QString &lineContext);
     Q_INVOKABLE QString highlightExample(const QString &line) const;
 
 signals:

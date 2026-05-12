@@ -105,21 +105,32 @@ Controls.ScrollView {
             property string _originalWord: ""
             property bool _applyingCompletion: false
 
+            // Returns the absolute position in editor.text where the current completion prefix starts.
+            // Goes back to the last operator or line beginning, skipping leading spaces.
             function _getWordStart() {
                 let pos = editor.cursorPosition
                 let txt = editor.text
-                let start = pos
-                while (start > 0 && /[A-Za-z0-9_π]/.test(txt[start - 1])) start--
+                let lineStart = pos
+                while (lineStart > 0 && txt[lineStart - 1] !== '\n') lineStart--
+                const separators = "+-*/()=^%,;"
+                let sepIdx = -1
+                for (let i = pos - 1; i >= lineStart; i--) {
+                    if (separators.includes(txt[i])) { sepIdx = i; break }
+                }
+                let start = sepIdx + 1
+                while (start < pos && txt[start] === ' ') start++
                 return start
             }
 
             function _applyItem(index) {
                 let item = completionPopup.model[index]
                 if (!item) return
+                // model entries are "name\tvalue" — extract just the name
+                let name = item.split('\t')[0]
                 editor._applyingCompletion = true
                 editor.remove(editor._wordStart, editor.cursorPosition)
-                editor.insert(editor._wordStart, item)
-                editor.cursorPosition = editor._wordStart + item.length
+                editor.insert(editor._wordStart, name)
+                editor.cursorPosition = editor._wordStart + name.length
                 editor._applyingCompletion = false
             }
 
@@ -133,21 +144,31 @@ Controls.ScrollView {
                 }
                 let pos = editor.cursorPosition
                 if (pos === 0) return
-                let start = editor._getWordStart()
-                let word = editor.text.substring(start, pos)
-                if (word.length === 0) return
-                let completions = documentModel.getCompletions(word)
+
+                // Build the line context (from line start to cursor) for the completion engine
+                let txt = editor.text
+                let lineStart = pos
+                while (lineStart > 0 && txt[lineStart - 1] !== '\n') lineStart--
+                let lineContext = txt.substring(lineStart, pos)
+                if (lineContext.trim().length === 0) return
+
+                let completions = documentModel.getCompletions(lineContext)
                 if (completions.length === 0) return
+
+                let start = editor._getWordStart()
+                editor._wordStart = start
+
                 if (completions.length === 1) {
+                    let name = completions[0].split('\t')[0]
                     editor._applyingCompletion = true
                     editor.remove(start, pos)
-                    editor.insert(start, completions[0])
-                    editor.cursorPosition = start + completions[0].length
+                    editor.insert(start, name)
+                    editor.cursorPosition = start + name.length
                     editor._applyingCompletion = false
                     return
                 }
-                editor._wordStart = start
-                editor._originalWord = word
+
+                editor._originalWord = txt.substring(start, pos)
                 completionPopup.model = completions
                 completionPopup.currentIndex = 0
                 editor._applyItem(0)
@@ -159,7 +180,10 @@ Controls.ScrollView {
             }
 
             Keys.onUpPressed: (event) => {
-                if (!completionPopup.visible) return
+                if (!completionPopup.visible) {
+                    event.accepted = false
+                    return
+                }
                 event.accepted = true
                 let prev = (completionPopup.currentIndex - 1 + completionPopup.model.length) % completionPopup.model.length
                 completionPopup.currentIndex = prev
@@ -167,7 +191,10 @@ Controls.ScrollView {
             }
 
             Keys.onDownPressed: (event) => {
-                if (!completionPopup.visible) return
+                if (!completionPopup.visible) {
+                    event.accepted = false
+                    return
+                }
                 event.accepted = true
                 let next = (completionPopup.currentIndex + 1) % completionPopup.model.length
                 completionPopup.currentIndex = next
@@ -184,7 +211,10 @@ Controls.ScrollView {
             }
 
             Keys.onEscapePressed: (event) => {
-                if (!completionPopup.visible) return
+                if (!completionPopup.visible) {
+                    event.accepted = false
+                    return
+                }
                 event.accepted = true
                 editor._applyingCompletion = true
                 editor.remove(editor._wordStart, editor.cursorPosition)
@@ -224,7 +254,7 @@ Controls.ScrollView {
             radius: 4
         }
 
-        width: 180
+        width: 300
         height: Math.min(model.length, 8) * 24 + 8
 
         ListView {
@@ -241,17 +271,31 @@ Controls.ScrollView {
                        ? (Window.window ? Window.window.controlHover : "#30333b")
                        : "transparent"
 
-                Text {
+                Row {
                     anchors.verticalCenter: parent.verticalCenter
                     x: 8
-                    text: modelData
-                    color: index === completionPopup.currentIndex
-                           ? (Window.window ? Window.window.numiBlue : "#6fc4e8")
-                           : (Window.window ? Window.window.numiText : "#f0f0f3")
-                    font.family: root.monoFont
-                    font.pixelSize: root.monoSize - 2
-                    elide: Text.ElideRight
-                    width: parent.width - 16
+                    spacing: 4
+
+                    Text {
+                        text: modelData.split('\t')[0]
+                        color: index === completionPopup.currentIndex
+                               ? (Window.window ? Window.window.numiBlue : "#6fc4e8")
+                               : (Window.window ? Window.window.numiText : "#f0f0f3")
+                        font.family: root.monoFont
+                        font.pixelSize: root.monoSize - 2
+                    }
+
+                    Text {
+                        property string desc: {
+                            let parts = modelData.split('\t')
+                            return (parts.length > 1 && parts[1].length > 0) ? "(" + parts[1] + ")" : ""
+                        }
+                        visible: desc.length > 0
+                        text: desc
+                        color: "#6b6d76"
+                        font.family: root.monoFont
+                        font.pixelSize: root.monoSize - 3
+                    }
                 }
 
                 TapHandler {

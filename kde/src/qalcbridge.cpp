@@ -852,7 +852,7 @@ bool QalcBridge::tryEvaluateCurrencyExpr(const QString &rawExpr,
 
 QString QalcBridge::highlightLine(const QString &line) const
 {
-    return m_highlighter->highlightLine(line, {});
+    return m_highlighter->highlightLine(line, {}, {});
 }
 
 QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
@@ -861,6 +861,9 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     // Clear per-document variable state from any previous run.
     m_varCurrencyTag.clear();
     m_varNumericValue.clear();
+    m_displayToInternal.clear();
+    m_internalToDisplay.clear();
+    m_userVarDisplayValues.clear();
 
     // Clear user-defined variables from previous evaluations.
     // We collect names first to avoid iterator invalidation during removal.
@@ -879,16 +882,40 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     QList<LineResult> results;
     QStringList lines = source.split('\n');
 
-    // Collect variable names for highlighting.
-    QSet<QString> variables;
+    // Pre-scan: collect all user variable display names and build display↔internal maps.
+    // Multi-word assignment regex: LHS can contain unicode letters, digits, underscores and spaces.
     static QRegularExpression assignmentRegex(
-        "^([A-Za-z_π\\p{L}][\\wπ\\p{L}]*)\\s*(?::=|=)\\s*(.+)$",
+        "^([\\p{L}_][\\p{L}\\d_ ]*?)\\s*(?::=|=)\\s*(.+)$",
         QRegularExpression::UseUnicodePropertiesOption);
-    for (const QString &line : lines) {
-        auto match = assignmentRegex.match(line.trimmed());
-        if (match.hasMatch())
-            variables.insert(match.captured(1));
+    for (const QString &rawLn : lines) {
+        QString t = rawLn.trimmed();
+        if (t.startsWith('#') || t.isEmpty()) continue;
+        auto m = assignmentRegex.match(t);
+        if (!m.hasMatch()) continue;
+        QString displayName = m.captured(1).trimmed();
+        if (displayName.isEmpty()) continue;
+        QString internalName = displayName;
+        internalName.replace(QRegularExpression("\\s+"), "_");
+        if (!m_displayToInternal.contains(displayName)) {
+            m_displayToInternal.insert(displayName, internalName);
+            m_internalToDisplay.insert(internalName, displayName);
+        }
     }
+
+    // Build sorted lists for syntax highlighting (longest names first to avoid partial matches).
+    QSet<QString> singleWordVars;
+    QStringList multiWordVarsSorted;
+    for (auto it = m_displayToInternal.constBegin(); it != m_displayToInternal.constEnd(); ++it) {
+        if (it.key().contains(' '))
+            multiWordVarsSorted << it.key();
+        else
+            singleWordVars << it.key();
+    }
+    std::sort(multiWordVarsSorted.begin(), multiWordVarsSorted.end(),
+              [](const QString &a, const QString &b) { return a.length() > b.length(); });
+
+    // Sorted display names for substituteVars (multi-word only, longest first).
+    QStringList multiWordDisplayNames = multiWordVarsSorted;
 
     EvaluationOptions eo;
     eo.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
@@ -904,13 +931,22 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     po.use_max_decimals = true;
     po.digit_grouping = DIGIT_GROUPING_LOCALE;
 
+    // Replaces multi-word display names with their underscore-normalised internal names
+    // so libqalculate can handle them. Single-word names are stored as-is and need no substitution.
+    auto substituteVars = [&](const QString &text) -> QString {
+        QString result = text;
+        for (const QString &disp : multiWordDisplayNames)
+            result.replace(disp, m_displayToInternal.value(disp));
+        return result;
+    };
+
     for (const QString &rawLine : lines) {
         LineResult res;
         res.ok = false;
         QString trimmed = rawLine.trimmed();
         const QString totalKey = totalKeyForExpression(trimmed);
 
-        res.highlightedHtml = m_highlighter->highlightLine(rawLine, variables);
+        res.highlightedHtml = m_highlighter->highlightLine(rawLine, singleWordVars, multiWordVarsSorted);
 
         // Empty / comment lines
         if (trimmed.isEmpty() || trimmed.startsWith("//") || trimmed.startsWith("#")) {
@@ -1132,33 +1168,37 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         // 4. Variable assignment: detect first, then preprocess RHS
         auto assignMatch = assignmentRegex.match(line.trimmed());
         if (assignMatch.hasMatch()) {
-            QString varName = assignMatch.captured(1);
-            
+            QString displayName = assignMatch.captured(1).trimmed();
+            QString internalName = m_displayToInternal.value(displayName, displayName);
+
             // Validation: prevent using keywords as variable names.
             // We allow shadowing units (like 'A' for Ampere) as it's common in calculations.
-            if (isIncompleteExpression(varName)) {
+            if (isIncompleteExpression(displayName)) {
                 res.ok = false;
-                res.error = QStringLiteral("Reserved name: %1").arg(varName);
+                res.error = QStringLiteral("Reserved name: %1").arg(displayName);
                 results.append(res);
                 continue;
             }
 
-            QString rhs = applyPercentPreprocess(assignMatch.captured(2));
+            // Preprocess RHS: substitute multi-word display names, then apply percent patterns.
+            QString rhs = applyPercentPreprocess(substituteVars(assignMatch.captured(2)));
 
             // Try currency evaluation on the RHS before libqalculate.
-            // This handles "VAR = N CURR to CURR2", "VAR = N CURR1 + M CURR2", etc.
+            // tryEvaluateCurrencyExpr looks up m_varCurrencyTag by display name — pass original RHS.
+            QString rhsForCurrency = applyPercentPreprocess(assignMatch.captured(2));
             {
                 QString currResult, currTag;
-                if (tryEvaluateCurrencyExpr(rhs, &currResult, &currTag)) {
+                if (tryEvaluateCurrencyExpr(rhsForCurrency, &currResult, &currTag)) {
                     double numVal = 0.0;
                     parseDisplayNumber(currResult, &numVal);
                     if (std::isfinite(numVal)) {
-                        m_varCurrencyTag[varName]  = currTag;
-                        m_varNumericValue[varName] = numVal;
+                        m_varCurrencyTag[displayName]  = currTag;
+                        m_varNumericValue[displayName] = numVal;
+                        m_userVarDisplayValues[displayName] = currResult;
                         // Store as plain number in libqalculate so arithmetic with
                         // other variables continues to work.
                         const QString qa = QStringLiteral("%1 := %2")
-                                            .arg(varName)
+                                            .arg(internalName)
                                             .arg(numVal, 0, 'g', 15);
                         MathStructure tmp;
                         m_calc->calculate(&tmp, qa.toStdString(), 5000, eo);
@@ -1181,9 +1221,8 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                     res.ok = false;
                     res.error = "Error";
                 } else {
-                    // Set the variable in the calculator.
-                    // We use an internal assignment expression to let libqalculate handle the variable update properly.
-                    QString assignment = QString("%1 := %2").arg(varName, rhs);
+                    // Set the variable in the calculator using the internal (underscore) name.
+                    QString assignment = QString("%1 := %2").arg(internalName, rhs);
                     MathStructure _assignTmp;
                     m_calc->calculate(&_assignTmp, assignment.toStdString(), 5000, eo);
 
@@ -1193,8 +1232,9 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                             res.ok = false;
                             res.error = "Error";
                         } else {
-                            m_varNumericValue[varName] = v;
+                            m_varNumericValue[displayName] = v;
                             res.result = smartFormat(v, m_decimalPlaces);
+                            m_userVarDisplayValues[displayName] = res.result;
                             res.hasNumericValue = true;
                             res.numericValue = v;
                             res.totalKey = totalKey;
@@ -1207,15 +1247,13 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                         if (!res.ok) {
                             res.error = "Error";
                         } else {
+                            if (res.ok)
+                                m_userVarDisplayValues[displayName] = rhsStr;
                             // Re-assign as plain number so downstream arithmetic works.
-                            // Currency-bearing RHS expressions are now intercepted above by
-                            // tryEvaluateCurrencyExpr; this branch handles non-currency
-                            // non-scalar results from libqalculate (e.g. unit conversions
-                            // that libqalculate resolved on its own).
                             double numericForVar = 0.0;
                             if (parseDisplayNumber(rhsStr, &numericForVar) && std::isfinite(numericForVar)) {
-                                m_varNumericValue[varName] = numericForVar;
-                                QString numAssignment = QString("%1 := %2").arg(varName).arg(numericForVar, 0, 'g', 15);
+                                m_varNumericValue[displayName] = numericForVar;
+                                QString numAssignment = QString("%1 := %2").arg(internalName).arg(numericForVar, 0, 'g', 15);
                                 MathStructure _numTmp;
                                 m_calc->calculate(&_numTmp, numAssignment.toStdString(), 5000, eo);
                                 res.hasNumericValue = true;
@@ -1256,7 +1294,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 }
             }
 
-            line = applyPercentPreprocess(line);
+            line = applyPercentPreprocess(substituteVars(line));
             try {
                 m_calc->clearMessages();
                 MathStructure result;
@@ -1406,50 +1444,51 @@ QString QalcBridge::getCompletion(const QString &prefix) {
     return common.isEmpty() ? prefix : common;
 }
 
-QStringList QalcBridge::getCompletions(const QString &prefix) {
+QStringList QalcBridge::getCompletions(const QString &lineContext) {
+    if (lineContext.trimmed().isEmpty()) return {};
+
+    // Extract the "current token" = text after the last operator/separator on this line.
+    static const QString separators = QStringLiteral("+-*/()=^%,;");
+    int sepPos = -1;
+    for (int i = lineContext.length() - 1; i >= 0; --i) {
+        if (separators.contains(lineContext[i])) { sepPos = i; break; }
+    }
+    QString prefix = lineContext.mid(sepPos + 1);
+    // Strip leading whitespace from the prefix
+    int lead = 0;
+    while (lead < prefix.length() && prefix[lead] == ' ') ++lead;
+    prefix = prefix.mid(lead);
+
     if (prefix.isEmpty()) return {};
 
-    QStringList matches;
-    std::string p = prefix.toLower().toStdString();
+    QStringList result;
+    QSet<QString> seen;
 
-    // Only include identifier-like names (no slashes, carets, etc.)
-    auto addIfMatch = [&](const std::string &name) {
-        if (name.empty() || name.size() > 20) return;
-        for (char c : name)
-            if (!std::isalnum((unsigned char)c) && c != '_') return;
-        if (caseInsensitivePrefixMatch(name, p))
-            matches << QString::fromStdString(name);
-    };
-
-    for (size_t i = 0; ; ++i) {
-        Unit *u = m_calc->getUnit(i);
-        if (!u) break;
-        for (size_t j = 0; j < u->countNames(); ++j)
-            addIfMatch(u->getName(j).name);
-    }
-    for (size_t i = 0; ; ++i) {
-        Variable *v = m_calc->getVariable(i);
-        if (!v) break;
-        for (size_t j = 0; j < v->countNames(); ++j)
-            addIfMatch(v->getName(j).name);
-    }
-    for (size_t i = 0; ; ++i) {
-        MathFunction *f = m_calc->getFunction(i);
-        if (!f) break;
-        for (size_t j = 0; j < f->countNames(); ++j)
-            addIfMatch(f->getName(j).name);
+    // User-defined variables (primary: shown with their last computed value)
+    for (auto it = m_displayToInternal.constBegin(); it != m_displayToInternal.constEnd(); ++it) {
+        const QString &displayName = it.key();
+        if (displayName.startsWith(prefix, Qt::CaseInsensitive) && !seen.contains(displayName)) {
+            seen.insert(displayName);
+            QString value = m_userVarDisplayValues.value(displayName);
+            result << (displayName + '\t' + value);
+        }
     }
 
+    // Keywords (shown without value description)
     static const QStringList keywords = {
         "today", "tomorrow", "yesterday", "now",
         "days", "weeks", "months", "years"
     };
     for (const auto &kw : keywords) {
-        if (kw.startsWith(prefix, Qt::CaseInsensitive)) matches << kw;
+        if (kw.startsWith(prefix, Qt::CaseInsensitive) && !seen.contains(kw)) {
+            seen.insert(kw);
+            result << (kw + '\t');
+        }
     }
 
-    matches.removeDuplicates();
-    matches.sort(Qt::CaseInsensitive);
-    if (matches.size() > 12) matches = matches.mid(0, 12);
-    return matches;
+    std::sort(result.begin(), result.end(), [](const QString &a, const QString &b) {
+        return a.section('\t', 0, 0).compare(b.section('\t', 0, 0), Qt::CaseInsensitive) < 0;
+    });
+
+    return result;
 }

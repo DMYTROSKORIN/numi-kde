@@ -6,6 +6,9 @@
 
 #include "syntaxhighlighter.h"
 #include <libqalculate/qalculate.h>
+#include <algorithm>
+
+static const char *USER_VAR_COLOR = "#fb923c";
 
 SyntaxHighlighter::SyntaxHighlighter(Calculator *calc) : m_calc(calc) {
     // Ported regex from highlight.js
@@ -18,13 +21,68 @@ SyntaxHighlighter::SyntaxHighlighter(Calculator *calc) : m_calc(calc) {
     m_operatorSymbols = {":=", "+", "-", "^", "(", ")", ",", ";", "="};
 }
 
-QString SyntaxHighlighter::highlightLine(const QString &line, const QSet<QString> &variables) {
+QString SyntaxHighlighter::highlightLine(const QString &line,
+                                          const QSet<QString> &singleWordVars,
+                                          const QStringList &multiWordVarsSorted)
+{
     if (line.trimmed().startsWith("#")) {
         return QString("<span style=\"color:#22d3ee\">%1</span>").arg(escapeHtml(line));
     }
 
+    if (multiWordVarsSorted.isEmpty()) {
+        return tokenizeSegment(line, singleWordVars);
+    }
+
+    // Find all non-overlapping occurrences of multi-word variable names (longest first).
+    struct Span { int start, len; };
+    QVector<Span> spans;
+
+    for (const QString &varName : multiWordVarsSorted) {
+        int idx = 0;
+        while (idx < line.length()) {
+            int found = line.indexOf(varName, idx, Qt::CaseSensitive);
+            if (found == -1) break;
+            bool overlap = false;
+            for (const Span &s : spans) {
+                if (found < s.start + s.len && found + varName.length() > s.start) {
+                    overlap = true;
+                    break;
+                }
+            }
+            if (!overlap)
+                spans.append({found, (int)varName.length()});
+            idx = found + varName.length();
+        }
+    }
+
+    if (spans.isEmpty()) {
+        return tokenizeSegment(line, singleWordVars);
+    }
+
+    std::sort(spans.begin(), spans.end(), [](const Span &a, const Span &b) {
+        return a.start < b.start;
+    });
+
     QString result;
-    auto it = m_tokenRegex.globalMatch(line);
+    int pos = 0;
+    for (const Span &sp : spans) {
+        if (sp.start > pos)
+            result += tokenizeSegment(line.mid(pos, sp.start - pos), singleWordVars);
+        result += QString("<span style=\"color:%1\">%2</span>")
+                  .arg(QLatin1String(USER_VAR_COLOR))
+                  .arg(escapeHtml(line.mid(sp.start, sp.len)));
+        pos = sp.start + sp.len;
+    }
+    if (pos < line.length())
+        result += tokenizeSegment(line.mid(pos), singleWordVars);
+
+    return result;
+}
+
+QString SyntaxHighlighter::tokenizeSegment(const QString &text, const QSet<QString> &variables)
+{
+    QString result;
+    auto it = m_tokenRegex.globalMatch(text);
 
     while (it.hasNext()) {
         auto match = it.next();
@@ -39,7 +97,9 @@ QString SyntaxHighlighter::highlightLine(const QString &line, const QSet<QString
         QString escaped = escapeHtml(token);
 
         if (kind == "variable") {
-            result += QString("<span style=\"color:#39ff14\">%1</span>").arg(escaped);
+            result += QString("<span style=\"color:%1\">%2</span>")
+                      .arg(QLatin1String(USER_VAR_COLOR))
+                      .arg(escaped);
         } else if (kind == "operator") {
             result += QString("<span style=\"color:#ffd35a\">%1</span>").arg(escaped);
         } else if (kind == "entity") {

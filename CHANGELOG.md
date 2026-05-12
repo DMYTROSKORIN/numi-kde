@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.50 - 2026-05-12
+
+### Features
+
+- **Multi-word variables**: variable names can now contain spaces, e.g. `monthly income = 5000`.
+  Internally mapped to underscore names for libqalculate; display names preserved in UI and autocomplete.
+- **Autocomplete redesign**: Tab completion now shows only user-defined variables (with their last
+  computed value) and date keywords — no more irrelevant built-in functions. Popup width increased to 300px,
+  descriptions shown in muted colour next to each name.
+- **Syntax highlighter**: multi-word variable names highlighted correctly (longest-first matching);
+  variable colour changed to orange (`#fb923c`).
+- **Line context**: autocomplete engine receives the full line up to the cursor and extracts the
+  current token after the last operator — enables completing `sin(myVar` → `myVariable`.
+
+### Tests
+
+- 102 tests (81 QalcBridge + 14 DocumentModel + 7 Editor): `getCompletions` tests rewritten to match
+  new API — keyword prefix matching, user-defined variable discovery, line-context extraction, tab-format values.
+
 ## 0.1.49 - 2026-05-10
 
 ### Tests

@@ -526,41 +526,59 @@ static void runSuite(QalcBridge &bridge) {
     }
 
     // ── getCompletions ────────────────────────────────────────────────────────
-    // Math function names are guaranteed plain ASCII identifiers in libqalculate.
+    // getCompletions(lineContext) returns user-defined variables and keywords
+    // matching the current word (text after the last operator on the line).
+    // Format: "name\tvalue" — tab separates name from last computed value.
     {
-        // "si" matches sin, sinh, sign, etc. — at least 2 results expected.
-        auto list = bridge.getCompletions("si");
-        check("getCompletions 'si' returns multiple results (sin, sinh…)",
-              list.size() > 1, QString::number(list.size()), ">1");
+        // Keyword "today" matches prefix "tod"
+        auto list = bridge.getCompletions("tod");
+        check("getCompletions 'tod' matches keyword 'today'",
+              !list.isEmpty() && list[0].section('\t', 0, 0) == "today",
+              list.isEmpty() ? "empty" : list[0].section('\t', 0, 0), "today");
     }
     {
-        // All returned names must actually start with the queried prefix.
-        auto list = bridge.getCompletions("si");
+        // "to" matches both "today" and "tomorrow" — at least 2 results
+        auto list = bridge.getCompletions("to");
+        check("getCompletions 'to' returns multiple keyword results",
+              list.size() >= 2, QString::number(list.size()), ">=2");
+    }
+    {
+        // All names returned must actually start with the queried prefix
+        auto list = bridge.getCompletions("to");
         bool allMatch = !list.isEmpty() && std::all_of(list.cbegin(), list.cend(),
-            [](const QString &s) { return s.toLower().startsWith("si"); });
+            [](const QString &s) { return s.section('\t', 0, 0).toLower().startsWith("to"); });
         check("getCompletions results all start with the query prefix",
-              allMatch, allMatch ? QString("ok (%1)").arg(list.join(", ")) : list.join(", "),
-              "all start with 'si'");
+              allMatch, allMatch ? QString("ok (%1 items)").arg(list.size()) : list.join(", "),
+              "all start with 'to'");
     }
     {
-        // Crypto currencies added above; lowercase prefix must match (BTC is uppercase).
-        auto list = bridge.getCompletions("btc");
-        check("getCompletions case-insensitive 'btc' finds 'BTC'",
-              !list.isEmpty() && list[0].toUpper() == "BTC",
-              list.isEmpty() ? "empty" : list[0], "BTC");
+        // User-defined variable appears in completions after evaluateDocument
+        bridge.evaluateDocument("myvar = 42");
+        auto list = bridge.getCompletions("myv");
+        check("getCompletions finds user-defined variable 'myvar'",
+              !list.isEmpty() && list[0].section('\t', 0, 0) == "myvar",
+              list.isEmpty() ? "empty" : list[0].section('\t', 0, 0), "myvar");
     }
     {
-        auto list = bridge.getCompletions("eth");
-        check("getCompletions case-insensitive 'eth' finds 'ETH'",
-              !list.isEmpty() && list[0].toUpper() == "ETH",
-              list.isEmpty() ? "empty" : list[0], "ETH");
+        // Result includes value after tab separator
+        auto list = bridge.getCompletions("myv");
+        check("getCompletions result includes value after tab",
+              !list.isEmpty() && list[0].contains('\t'),
+              list.isEmpty() ? "no results" : list[0], "myvar\\t<value>");
     }
     {
-        // Single match for a unique crypto ticker.
-        auto list = bridge.getCompletions("BTC");
-        check("getCompletions uppercase 'BTC' finds 'BTC'",
-              !list.isEmpty() && list[0] == "BTC",
-              list.isEmpty() ? "empty" : list[0], "BTC");
+        // Case-insensitive prefix match for user variable
+        auto list = bridge.getCompletions("MYV");
+        check("getCompletions case-insensitive match for user variable",
+              !list.isEmpty() && list[0].section('\t', 0, 0).compare("myvar", Qt::CaseInsensitive) == 0,
+              list.isEmpty() ? "empty" : list[0].section('\t', 0, 0), "myvar");
+    }
+    {
+        // Prefix extracted from line context: text after the last separator
+        auto list = bridge.getCompletions("100 + myv");
+        check("getCompletions extracts prefix after '+' separator",
+              !list.isEmpty() && list[0].section('\t', 0, 0) == "myvar",
+              list.isEmpty() ? "empty" : list[0].section('\t', 0, 0), "myvar");
     }
     {
         auto list = bridge.getCompletions("xyznoexist");
@@ -573,15 +591,12 @@ static void runSuite(QalcBridge &bridge) {
               list.isEmpty(), QString::number(list.size()), "0");
     }
     {
-        auto list = bridge.getCompletions("si");
-        check("getCompletions respects max 12 results",
-              list.size() <= 12, QString::number(list.size()), "<=12");
-    }
-    {
-        auto list = bridge.getCompletions("si");
+        // Results sorted alphabetically by name
+        auto list = bridge.getCompletions("to");
         bool sorted = true;
         for (int i = 1; i < list.size(); ++i) {
-            if (list[i].toLower() < list[i-1].toLower()) { sorted = false; break; }
+            if (list[i].section('\t', 0, 0).toLower() < list[i-1].section('\t', 0, 0).toLower())
+                { sorted = false; break; }
         }
         check("getCompletions results sorted alphabetically",
               !list.isEmpty() && sorted,
@@ -589,18 +604,17 @@ static void runSuite(QalcBridge &bridge) {
               "sorted");
     }
     {
-        // Each result must be a plain identifier (no slashes, spaces, carets).
-        auto list = bridge.getCompletions("si");
+        // Result names must not contain slashes or carets
+        auto list = bridge.getCompletions("to");
         bool clean = true;
         for (const auto &item : list) {
-            if (item.contains('/') || item.contains(' ') || item.contains('^')) {
-                clean = false; break;
-            }
+            QString name = item.section('\t', 0, 0);
+            if (name.contains('/') || name.contains('^')) { clean = false; break; }
         }
-        check("getCompletions results contain only identifier characters",
+        check("getCompletions result names contain no slashes or carets",
               !list.isEmpty() && clean,
               clean ? QString("ok (%1 items)").arg(list.size()) : "bad item found",
-              "no / ^ spaces");
+              "no / ^");
     }
 }
 
@@ -723,17 +737,20 @@ static void runDocumentModelSuite() {
 
     // ── getCompletions via DocumentModel ─────────────────────────────────────
     {
-        // "si" matches plain-identifier function names (sigma, sign, etc.).
-        QStringList completions = model.getCompletions("si");
-        check("DocumentModel getCompletions 'si' returns results",
-              !completions.isEmpty(), QString::number(completions.size()), ">0");
+        // After evaluating a doc with a variable, completion finds it
+        model.setSource("myvar = 42");
+        wait();
+        QStringList completions = model.getCompletions("myv");
+        check("DocumentModel getCompletions finds user-defined variable",
+              !completions.isEmpty() && completions[0].startsWith("myvar"),
+              completions.isEmpty() ? "empty" : completions[0], "myvar*");
     }
     {
-        // "btc" is a crypto injected as clean AliasUnit — known to work.
-        QStringList completions = model.getCompletions("btc");
-        check("DocumentModel getCompletions 'btc' finds a BTC-prefixed result",
-              !completions.isEmpty() && completions[0].toUpper().startsWith("BTC"),
-              completions.isEmpty() ? "empty" : completions[0], "BTC*");
+        // Keywords always available regardless of document content
+        QStringList completions = model.getCompletions("tod");
+        check("DocumentModel getCompletions finds 'today' keyword",
+              !completions.isEmpty() && completions[0].startsWith("today"),
+              completions.isEmpty() ? "empty" : completions[0], "today*");
     }
     {
         QStringList completions = model.getCompletions("");
