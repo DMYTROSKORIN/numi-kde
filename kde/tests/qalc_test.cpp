@@ -354,6 +354,49 @@ static void runSuite(QalcBridge &bridge) {
         check("time + 2 h returns HH:mm:ss", isTime, r.result, "HH:mm:ss");
     }
     {
+        // Named-date arithmetic: today ± N days/weeks/months/years → DD.MM.YYYY
+        auto r = eval("today + 2 days");
+        const QString expected = QDate::currentDate().addDays(2).toString("dd.MM.yyyy");
+        check("today + 2 days returns dd.MM.yyyy",
+              r.ok && r.result == expected, r.result, expected.toUtf8().constData());
+    }
+    {
+        auto r = eval("today - 1 week");
+        const QString expected = QDate::currentDate().addDays(-7).toString("dd.MM.yyyy");
+        check("today - 1 week returns dd.MM.yyyy",
+              r.ok && r.result == expected, r.result, expected.toUtf8().constData());
+    }
+    {
+        auto r = eval("now + 3 months");
+        const QString expected = QDate::currentDate().addMonths(3).toString("dd.MM.yyyy");
+        check("now + 3 months returns dd.MM.yyyy",
+              r.ok && r.result == expected, r.result, expected.toUtf8().constData());
+    }
+    {
+        auto r = eval("now + 2 days");
+        const QString expected = QDate::currentDate().addDays(2).toString("dd.MM.yyyy");
+        check("now + 2 days returns dd.MM.yyyy",
+              r.ok && r.result == expected, r.result, expected.toUtf8().constData());
+    }
+    {
+        auto r = eval("tomorrow + 5 days");
+        const QString expected = QDate::currentDate().addDays(6).toString("dd.MM.yyyy");
+        check("tomorrow + 5 days returns dd.MM.yyyy",
+              r.ok && r.result == expected, r.result, expected.toUtf8().constData());
+    }
+    {
+        auto r = eval("yesterday - 2 weeks");
+        const QString expected = QDate::currentDate().addDays(-1 - 14).toString("dd.MM.yyyy");
+        check("yesterday - 2 weeks returns dd.MM.yyyy",
+              r.ok && r.result == expected, r.result, expected.toUtf8().constData());
+    }
+    {
+        auto r = eval("today + 1 year");
+        const QString expected = QDate::currentDate().addYears(1).toString("dd.MM.yyyy");
+        check("today + 1 year returns dd.MM.yyyy",
+              r.ok && r.result == expected, r.result, expected.toUtf8().constData());
+    }
+    {
         const QString date = QDate::currentDate().addYears(-2).addDays(-5).toString("dd.MM.yyyy");
         auto r = eval(QStringLiteral("today - %1").arg(date));
         check("today minus date returns detailed English span",

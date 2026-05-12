@@ -416,20 +416,41 @@ static bool tryDateArithmetic(const QString &trimmed, QString *result)
     static QRegularExpression dateMath(
         "^\\s*(\\d{1,4}[./-]\\d{1,2}[./-]\\d{1,4})\\s*([+-])\\s*(\\d+)\\s*(day|days|week|weeks|month|months|year|years)\\s*$",
         QRegularExpression::CaseInsensitiveOption);
+    static QRegularExpression namedDateMath(
+        "^\\s*(today|now|tomorrow|yesterday)\\s*([+-])\\s*(\\d+)\\s*(day|days|week|weeks|month|months|year|years)\\s*$",
+        QRegularExpression::CaseInsensitiveOption);
 
-    const auto match = dateMath.match(trimmed);
-    if (!match.hasMatch())
-        return false;
+    QDate date;
+    QString op, amountStr, unit;
 
-    QDate date = parseUserDate(match.captured(1));
-    if (!date.isValid())
-        return false;
+    const auto namedMatch = namedDateMath.match(trimmed);
+    if (namedMatch.hasMatch()) {
+        const QString keyword = namedMatch.captured(1).toLower();
+        if (keyword == QStringLiteral("tomorrow"))
+            date = QDate::currentDate().addDays(1);
+        else if (keyword == QStringLiteral("yesterday"))
+            date = QDate::currentDate().addDays(-1);
+        else
+            date = QDate::currentDate();
+        op = namedMatch.captured(2);
+        amountStr = namedMatch.captured(3);
+        unit = namedMatch.captured(4).toLower();
+    } else {
+        const auto match = dateMath.match(trimmed);
+        if (!match.hasMatch())
+            return false;
+        date = parseUserDate(match.captured(1));
+        if (!date.isValid())
+            return false;
+        op = match.captured(2);
+        amountStr = match.captured(3);
+        unit = match.captured(4).toLower();
+    }
 
-    int amount = match.captured(3).toInt();
-    if (match.captured(2) == QStringLiteral("-"))
+    int amount = amountStr.toInt();
+    if (op == QStringLiteral("-"))
         amount = -amount;
 
-    const QString unit = match.captured(4).toLower();
     if (unit == QStringLiteral("day") || unit == QStringLiteral("days")) {
         date = date.addDays(amount);
     } else if (unit == QStringLiteral("week") || unit == QStringLiteral("weeks")) {

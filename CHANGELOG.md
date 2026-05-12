@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.59 - 2026-05-13
+
+### Fix
+
+- **Named-date arithmetic**: `today/now/tomorrow/yesterday ± N days/weeks/months/years` now returns `DD.MM.YYYY`; previously fell through to libqalculate which returned `2 d` or similar junk
+
 ## 0.1.58 - 2026-05-13
 
 ### Fix
