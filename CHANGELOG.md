@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.60 - 2026-05-13
+
+### Fix
+
+- **Temperature conversion**: `100 C to F`, `0 C to K`, `212 F to C`, `273 K to C` and all six C/F/K pairs now work correctly; previously libqalculate parsed `C` as Coulomb and `F` as Farad and returned garbage
+
+### Docs
+
+- `/help` section updated: added **Temp** row with all three scales, **Time** row (`time + 60 min`, `time - 2 h`), expanded **Dates** row with `now + 2 days` and `tomorrow + 5 days`; fixed broken `°C to F` example in **Units** row
+
 ## 0.1.59 - 2026-05-13
 
 ### Fix

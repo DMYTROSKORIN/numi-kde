@@ -383,6 +383,43 @@ static bool tryDateDifference(const QString &trimmed, QString *result)
     return false;
 }
 
+static bool tryTemperatureConversion(const QString &trimmed, int decimalPlaces, QString *result)
+{
+    // Matches "NUMBER C|F|K to C|F|K" (with optional leading ° or º symbol).
+    // C = Celsius, F = Fahrenheit, K = Kelvin.
+    // We handle this ourselves because libqalculate uses C = Coulomb and F = Farad.
+    static QRegularExpression tempRx(
+        "^\\s*([-+]?\\d+(?:[.,]\\d+)?)\\s*[°º]?([CFK])\\s+to\\s+[°º]?([CFK])\\s*$",
+        QRegularExpression::CaseInsensitiveOption);
+    const auto match = tempRx.match(trimmed);
+    if (!match.hasMatch()) return false;
+
+    const QString fromUnit = match.captured(2).toUpper();
+    const QString toUnit   = match.captured(3).toUpper();
+    if (fromUnit == toUnit) return false;
+
+    QString amountStr = match.captured(1);
+    amountStr.replace(QLatin1Char(','), QLatin1Char('.'));
+    bool ok = false;
+    const double value = amountStr.toDouble(&ok);
+    if (!ok) return false;
+
+    // Convert to Celsius as intermediate
+    double celsius;
+    if (fromUnit == QStringLiteral("C"))      celsius = value;
+    else if (fromUnit == QStringLiteral("F")) celsius = (value - 32.0) * 5.0 / 9.0;
+    else                                       celsius = value - 273.15;  // K
+
+    double output;
+    QString unitLabel;
+    if (toUnit == QStringLiteral("C"))      { output = celsius;                       unitLabel = QStringLiteral("°C"); }
+    else if (toUnit == QStringLiteral("F")) { output = celsius * 9.0 / 5.0 + 32.0;  unitLabel = QStringLiteral("°F"); }
+    else                                    { output = celsius + 273.15;              unitLabel = QStringLiteral("K");  }
+
+    *result = QLocale().toString(output, 'f', decimalPlaces) + QLatin1Char(' ') + unitLabel;
+    return true;
+}
+
 static bool tryTimeArithmetic(const QString &trimmed, QString *result)
 {
     static QRegularExpression timeArithRx(
@@ -1164,6 +1201,17 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             res.result = dateArithmeticResult;
             results.append(res);
             continue;
+        }
+
+        {
+            QString tempResult;
+            if (tryTemperatureConversion(trimmed, m_decimalPlaces, &tempResult)) {
+                res.ok = true;
+                res.result = tempResult;
+                res.hasNumericValue = parseDisplayNumber(tempResult, &res.numericValue);
+                results.append(res);
+                continue;
+            }
         }
 
         bool currencyConverted = false;

@@ -453,6 +453,39 @@ static void runSuite(QalcBridge &bridge) {
         check("1 kg to g contains 1,000", r.ok && r.result.startsWith(QLocale().toString(1000)), r.result, "1,000 g");
     }
 
+    // ── Temperature conversion ────────────────────────────────────────────────
+    bridge.setDecimalPlaces(2);
+    {
+        auto r = eval("100 C to F");
+        check("100 C to F = 212.00 °F", r.ok && r.result == "212.00 °F", r.result, "212.00 °F");
+    }
+    {
+        auto r = eval("212 F to C");
+        check("212 F to C = 100.00 °C", r.ok && r.result == "100.00 °C", r.result, "100.00 °C");
+    }
+    {
+        auto r = eval("0 C to K");
+        check("0 C to K = 273.15 K", r.ok && r.result == "273.15 K", r.result, "273.15 K");
+    }
+    {
+        auto r = eval("273.15 K to C");
+        check("273.15 K to C = 0.00 °C", r.ok && r.result == "0.00 °C", r.result, "0.00 °C");
+    }
+    {
+        auto r = eval("32 F to K");
+        check("32 F to K = 273.15 K", r.ok && r.result == "273.15 K", r.result, "273.15 K");
+    }
+    {
+        auto r = eval("373.15 K to F");
+        check("373.15 K to F = 212.00 °F", r.ok && r.result == "212.00 °F", r.result, "212.00 °F");
+    }
+    {
+        // With ° prefix — same result
+        auto r = eval("100 °C to F");
+        check("100 °C to F (with degree symbol) = 212.00 °F", r.ok && r.result == "212.00 °F", r.result, "212.00 °F");
+    }
+    bridge.setDecimalPlaces(0);
+
     // ── Currency preprocessing (lowercase) ───────────────────────────────────
     {
         auto r = eval("100 usd to USD");
