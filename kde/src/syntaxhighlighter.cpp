@@ -8,7 +8,7 @@
 #include <libqalculate/qalculate.h>
 #include <algorithm>
 
-static const char *USER_VAR_COLOR = "#f0c040";
+static const char *USER_VAR_COLOR = "#fb923c";
 
 SyntaxHighlighter::SyntaxHighlighter(Calculator *calc) : m_calc(calc) {
     // Ported regex from highlight.js

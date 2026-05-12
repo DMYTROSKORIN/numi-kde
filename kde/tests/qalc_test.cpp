@@ -884,6 +884,31 @@ static void runEditorSuite() {
               mock.lastQuery(), "km");
     }
 
+    // ── Tab on non-first line must NOT erase preceding lines ─────────────────
+    // Regression: _getWordStart() returned 0 (absolute) when no separator was
+    // found on the current line (sepIdx=-1 → start=sepIdx+1=0).
+    // editor.remove(0, cursor) then erased the entire preceding content.
+    {
+        setText("100\n200\nkil");
+        QTest::keyClick(&view, Qt::Key_Tab);
+        QTest::qWait(80);
+        QString text = root->property("text").toString();
+        check("Tab completion on line 3 preserves lines 1 and 2 (regression: wordStart=0 erasure)",
+              text.startsWith("100\n200\n"),
+              QString("got: \"%1\"").arg(text.left(40)), "100\\n200\\n...");
+    }
+    {
+        // Verify the completion was actually inserted on the correct line
+        setText("100\n200\nkil");
+        QTest::keyClick(&view, Qt::Key_Tab);
+        QTest::qWait(80);
+        QString text = root->property("text").toString();
+        QString thirdLine = text.section('\n', 2, 2);
+        check("Tab completion on line 3 inserts the completion on line 3",
+              !thirdLine.isEmpty() && thirdLine != "kil",
+              QString("line3: \"%1\"").arg(thirdLine), "kilogram/kilometer/kilowatt");
+    }
+
     // ── Esc key does not crash the editor ─────────────────────────────────────
     {
         setText("hello");

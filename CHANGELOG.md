@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.54 - 2026-05-12
+
+### Fix
+
+- **Tab autocomplete**: `_getWordStart()` returned absolute position 0 when no operator was found on the current line (`sepIdx = -1 → start = 0`) — `editor.remove(0, cursor)` erased all preceding content; fixed to use `lineStart` as fallback
+- **Cursor drift**: `lineH` now derived from `editor.cursorRectangle.height` (TextArea's actual internal line height) instead of `fontMetrics.lineSpacing` — eliminates accumulated vertical drift between highlighted text and the cursor over multiple lines
+- **Variable highlight color**: changed from `#f0c040` (gold, visually identical to operators) to `#fb923c` (orange), matching the original Numi palette distinction between user variables and operator keywords
+
 ## 0.1.53 - 2026-05-12
 
 ### Fix

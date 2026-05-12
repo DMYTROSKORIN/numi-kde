@@ -15,8 +15,11 @@ Controls.ScrollView {
     property color mutedColor: "#6b6d76"
     readonly property alias flickable: editor
 
-    // lineH comes from font metrics so overlay rows match TextArea line height
-    readonly property real lineH: fontMetrics.lineSpacing
+    // lineH must match TextArea's actual internal line height, not fontMetrics.lineSpacing,
+    // to prevent accumulated vertical drift between highlighted text and the cursor position.
+    readonly property real lineH: editor.cursorRectangle.height > 0
+                                  ? editor.cursorRectangle.height
+                                  : fontMetrics.lineSpacing
     readonly property string monoFont: "Menlo, Monaco, Consolas, monospace"
     property int monoSize: 16
 
@@ -111,7 +114,7 @@ Controls.ScrollView {
                 for (let i = pos - 1; i >= lineStart; i--) {
                     if (separators.includes(txt[i])) { sepIdx = i; break }
                 }
-                let start = sepIdx + 1
+                let start = sepIdx === -1 ? lineStart : sepIdx + 1
                 while (start < pos && txt[start] === ' ') start++
                 return start
             }
