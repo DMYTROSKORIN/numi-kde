@@ -892,16 +892,17 @@ static void runDocumentModelSuite() {
     DocumentModel model;
     QSignalSpy spy(&model, &DocumentModel::linesChanged);
 
-    auto wait = [&]() {
-        if (!spy.isEmpty()) spy.clear();
-        // Wait for up to 2000ms. Since we have a 50ms debounce + evaluation time, this is plenty.
+    // spy must be cleared BEFORE setSource to avoid consuming the signal
+    // that fires between setSource() and spy.wait().
+    auto setAndWait = [&](const QString &src) {
+        spy.clear();
+        model.setSource(src);
         spy.wait(2000);
     };
 
     // ── DocumentModel totals ─────────────────────────────────────────────────
     {
-        model.setSource("100\n200\n300");
-        wait();
+        setAndWait("100\n200\n300");
         bool ok = model.rowCount() == 3
                && model.resultCount() == 3
                && model.errorCount() == 0
@@ -911,8 +912,7 @@ static void runDocumentModelSuite() {
               QString::number(model.total()), "600");
     }
     {
-        model.setSource("1 km to m\n2 km to m");
-        wait();
+        setAndWait("1 km to m\n2 km to m");
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
@@ -922,8 +922,7 @@ static void runDocumentModelSuite() {
               QString::number(model.total()), "3000");
     }
     {
-        model.setSource("500 AED to USD\n100");
-        wait();
+        setAndWait("500 AED to USD\n100");
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
@@ -932,8 +931,7 @@ static void runDocumentModelSuite() {
               model.hasTotal() ? QString::number(model.total()) : "no total", "no total");
     }
     {
-        model.setSource("500 AED to USD\n100 USD to UAH");
-        wait();
+        setAndWait("500 AED to USD\n100 USD to UAH");
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
@@ -943,8 +941,7 @@ static void runDocumentModelSuite() {
     }
     {
         const QString date = QDate::currentDate().addYears(-2).addDays(-5).toString("dd.MM.yyyy");
-        model.setSource(QStringLiteral("today - %1\n100").arg(date));
-        wait();
+        setAndWait(QStringLiteral("today - %1\n100").arg(date));
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
@@ -1006,8 +1003,7 @@ static void runDocumentModelSuite() {
     // ── getCompletions via DocumentModel ─────────────────────────────────────
     {
         // After evaluating a doc with a variable, completion finds it
-        model.setSource("myvar = 42");
-        wait();
+        setAndWait("myvar = 42");
         QStringList completions = model.getCompletions("myv");
         check("DocumentModel getCompletions finds user-defined variable",
               !completions.isEmpty() && completions[0].startsWith("myvar"),
