@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.67 - 2026-05-13
+
+### Feature
+
+- **Periodic update check**: app now checks for updates every hour (with the existing 24 h gate), so long-running sessions on systems that are never restarted will still receive update notifications automatically
+
+### Fix
+
+- **Flaky CI test**: increased `spy.wait` timeout from 2 s to 5 s in `documentmodel` test suite — prevents false failures on slow CI runners when evaluating currency expressions
+
 ## 0.1.66 - 2026-05-13
 
 ### Feature
