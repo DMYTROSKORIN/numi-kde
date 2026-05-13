@@ -33,6 +33,12 @@ Item {
             onToggled: if (appWindow) appWindow.showResultsSeparator = checked
         }
 
+        Controls.CheckBox {
+            text: qsTr("Auto-download updates")
+            checked: updateChecker ? updateChecker.autoDownloadUpdates : true
+            onToggled: if (updateChecker) updateChecker.setAutoDownloadUpdates(checked)
+        }
+
         Controls.MenuSeparator { Layout.fillWidth: true }
 
         // ── Numeric settings ─────────────────────────────────────────
