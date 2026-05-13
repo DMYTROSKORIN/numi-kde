@@ -6,7 +6,6 @@ Item {
     id: page
 
     property string sourceText: ""
-    property var settingsWindow: null
     property bool showResultsSeparator: true
     property bool _showHelp: false
     readonly property int editorMinimumWidth: 230

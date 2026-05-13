@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.64 - 2026-05-13
+
+### UX
+
+- **Settings**: replaced custom side panel with a native KDE window — standard title bar, window controls, KDE color theme; SpinBox controls for numeric settings; remembers size and position across sessions
+
 ## 0.1.63 - 2026-05-13
 
 ### UX

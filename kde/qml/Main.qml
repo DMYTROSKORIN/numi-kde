@@ -297,7 +297,6 @@ Controls.ApplicationWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            settingsWindow: settingsWindow
             showResultsSeparator: root.showResultsSeparator
         }
 
@@ -411,31 +410,9 @@ Controls.ApplicationWindow {
         }
     }
 
-    Controls.Popup {
+    SettingsWindow {
         id: settingsDrawer
-        x: 0
-        y: titleBar.height
-        width: 176
-        height: root.height - titleBar.height
-        modal: false
-        dim: false
-        closePolicy: Controls.Popup.CloseOnEscape | Controls.Popup.CloseOnPressOutside
-        padding: 0
-
-        background: Rectangle {
-            color: root.numiWindow
-            border.color: "#3a3d47"
-            border.width: 1
-        }
-
-        contentItem: SettingsPane {}
-
-        enter: Transition {
-            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 150; easing.type: Easing.OutCubic }
-        }
-        exit: Transition {
-            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 100 }
-        }
+        appWindow: root
     }
 
     Controls.Drawer {

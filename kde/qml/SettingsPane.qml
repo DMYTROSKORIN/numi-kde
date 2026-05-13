@@ -5,353 +5,185 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    ColumnLayout {
+    property var appWindow: null
+
+    Controls.ScrollView {
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 0
+        contentWidth: availableWidth
+        clip: true
 
-        // Header
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 24
-            Layout.bottomMargin: 6
+        ColumnLayout {
+            width: parent.width
+            spacing: 4
 
-            Text {
-                text: "Settings"
-                color: Window.window ? Window.window.numiMuted : "#6b6d76"
-                font.pixelSize: 13
-                font.weight: Font.DemiBold
+            // ── Toggles ──────────────────────────────────────────────────
+            Controls.CheckBox {
+                text: qsTr("Always on top")
+                checked: appWindow ? appWindow.alwaysOnTop : true
+                onToggled: if (appWindow) appWindow.alwaysOnTop = checked
+            }
+            Controls.CheckBox {
+                text: qsTr("Launch at login")
+                checked: documentModel ? documentModel.autostart : false
+                onToggled: if (documentModel) documentModel.autostart = checked
+            }
+            Controls.CheckBox {
+                text: qsTr("Show result separator")
+                checked: appWindow ? appWindow.showResultsSeparator : true
+                onToggled: if (appWindow) appWindow.showResultsSeparator = checked
+            }
+
+            Controls.MenuSeparator { Layout.fillWidth: true }
+
+            // ── Numeric settings ─────────────────────────────────────────
+            RowLayout {
                 Layout.fillWidth: true
-                verticalAlignment: Text.AlignVCenter
+                Controls.Label { text: qsTr("Font size"); Layout.fillWidth: true }
+                Controls.SpinBox {
+                    from: 11; to: 24
+                    value: appWindow ? appWindow.fontSize : 16
+                    onValueModified: if (appWindow) appWindow.fontSize = value
+                }
             }
-        }
+            RowLayout {
+                Layout.fillWidth: true
+                Controls.Label { text: qsTr("Result width"); Layout.fillWidth: true }
+                Controls.SpinBox {
+                    from: 80; to: 720
+                    stepSize: 4
+                    value: appWindow ? appWindow.resultWidth : 124
+                    onValueModified: if (appWindow) appWindow.resultWidth = value
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Controls.Label { text: qsTr("Decimal places"); Layout.fillWidth: true }
+                Controls.SpinBox {
+                    from: 0; to: 10
+                    value: appWindow ? appWindow.decimalPlaces : 3
+                    onValueModified: if (appWindow) appWindow.decimalPlaces = value
+                }
+            }
 
-        Rectangle {
-            Layout.fillWidth: true
-            height: 1
-            color: "#3a3d47"
-            Layout.bottomMargin: 8
-        }
+            Controls.MenuSeparator { Layout.fillWidth: true }
 
-        Controls.ScrollView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            Controls.ScrollBar.vertical.policy: Controls.ScrollBar.AsNeeded
-            Controls.ScrollBar.horizontal.policy: Controls.ScrollBar.AlwaysOff
+            // ── Default currency ─────────────────────────────────────────
+            RowLayout {
+                Layout.fillWidth: true
+                Controls.Label { text: qsTr("Default currency"); Layout.fillWidth: true }
+                Controls.TextField {
+                    implicitWidth: 72
+                    text: documentModel ? documentModel.defaultCurrency : "USD"
+                    maximumLength: 5
+                    validator: RegularExpressionValidator { regularExpression: /[A-Za-z]{0,5}/ }
+                    placeholderText: "USD"
+                    onEditingFinished: {
+                        if (documentModel)
+                            documentModel.defaultCurrency = text.toUpperCase()
+                        text = documentModel ? documentModel.defaultCurrency : "USD"
+                    }
+                }
+            }
 
+            Controls.MenuSeparator { Layout.fillWidth: true }
+
+            // ── Global hotkey ─────────────────────────────────────────────
             ColumnLayout {
-                id: settingsColumn
-                width: parent.width
-                spacing: 12
+                id: hotkeyColumn
+                Layout.fillWidth: true
+                spacing: 6
+                property bool recordingHotkey: false
 
-                // Helper component for CheckBox styling
-                component NumiCheckBox: Controls.CheckBox {
-                    id: cb
-                    indicator: Rectangle {
-                        implicitWidth: 18
-                        implicitHeight: 18
-                        radius: 4
-                        border.color: cb.checked ? (Window.window ? Window.window.numiBlue : "#6fc4e8") : "#4a4d56"
-                        border.width: 1
-                        color: cb.checked ? (Window.window ? Window.window.numiBlue : "#6fc4e8") : "transparent"
-                        Text {
-                            anchors.centerIn: parent
-                            text: "✓"
-                            color: Window.window ? Window.window.numiWindow : "#22242a"
-                            font.pixelSize: 12
-                            font.weight: Font.Bold
-                            visible: cb.checked
-                        }
-                    }
-                    contentItem: Text {
-                        leftPadding: cb.indicator.width + cb.spacing
-                        text: cb.text
-                        color: Window.window ? Window.window.numiText : "#f0f0f3"
-                        font.pixelSize: 13
-                        verticalAlignment: Text.AlignVCenter
-                    }
+                function keyName(key, text) {
+                    if (key >= Qt.Key_0 && key <= Qt.Key_9) return String.fromCharCode("0".charCodeAt(0) + key - Qt.Key_0)
+                    if (key >= Qt.Key_A && key <= Qt.Key_Z) return String.fromCharCode("A".charCodeAt(0) + key - Qt.Key_A)
+                    if (key >= Qt.Key_F1 && key <= Qt.Key_F12) return "F" + (key - Qt.Key_F1 + 1)
+                    if (key === Qt.Key_Space) return "Space"
+                    if (text && text.length > 0) return text.toUpperCase()
+                    return ""
                 }
 
-                // Helper component for compact numeric input
-                component NumiSpinField: Controls.TextField {
-                    id: spinField
-                    property int minVal: 0
-                    property int maxVal: 100
-                    Layout.preferredWidth: 52
-                    Layout.preferredHeight: 28
-                    horizontalAlignment: Text.AlignHCenter
-                    validator: IntValidator { bottom: spinField.minVal; top: spinField.maxVal }
-                    color: Window.window ? Window.window.numiText : "#f0f0f3"
-                    selectedTextColor: "#22242a"
-                    selectionColor: "#6fc4e8"
-                    font.pixelSize: 13
-                    background: Rectangle {
-                        radius: 4
-                        color: "#1d1f25"
-                        border.color: spinField.activeFocus
-                                      ? (Window.window ? Window.window.numiBlue : "#6fc4e8")
-                                      : "#343742"
-                        border.width: 1
-                    }
-                }
+                Controls.Label { text: qsTr("Global hotkey") }
 
-                NumiCheckBox {
-                    text: "Always on top"
-                    checked: Window.window ? Window.window.alwaysOnTop : true
-                    onToggled: if (Window.window) Window.window.alwaysOnTop = checked
-                }
-
-                NumiCheckBox {
-                    text: "Launch at login"
-                    checked: documentModel ? documentModel.autostart : false
-                    onToggled: if (documentModel) documentModel.autostart = checked
-                }
-
-                NumiCheckBox {
-                    text: "Show result separator"
-                    checked: Window.window ? Window.window.showResultsSeparator : true
-                    onToggled: if (Window.window) Window.window.showResultsSeparator = checked
-                }
-
-                ColumnLayout {
+                Controls.TextField {
+                    id: hotkeyField
                     Layout.fillWidth: true
-                    spacing: 6
-                    Text {
-                        text: "Font size"
-                        color: Window.window ? Window.window.numiText : "#f0f0f3"
-                        font.pixelSize: 13
-                    }
-                    NumiSpinField {
-                        minVal: 11; maxVal: 24
-                        Layout.preferredWidth: 84
-                        text: Window.window ? Window.window.fontSize.toString() : "16"
-                        onEditingFinished: {
-                            let v = Math.max(minVal, Math.min(maxVal, parseInt(text) || minVal))
-                            if (Window.window) Window.window.fontSize = v
-                            text = v.toString()
-                        }
-                    }
-                    Text {
-                        text: "px  (11 – 24)"
-                        width: 84
-                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
-                        font.pixelSize: 11
-                    }
-                }
+                    text: hotkeyColumn.recordingHotkey
+                          ? qsTr("Press shortcut…")
+                          : (shortcutManager ? shortcutManager.sequence : "Ctrl+Alt+1")
+                    readOnly: true
+                    activeFocusOnPress: true
+                    placeholderText: "Ctrl+Alt+1"
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 6
-                    Text {
-                        text: "Result width"
-                        color: Window.window ? Window.window.numiText : "#f0f0f3"
-                        font.pixelSize: 13
-                    }
-                    NumiSpinField {
-                        minVal: 80; maxVal: 720
-                        Layout.preferredWidth: 84
-                        text: Window.window ? Window.window.resultWidth.toString() : "124"
-                        onEditingFinished: {
-                            let v = Math.max(minVal, Math.min(maxVal, parseInt(text) || minVal))
-                            if (Window.window) Window.window.resultWidth = v
-                            text = v.toString()
-                        }
-                    }
-                    Text {
-                        text: "px  (80 – 720)"
-                        width: 84
-                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
-                        font.pixelSize: 11
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 6
-                    Text {
-                        text: "Decimal places"
-                        color: Window.window ? Window.window.numiText : "#f0f0f3"
-                        font.pixelSize: 13
-                    }
-                    NumiSpinField {
-                        minVal: 0; maxVal: 10
-                        Layout.preferredWidth: 84
-                        text: Window.window ? Window.window.decimalPlaces.toString() : "3"
-                        onEditingFinished: {
-                            let v = Math.max(minVal, Math.min(maxVal, parseInt(text) || 0))
-                            if (Window.window) Window.window.decimalPlaces = v
-                            text = v.toString()
-                        }
-                    }
-                    Text {
-                        text: "(0 – 10)"
-                        width: 84
-                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
-                        font.pixelSize: 11
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 6
-                    Text {
-                        text: "Default currency"
-                        color: Window.window ? Window.window.numiText : "#f0f0f3"
-                        font.pixelSize: 13
-                    }
-                    Controls.TextField {
-                        id: defaultCurrencyField
-                        Layout.preferredWidth: 72
-                        Layout.preferredHeight: 28
-                        text: documentModel ? documentModel.defaultCurrency : "USD"
-                        maximumLength: 5
-                        validator: RegularExpressionValidator { regularExpression: /[A-Za-z]{0,5}/ }
-                        color: Window.window ? Window.window.numiText : "#f0f0f3"
-                        selectedTextColor: "#22242a"
-                        selectionColor: "#6fc4e8"
-                        font.pixelSize: 13
-                        placeholderText: "USD"
-                        placeholderTextColor: Window.window ? Window.window.numiMuted : "#6b6d76"
-                        onEditingFinished: {
-                            if (documentModel)
-                                documentModel.defaultCurrency = text.toUpperCase()
-                            text = documentModel ? documentModel.defaultCurrency : "USD"
-                        }
-                        background: Rectangle {
-                            radius: 4
-                            color: "#1d1f25"
-                            border.color: defaultCurrencyField.activeFocus
-                                          ? (Window.window ? Window.window.numiBlue : "#6fc4e8")
-                                          : "#343742"
-                            border.width: 1
-                        }
-                    }
-                    Text {
-                        text: "output for mixed crypto"
-                        width: 72
-                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
-                        font.pixelSize: 11
-                        wrapMode: Text.WordWrap
-                    }
-                }
-
-                ColumnLayout {
-                    id: hotkeyColumn
-                    Layout.fillWidth: true
-                    spacing: 8
-                    property bool recordingHotkey: false
-
-                    function keyName(key, text) {
-                        if (key >= Qt.Key_0 && key <= Qt.Key_9) return String.fromCharCode("0".charCodeAt(0) + key - Qt.Key_0)
-                        if (key >= Qt.Key_A && key <= Qt.Key_Z) return String.fromCharCode("A".charCodeAt(0) + key - Qt.Key_A)
-                        if (key >= Qt.Key_F1 && key <= Qt.Key_F12) return "F" + (key - Qt.Key_F1 + 1)
-                        if (key === Qt.Key_Space) return "Space"
-                        if (text && text.length > 0) return text.toUpperCase()
-                        return ""
-                    }
-
-                    Text {
-                        text: "Global hotkey"
-                        color: Window.window ? Window.window.numiText : "#f0f0f3"
-                        font.pixelSize: 13
-                    }
-
-                    Controls.TextField {
-                        id: hotkeyField
-                        Layout.preferredWidth: 140
-                        Layout.preferredHeight: 28
-                        text: hotkeyColumn.recordingHotkey ? "Press shortcut..." : (shortcutManager ? shortcutManager.sequence : "Ctrl+Alt+1")
-                        readOnly: true
-                        focus: hotkeyColumn.recordingHotkey
-                        color: Window.window ? Window.window.numiText : "#f0f0f3"
-                        selectedTextColor: "#22242a"
-                        selectionColor: "#6fc4e8"
-                        font.pixelSize: 13
-                        activeFocusOnPress: true
-
-                        Keys.onPressed: (event) => {
-                            if (!hotkeyColumn.recordingHotkey) return
-                            if (event.key === Qt.Key_Escape) {
-                                hotkeyColumn.recordingHotkey = false
-                                event.accepted = true
-                                return
-                            }
-                            if (event.key === Qt.Key_Control || event.key === Qt.Key_Alt ||
-                                event.key === Qt.Key_Shift || event.key === Qt.Key_Meta) {
-                                event.accepted = true
-                                return
-                            }
-                            let parts = []
-                            if (event.modifiers & Qt.ControlModifier) parts.push("Ctrl")
-                            if (event.modifiers & Qt.AltModifier) parts.push("Alt")
-                            if (event.modifiers & Qt.ShiftModifier) parts.push("Shift")
-                            if (event.modifiers & Qt.MetaModifier) parts.push("Meta")
-                            let key = hotkeyColumn.keyName(event.key, event.text)
-                            if (key.length > 0 && parts.length > 0 && shortcutManager) {
-                                parts.push(key)
-                                shortcutManager.sequence = parts.join("+")
-                                hotkeyColumn.recordingHotkey = false
-                            }
+                    Keys.onPressed: (event) => {
+                        if (!hotkeyColumn.recordingHotkey) return
+                        if (event.key === Qt.Key_Escape) {
+                            hotkeyColumn.recordingHotkey = false
                             event.accepted = true
+                            return
                         }
-                        TapHandler {
-                            onTapped: {
-                                hotkeyColumn.recordingHotkey = true
-                                hotkeyField.forceActiveFocus()
-                            }
+                        if (event.key === Qt.Key_Control || event.key === Qt.Key_Alt ||
+                            event.key === Qt.Key_Shift   || event.key === Qt.Key_Meta) {
+                            event.accepted = true
+                            return
                         }
-                        background: Rectangle {
-                            radius: 4
-                            color: "#1d1f25"
-                            border.color: hotkeyField.activeFocus ? (Window.window ? Window.window.numiBlue : "#6fc4e8") : "#343742"
-                            border.width: 1
+                        let parts = []
+                        if (event.modifiers & Qt.ControlModifier) parts.push("Ctrl")
+                        if (event.modifiers & Qt.AltModifier)     parts.push("Alt")
+                        if (event.modifiers & Qt.ShiftModifier)   parts.push("Shift")
+                        if (event.modifiers & Qt.MetaModifier)    parts.push("Meta")
+                        let key = hotkeyColumn.keyName(event.key, event.text)
+                        if (key.length > 0 && parts.length > 0 && shortcutManager) {
+                            parts.push(key)
+                            shortcutManager.sequence = parts.join("+")
+                            hotkeyColumn.recordingHotkey = false
                         }
+                        event.accepted = true
                     }
 
-                    Text {
-                        text: hotkeyColumn.recordingHotkey ? "press combo, Esc to cancel" : "click to record"
-                        width: 140
-                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
-                        font.pixelSize: 11
+                    TapHandler {
+                        onTapped: {
+                            hotkeyColumn.recordingHotkey = true
+                            hotkeyField.forceActiveFocus()
+                        }
                     }
+                }
 
-                    Text {
-                        Layout.preferredWidth: 140
-                        visible: shortcutManager && shortcutManager.status.length > 0
-                        text: shortcutManager ? shortcutManager.status : ""
-                        color: text === "Shortcut saved" ? (Window.window ? Window.window.numiGreen : "#8fd14f") : (Window.window ? Window.window.numiRed : "#ff5f57")
-                        font.pixelSize: 11
-                        elide: Text.ElideRight
-                    }
+                Controls.Label {
+                    Layout.fillWidth: true
+                    text: hotkeyColumn.recordingHotkey
+                          ? qsTr("Press a combination, Esc to cancel")
+                          : qsTr("Click to record a shortcut")
+                    font.italic: true
+                    opacity: 0.7
+                    wrapMode: Text.WordWrap
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    visible: shortcutManager && shortcutManager.status.length > 0
+                    text: shortcutManager ? shortcutManager.status : ""
+                    color: text === "Shortcut saved" ? "#4CAF50" : "#f44336"
+                    font.bold: true
                 }
             }
-        }
 
-        // Version info at the bottom
-        Rectangle {
-            Layout.fillWidth: true
-            height: 1
-            color: "#3a3d47"
-            Layout.topMargin: 8
-            Layout.bottomMargin: 6
-        }
+            Item { Layout.fillHeight: true; Layout.minimumHeight: 8 }
 
-        Text {
-            Layout.fillWidth: true
-            Layout.bottomMargin: 6
-            text: "Numi-KDE v" + (documentModel ? documentModel.version : "unknown")
-            color: aboutHover.hovered
-                   ? (Window.window ? Window.window.numiBlue : "#6fc4e8")
-                   : (Window.window ? Window.window.numiMuted : "#6b6d76")
-            font.pixelSize: 11
-            font.underline: aboutHover.hovered
-            horizontalAlignment: Text.AlignHCenter
-            opacity: 0.8
+            Controls.MenuSeparator { Layout.fillWidth: true }
 
-            HoverHandler { id: aboutHover; cursorShape: Qt.PointingHandCursor }
-            TapHandler {
-                onTapped: Qt.openUrlExternally("https://github.com/DMYTROSKORIN/numi-kde")
+            Controls.Label {
+                Layout.fillWidth: true
+                Layout.bottomMargin: 4
+                text: "Numi-KDE v" + (documentModel ? documentModel.version : "unknown")
+                opacity: 0.6
+                font.italic: true
+                horizontalAlignment: Text.AlignHCenter
+
+                HoverHandler { id: aboutHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler {
+                    onTapped: Qt.openUrlExternally("https://github.com/DMYTROSKORIN/numi-kde")
+                }
             }
         }
     }
