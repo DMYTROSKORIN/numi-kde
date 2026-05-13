@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.63 - 2026-05-13
+
+### UX
+
+- **Settings panel**: replaced slide-in drawer with floating popup overlay — panel no longer pushes editor content aside; closes on click-outside or Escape; smooth fade-in/out animation; scrollbar restored (appears when window is small)
+
 ## 0.1.62 - 2026-05-13
 
 ### Fix

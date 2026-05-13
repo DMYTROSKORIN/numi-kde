@@ -411,12 +411,16 @@ Controls.ApplicationWindow {
         }
     }
 
-    Controls.Drawer {
+    Controls.Popup {
         id: settingsDrawer
-        width: Math.min(root.width, 176)
-        height: root.height
-        edge: Qt.LeftEdge
-        dragMargin: 0
+        x: 0
+        y: titleBar.height
+        width: 176
+        height: root.height - titleBar.height
+        modal: false
+        dim: false
+        closePolicy: Controls.Popup.CloseOnEscape | Controls.Popup.CloseOnPressOutside
+        padding: 0
 
         background: Rectangle {
             color: root.numiWindow
@@ -424,8 +428,13 @@ Controls.ApplicationWindow {
             border.width: 1
         }
 
-        contentItem: SettingsPane {
-            id: settingsPane
+        contentItem: SettingsPane {}
+
+        enter: Transition {
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 150; easing.type: Easing.OutCubic }
+        }
+        exit: Transition {
+            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 100 }
         }
     }
 

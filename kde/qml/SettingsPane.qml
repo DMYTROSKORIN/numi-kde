@@ -37,7 +37,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            Controls.ScrollBar.vertical.policy: Controls.ScrollBar.AlwaysOff
+            Controls.ScrollBar.vertical.policy: Controls.ScrollBar.AsNeeded
             Controls.ScrollBar.horizontal.policy: Controls.ScrollBar.AlwaysOff
 
             ColumnLayout {
