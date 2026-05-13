@@ -118,9 +118,12 @@ int main(int argc, char *argv[])
     showHideAction.setObjectName(QStringLiteral("toggle-window"));
     ShortcutManager shortcutManager(&showHideAction);
 
+    UpdateChecker updateChecker;
+
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("documentModel"), &documentModel);
     engine.rootContext()->setContextProperty(QStringLiteral("shortcutManager"), &shortcutManager);
+    engine.rootContext()->setContextProperty(QStringLiteral("updateChecker"), &updateChecker);
     QObject::connect(&engine, &QQmlApplicationEngine::warnings,
         [](const QList<QQmlError> &warnings) {
             for (const QQmlError &warning : warnings)
@@ -189,17 +192,29 @@ int main(int argc, char *argv[])
     QObject::connect(quitAction, &QAction::triggered, &app, &QCoreApplication::quit);
 
     // ── Update checker ────────────────────────────────────────────────────
-    UpdateChecker updateChecker;
 
-    // Manual check: show "Checking…" and report if already up-to-date
+    // Dynamic tray actions (hidden until relevant state)
+    QAction *installUpdateAction = new QAction(QStringLiteral("Install Update"), &trayMenu);
+    installUpdateAction->setVisible(false);
+    trayMenu.insertAction(checkUpdatesAction, installUpdateAction);
+
+    QAction *restartAction = new QAction(QStringLiteral("Restart to Apply Update"), &trayMenu);
+    restartAction->setVisible(false);
+    trayMenu.insertAction(checkUpdatesAction, restartAction);
+
+    QAction *separatorUpdate = trayMenu.insertSeparator(checkUpdatesAction);
+    separatorUpdate->setVisible(false);
+
+    // Manual "Check for Updates" — replaced with release URL once update found
     bool manualCheckInProgress = false;
-    QObject::connect(checkUpdatesAction, &QAction::triggered, [&updateChecker, &tray, &manualCheckInProgress]() {
-        manualCheckInProgress = true;
-        updateChecker.checkAsync();
-        tray.showMessage(QStringLiteral("Numi-KDE"), 
-                         QStringLiteral("Checking for updates..."), 
-                         QSystemTrayIcon::Information, 2000);
-    });
+    QObject::connect(checkUpdatesAction, &QAction::triggered,
+        [&updateChecker, &tray, &manualCheckInProgress]() {
+            manualCheckInProgress = true;
+            updateChecker.checkAsync();
+            tray.showMessage(QStringLiteral("Numi-KDE"),
+                             QStringLiteral("Checking for updates…"),
+                             QSystemTrayIcon::Information, 2000);
+        });
 
     QObject::connect(&updateChecker, &UpdateChecker::checkFinished,
         [&tray, &manualCheckInProgress](bool found) {
@@ -211,29 +226,60 @@ int main(int argc, char *argv[])
             manualCheckInProgress = false;
         });
 
+    // Update available — show release link (no auto-download message needed; it runs silently)
     QObject::connect(&updateChecker, &UpdateChecker::updateAvailable,
         [&tray, checkUpdatesAction](const QString &version, const QUrl &url) {
-            const QString label = QStringLiteral("Update available: %1").arg(version);
-            checkUpdatesAction->setText(label);
-            checkUpdatesAction->setData(url);
-            tray.setToolTip(QStringLiteral("Numi-KDE — ") + label);
-
-            // Open release URL on click
+            checkUpdatesAction->setText(
+                QStringLiteral("Update available: %1").arg(version));
+            tray.setToolTip(QStringLiteral("Numi-KDE — update %1 available").arg(version));
             QObject::disconnect(checkUpdatesAction, &QAction::triggered, nullptr, nullptr);
-            QObject::connect(checkUpdatesAction, &QAction::triggered, [url]() {
-                QDesktopServices::openUrl(url);
-            });
-
-            // Open URL on system notification click
-            QObject::disconnect(&tray, &QSystemTrayIcon::messageClicked, nullptr, nullptr);
-            QObject::connect(&tray, &QSystemTrayIcon::messageClicked, [url]() {
-                QDesktopServices::openUrl(url);
-            });
-
-            tray.showMessage(QStringLiteral("Numi-KDE"),
-                             QStringLiteral("A new version is available: %1\nClick to view release notes.").arg(version),
-                             QSystemTrayIcon::Information, 5000);
+            QObject::connect(checkUpdatesAction, &QAction::triggered,
+                [url]() { QDesktopServices::openUrl(url); });
         });
+
+    // Download complete — show tray notification and "Install" action
+    QObject::connect(&updateChecker, &UpdateChecker::downloadReady,
+        [&tray, installUpdateAction, separatorUpdate](const QString &version) {
+            separatorUpdate->setVisible(true);
+            installUpdateAction->setVisible(true);
+            installUpdateAction->setText(
+                QStringLiteral("Install Update %1…").arg(version));
+            QObject::disconnect(&tray, &QSystemTrayIcon::messageClicked, nullptr, nullptr);
+            QObject::connect(&tray, &QSystemTrayIcon::messageClicked,
+                [installUpdateAction]() { installUpdateAction->trigger(); });
+            tray.showMessage(
+                QStringLiteral("Numi-KDE"),
+                QStringLiteral("Update %1 downloaded — click to install.").arg(version),
+                QSystemTrayIcon::Information, 8000);
+        });
+
+    // Install button triggers pkcon
+    QObject::connect(installUpdateAction, &QAction::triggered,
+        &updateChecker, &UpdateChecker::installUpdate);
+
+    // Install complete — offer restart
+    QObject::connect(&updateChecker, &UpdateChecker::installFinished,
+        [&tray, installUpdateAction, restartAction](bool success) {
+            installUpdateAction->setVisible(false);
+            if (success) {
+                restartAction->setVisible(true);
+                QObject::disconnect(&tray, &QSystemTrayIcon::messageClicked, nullptr, nullptr);
+                QObject::connect(&tray, &QSystemTrayIcon::messageClicked,
+                    [restartAction]() { restartAction->trigger(); });
+                tray.showMessage(
+                    QStringLiteral("Numi-KDE"),
+                    QStringLiteral("Update installed. Restart to apply."),
+                    QSystemTrayIcon::Information, 8000);
+            } else {
+                tray.showMessage(
+                    QStringLiteral("Numi-KDE"),
+                    QStringLiteral("Update installation failed."),
+                    QSystemTrayIcon::Warning, 5000);
+            }
+        });
+
+    QObject::connect(restartAction, &QAction::triggered,
+        &updateChecker, &UpdateChecker::restartApp);
 
     // Auto-check once per 24 hours on startup
     if (updateChecker.shouldAutoCheck())
