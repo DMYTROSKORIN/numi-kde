@@ -146,11 +146,38 @@ cpack -G RPM --config kde/build-release/CPackConfig.cmake
 
 ---
 
+## Development Workflow (GitHub Flow)
+
+**All changes go through a feature branch + Pull Request. Never commit directly to `main`.**
+
+1. Create a branch from `main`:
+   ```sh
+   git checkout main && git pull
+   git checkout -b feature/short-description
+   ```
+2. Develop on the branch — commit freely, tests must pass before each commit
+3. Push branch and open PR:
+   ```sh
+   git push origin feature/short-description
+   gh pr create --title "Short description"
+   ```
+4. CI runs tests on the PR branch — verify it passes
+5. Merge PR into `main` (squash or merge commit)
+6. Tag + release (see below)
+
+---
+
 ## Release Process
+
+Runs **after** the feature PR is merged into `main`.
 
 1. Bump `project(... VERSION X.Y.Z ...)` in `kde/CMakeLists.txt`
 2. Add top entry in `CHANGELOG.md`
-3. Commit: `git add kde/CMakeLists.txt CHANGELOG.md && git commit -m "vX.Y.Z: description"`
+3. Commit on `main` (version bump only):
+   ```sh
+   git add kde/CMakeLists.txt CHANGELOG.md
+   git commit -m "vX.Y.Z: description"
+   ```
 4. Push + tag:
    ```sh
    git push origin main
