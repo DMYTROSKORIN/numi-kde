@@ -33,7 +33,7 @@ DocumentModel::DocumentModel(QObject *parent)
     connect(m_qalc, &QalcBridge::networkStatusChanged, this, &DocumentModel::networkStatusChanged);
     QSettings settings("numi-kde", "numi-kde");
     m_history = settings.value("history").value<QVariantList>();
-    m_decimalPlaces = settings.value("decimalPlaces", 3).toInt();
+    m_decimalPlaces = qBound(0, settings.value("decimalPlaces", 3).toInt(), 10);
     m_defaultCurrency = settings.value("defaultCurrency", "USD").toString().toUpper();
 
     m_debounceTimer = new QTimer(this);
@@ -41,7 +41,7 @@ DocumentModel::DocumentModel(QObject *parent)
     m_debounceTimer->setInterval(50); // 50ms debounce
     connect(m_debounceTimer, &QTimer::timeout, this, &DocumentModel::evaluate);
 
-    connect(&m_watcher, &QFutureWatcher<QList<LineResult>>::finished,
+    connect(&m_watcher, &QFutureWatcher<QPair<quint64, QList<LineResult>>>::finished,
             this, &DocumentModel::onEvaluationFinished);
 }
 
@@ -97,6 +97,7 @@ double DocumentModel::total() const { return m_total; }
 
 void DocumentModel::setDecimalPlaces(int places)
 {
+    places = qBound(0, places, 10);
     if (m_decimalPlaces == places) return;
     m_decimalPlaces = places;
     QSettings settings("numi-kde", "numi-kde");
@@ -426,7 +427,10 @@ void DocumentModel::setKWinKeepAboveRule(bool enabled)
         out << "\n";
     }
 
-    output.commit();
+    if (!output.commit()) {
+        qWarning() << "numi-kde: failed to write kwinrulesrc —" << output.errorString();
+        return;
+    }
 
     reloadKWinRules();
 }
@@ -445,15 +449,13 @@ void DocumentModel::evaluate()
 {
     m_qalc->setDecimalPlaces(m_decimalPlaces);
     m_qalc->setDefaultCurrency(m_defaultCurrency);
-    
-    // Cancel previous evaluation if still running. 
-    // QalcBridge's mutex will ensure the background thread finishes its current atomic evaluateDocument call.
-    if (m_watcher.isRunning()) {
-        m_watcher.cancel();
-    }
 
-    auto future = QtConcurrent::run([this, src = m_source]() {
-        return m_qalc->evaluateDocument(src);
+    if (m_watcher.isRunning())
+        m_watcher.cancel();
+
+    const quint64 gen = ++m_evalGeneration;
+    auto future = QtConcurrent::run([this, src = m_source, gen]() -> QPair<quint64, QList<LineResult>> {
+        return {gen, m_qalc->evaluateDocument(src)};
     });
     m_watcher.setFuture(future);
 }
@@ -462,7 +464,8 @@ void DocumentModel::onEvaluationFinished()
 {
     if (m_watcher.isCanceled()) return;
 
-    const auto qalcResults = m_watcher.result();
+    const auto [gen, qalcResults] = m_watcher.result();
+    if (gen != m_evalGeneration) return;
 
     beginResetModel();
     m_lines = QJsonArray();

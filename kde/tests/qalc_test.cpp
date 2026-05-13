@@ -164,6 +164,14 @@ static void runSuite(QalcBridge &bridge) {
         check("incomplete percent waits for RHS", r.ok && r.result.isEmpty(), r.result, "");
     }
     {
+        auto r = eval("10,5% of 200");
+        check("10,5% of 200 = 21 (comma decimal)", r.ok && r.result == "21", r.result, "21");
+    }
+    {
+        auto r = eval("50,0% from 200");
+        check("50,0% from 200 = 100 (comma decimal)", r.ok && r.result == "100", r.result, "100");
+    }
+    {
         auto r = eval("600 USD to");
         check("incomplete conversion waits for target", r.ok && r.result.isEmpty(), r.result, "");
     }
@@ -198,6 +206,43 @@ static void runSuite(QalcBridge &bridge) {
         bool ok = results.size() == 1 && (!results[0].ok || results[0].result != "15");
         check("variable deletion: x should not persist across evaluations", ok,
               results.size() >= 1 ? results[0].result : "no results", "Error/not 15");
+    }
+    // ── Variable name collision detection ─────────────────────────────────────
+    {
+        // "monthly income" and "monthly_income" both normalise to "monthly_income".
+        // Both assignment lines must produce an error, not silently overwrite each other.
+        auto results = bridge.evaluateDocument("monthly income = 5\nmonthly_income = 10");
+        bool bothError = results.size() == 2 && !results[0].ok && !results[1].ok
+                      && results[0].error.contains("conflict")
+                      && results[1].error.contains("conflict");
+        check("variable name collision: both lines get error",
+              bothError,
+              results.size() == 2
+                  ? QString("line0.ok=%1 line1.ok=%2").arg(results[0].ok).arg(results[1].ok)
+                  : "wrong size",
+              "line0.ok=false line1.ok=false");
+    }
+    {
+        // No collision: names that differ after normalisation work fine.
+        auto results = bridge.evaluateDocument("monthly income = 5\nmonthly expenses = 10");
+        bool ok = results.size() == 2 && results[0].ok && results[1].ok;
+        check("variable names without collision both succeed",
+              ok, QString("line0=%1 line1=%2").arg(results[0].ok).arg(results[1].ok),
+              "line0=true line1=true");
+    }
+    {
+        // Triple-space and single-underscore: all three normalise to same internalName.
+        auto results = bridge.evaluateDocument("a b = 1\na_b = 2\na  b = 3");
+        bool allError = results.size() == 3
+                     && !results[0].ok && !results[1].ok && !results[2].ok;
+        // results[0] is first — it was added to map, but still flagged because
+        // results[1] creates a collision detected during pre-scan.
+        check("triple collision: all three lines get error",
+              allError,
+              results.size() == 3
+                  ? QString("ok=%1%2%3").arg(results[0].ok).arg(results[1].ok).arg(results[2].ok)
+                  : "wrong size",
+              "ok=000");
     }
     {
         // A = 500 AED to USD → currency-valued result; A+200 must compute the sum,
@@ -543,6 +588,41 @@ static void runSuite(QalcBridge &bridge) {
                                          QString::number(mixed[1].numericValue))
                 : "size<2",
               "two numeric conversion rows");
+
+        // ── Scientific notation in currency expressions ───────────────────────
+        // rates: BTC=50000 USD, ETH=2500 USD, EUR=1.25 USD. decimalPlaces=2.
+        {
+            // 0.001 BTC * 50000 USD/BTC = 50 USD
+            auto r = eval("1e-3 BTC to USD");
+            check("1e-3 BTC to USD = USD 50.00 (scientific notation)",
+                  r.ok && r.result == "USD 50.00", r.result, "USD 50.00");
+        }
+        {
+            // uppercase E: 100 BTC * 50000 = 5,000,000 USD
+            const QString expected = QStringLiteral("USD %1").arg(QLocale().toString(5000000.0, 'f', 2));
+            auto r = eval("1E2 BTC to USD");
+            check("1E2 BTC to USD (uppercase E) = USD 5,000,000.00",
+                  r.ok && r.result == expected, r.result, expected.toUtf8().constData());
+        }
+        {
+            // 150 USD / 1.25 USD/EUR = 120 EUR
+            auto r = eval("1.5e2 USD to EUR");
+            check("1.5e2 USD to EUR = EUR 120.00",
+                  r.ok && r.result == "EUR 120.00", r.result, "EUR 120.00");
+        }
+        {
+            // mixed crypto: 0.001 BTC + 0.001 ETH → USD (default currency)
+            // 0.001 * 50000 + 0.001 * 2500 = 50 + 2.5 = 52.5 USD
+            auto r = eval("1e-3 BTC + 1e-3 ETH");
+            check("1e-3 BTC + 1e-3 ETH = USD 52.50 (scientific notation, mixed crypto)",
+                  r.ok && r.result == "USD 52.50", r.result, "USD 52.50");
+        }
+        {
+            // subtraction: 1e-3 BTC - 1e-4 BTC = 0.0009 BTC = 45 USD
+            auto r = eval("1e-3 BTC - 1e-4 BTC to USD");
+            check("1e-3 BTC - 1e-4 BTC to USD = USD 45.00",
+                  r.ok && r.result == "USD 45.00", r.result, "USD 45.00");
+        }
     }
     bridge.setDecimalPlaces(3); // switch to 3 places for math functions with irrational results
 
@@ -944,6 +1024,21 @@ static void runDocumentModelSuite() {
         QStringList completions = model.getCompletions("");
         check("DocumentModel getCompletions empty prefix returns empty",
               completions.isEmpty(), QString::number(completions.size()), "0");
+    }
+
+    // ── Generation ID: rapid source changes ──────────────────────────────────
+    {
+        // Set source three times without waiting. The final linesChanged signal
+        // must reflect "3 + 3" (= 6), not any earlier evaluation.
+        if (!spy.isEmpty()) spy.clear();
+        model.setSource("1 + 1");
+        model.setSource("2 + 2");
+        model.setSource("3 + 3");
+        spy.wait(2000);
+        const QString result = model.data(model.index(0), DocumentModel::ResultRole).toString();
+        // Result may include decimals depending on current decimalPlaces setting (e.g. "6.000").
+        check("async: rapid source changes yield result for last source",
+              result.startsWith("6"), result, "6*");
     }
 }
 

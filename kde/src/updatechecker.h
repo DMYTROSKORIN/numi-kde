@@ -16,8 +16,8 @@ public:
     // Fire-and-forget async check. Emits updateAvailable() if a newer release exists.
     void checkAsync();
 
-    // Returns true if the last auto-check was more than 24 hours ago and updates
-    // the stored timestamp. Call this before checkAsync() for auto-check on startup.
+    // Returns true if the last successful check was more than 24 hours ago.
+    // The timestamp is updated in checkAsync() after a successful network response.
     bool shouldAutoCheck();
 
 signals:

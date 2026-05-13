@@ -46,11 +46,8 @@ bool UpdateChecker::shouldAutoCheck()
     QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
     s.beginGroup(QStringLiteral("Updates"));
     const QDateTime last = s.value(QStringLiteral("lastCheck")).toDateTime();
-    const bool due = !last.isValid() || last.secsTo(QDateTime::currentDateTimeUtc()) >= 86400;
-    if (due)
-        s.setValue(QStringLiteral("lastCheck"), QDateTime::currentDateTimeUtc());
     s.endGroup();
-    return due;
+    return !last.isValid() || last.secsTo(QDateTime::currentDateTimeUtc()) >= 86400;
 }
 
 void UpdateChecker::checkAsync()
@@ -67,6 +64,10 @@ void UpdateChecker::checkAsync()
             emit checkFinished(false);
             return;
         }
+        QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
+        s.beginGroup(QStringLiteral("Updates"));
+        s.setValue(QStringLiteral("lastCheck"), QDateTime::currentDateTimeUtc());
+        s.endGroup();
         const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
         const QString tag = obj.value(QStringLiteral("tag_name")).toString();
         const QString url = obj.value(QStringLiteral("html_url")).toString();

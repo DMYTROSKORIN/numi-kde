@@ -45,8 +45,8 @@ public:
     void applyCryptoRates(const QJsonObject &rates);
     void setDefaultCurrency(const QString &currency);
 
-    enum class NetworkStatus { Idle, Fetching, Success, Error };
-    NetworkStatus networkStatus() const { return m_networkStatus; }
+    enum class NetworkStatus { Idle, Fetching, Success, Error, Partial };
+    NetworkStatus networkStatus() const;
 
 signals:
     void ratesUpdated();
@@ -80,7 +80,8 @@ private:
     // Defaults to "USD". Configurable via Settings.
     QString m_defaultCurrency = QStringLiteral("USD");
     mutable QMutex m_calcMutex;
-    NetworkStatus m_networkStatus = NetworkStatus::Idle;
+    NetworkStatus m_fiatStatus   = NetworkStatus::Idle;
+    NetworkStatus m_cryptoStatus = NetworkStatus::Idle;
 };
 
 #endif // QALCBRIDGE_H

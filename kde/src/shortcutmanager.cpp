@@ -83,7 +83,7 @@ bool ShortcutManager::registerShortcut(const QString &sequence, bool promptForCo
     return ok;
 #else
     setStatus(QStringLiteral("Global shortcuts require KDE GlobalAccel"));
-    return true;
+    return false;
 #endif
 }
 

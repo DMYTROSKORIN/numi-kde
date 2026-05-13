@@ -13,7 +13,7 @@ jobs:
     name: Build RPM (Fedora)
     runs-on: ubuntu-latest
     container:
-      image: fedora:latest
+      image: fedora:44
 
     steps:
       - name: Install build dependencies

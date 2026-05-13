@@ -232,6 +232,7 @@ Controls.ApplicationWindow {
                         case 1: return root.numiYellow  // Fetching
                         case 2: return root.numiGreen   // Success
                         case 3: return root.numiRed     // Error
+                        case 4: return "#f5a623"        // Partial (one source failed)
                         default: return "transparent"   // Idle
                     }
                 }
@@ -243,6 +244,7 @@ Controls.ApplicationWindow {
                         case 1: return qsTr("Updating rates...")
                         case 2: return qsTr("Rates up to date")
                         case 3: return qsTr("Rate update failed")
+                        case 4: return qsTr("Partial rates — one source unavailable")
                         default: return ""
                     }
                 }

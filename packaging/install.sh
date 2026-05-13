@@ -117,7 +117,7 @@ curl -fsSL                "$SUMS_URL"  -o "$TMPDIR/SHA256SUMS"
 # ── Checksum verification ─────────────────────────────────────────────────────
 step "Verifying checksum"
 cd "$TMPDIR"
-grep "$PKG_FILE" SHA256SUMS | sha256sum --check --status \
+grep -F "  $PKG_FILE" SHA256SUMS | sha256sum --check --status \
   || die "checksum verification failed for $PKG_FILE"
 log "ok"
 cd - >/dev/null

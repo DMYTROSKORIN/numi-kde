@@ -7,7 +7,7 @@
   [![Release](https://img.shields.io/github/v/release/DMYTROSKORIN/numi-kde?color=brightgreen)](https://github.com/DMYTROSKORIN/numi-kde/releases/latest)
   [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20KDE-5294e2?logo=kde&logoColor=white)](https://kde.org)
   [![Built with Qt 6](https://img.shields.io/badge/Qt-6-41CD52?logo=qt&logoColor=white)](https://qt.io)
-  [![C++](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](https://isocpp.org)
+  [![C++](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)](https://isocpp.org)
 </div>
 
 ---
@@ -178,7 +178,7 @@ I use KDE on Linux daily and missed having a Numi-style calculator — the kind 
 
 | | |
 |---|---|
-| **Language** | C++17 |
+| **Language** | C++20 |
 | **UI** | Qt 6 · QML |
 | **Engine** | libqalculate |
 | **Packaging** | `.rpm` for Fedora via GitHub Actions |

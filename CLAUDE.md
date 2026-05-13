@@ -25,7 +25,7 @@ KDE-native document-style calculator for Fedora/KDE Plasma.
 The user writes expressions as plain text; results appear live next to each line.
 
 - **GitHub**: https://github.com/DMYTROSKORIN/numi-kde
-- **Language**: C++17 + Qt 6 + QML
+- **Language**: C++20 + Qt 6 + QML
 - **Engine**: libqalculate
 - **Packaging**: RPM for Fedora via GitHub Actions CI
 
@@ -130,7 +130,7 @@ Max 25 entries, persisted via `QSettings("numi-kde", "numi-kde")`.
 
 ## Build
 
-Requirements: **CMake ≥ 3.24**, Qt 6, KF6 (kwindowsystem, kglobalaccel), libqalculate, C++17 compiler.
+Requirements: **CMake ≥ 3.24**, Qt 6, KF6 (kwindowsystem, kglobalaccel), libqalculate, C++20 compiler.
 
 ```sh
 # Debug — fast iteration

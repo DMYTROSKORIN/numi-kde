@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build & Test (Fedora 44)
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:44
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          dnf install -y \
+            git cmake ninja-build gcc-c++ \
+            qt6-qtbase-devel qt6-qtdeclarative-devel \
+            kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
+            libqalculate-devel
+
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S kde -B build -GNinja -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build --target numi-kde numi-kde-tests
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:44
+
+    steps:
+      - name: Install tools
+        run: |
+          dnf install -y git python3-pip ShellCheck
+          pip3 install semgrep --quiet
+
+      - uses: actions/checkout@v4
+
+      - name: Semgrep
+        run: semgrep --config .semgrep.yml --error kde/src kde/tests
+
+      - name: ShellCheck
+        run: shellcheck packaging/install.sh packaging/uninstall.sh scripts/check-semgrep.sh

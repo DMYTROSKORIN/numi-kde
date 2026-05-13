@@ -73,8 +73,21 @@ QalcBridge::~QalcBridge() {
     delete m_calc;
 }
 
+QalcBridge::NetworkStatus QalcBridge::networkStatus() const
+{
+    if (m_fiatStatus == NetworkStatus::Fetching || m_cryptoStatus == NetworkStatus::Fetching)
+        return NetworkStatus::Fetching;
+    if (m_fiatStatus == NetworkStatus::Success && m_cryptoStatus == NetworkStatus::Success)
+        return NetworkStatus::Success;
+    if (m_fiatStatus == NetworkStatus::Idle && m_cryptoStatus == NetworkStatus::Idle)
+        return NetworkStatus::Idle;
+    if (m_fiatStatus == NetworkStatus::Error && m_cryptoStatus == NetworkStatus::Error)
+        return NetworkStatus::Error;
+    return NetworkStatus::Partial;
+}
+
 void QalcBridge::fetchFiatRates() {
-    m_networkStatus = NetworkStatus::Fetching;
+    m_fiatStatus = NetworkStatus::Fetching;
     emit networkStatusChanged();
 
     QNetworkRequest req(QUrl(QStringLiteral("https://api.frankfurter.dev/v2/rates?base=USD")));
@@ -87,7 +100,7 @@ void QalcBridge::fetchFiatRates() {
 }
 
 void QalcBridge::fetchCryptoRates() {
-    m_networkStatus = NetworkStatus::Fetching;
+    m_cryptoStatus = NetworkStatus::Fetching;
     emit networkStatusChanged();
 
     QStringList ids;
@@ -109,7 +122,7 @@ void QalcBridge::fetchCryptoRates() {
 void QalcBridge::onFiatReply(QNetworkReply *reply) {
     reply->deleteLater();
     if (reply->error() != QNetworkReply::NoError) {
-        m_networkStatus = NetworkStatus::Error;
+        m_fiatStatus = NetworkStatus::Error;
         emit networkStatusChanged();
         return;
     }
@@ -141,11 +154,11 @@ void QalcBridge::onFiatReply(QNetworkReply *reply) {
 
     if (usdRates.size() > 1) {
         applyFiatRates(usdRates);
-        m_networkStatus = NetworkStatus::Success;
+        m_fiatStatus = NetworkStatus::Success;
         emit networkStatusChanged();
         emit ratesUpdated();
     } else {
-        m_networkStatus = NetworkStatus::Error;
+        m_fiatStatus = NetworkStatus::Error;
         emit networkStatusChanged();
     }
 }
@@ -153,7 +166,7 @@ void QalcBridge::onFiatReply(QNetworkReply *reply) {
 void QalcBridge::onCryptoReply(QNetworkReply *reply) {
     reply->deleteLater();
     if (reply->error() != QNetworkReply::NoError) {
-        m_networkStatus = NetworkStatus::Error;
+        m_cryptoStatus = NetworkStatus::Error;
         emit networkStatusChanged();
         return;
     }
@@ -169,11 +182,11 @@ void QalcBridge::onCryptoReply(QNetworkReply *reply) {
     }
     if (!rates.isEmpty()) {
         applyCryptoRates(rates);
-        m_networkStatus = NetworkStatus::Success;
+        m_cryptoStatus = NetworkStatus::Success;
         emit networkStatusChanged();
         emit ratesUpdated();
     } else {
-        m_networkStatus = NetworkStatus::Error;
+        m_cryptoStatus = NetworkStatus::Error;
         emit networkStatusChanged();
     }
 }
@@ -662,7 +675,7 @@ QString QalcBridge::convertCurrencyExpression(const QString &expression, bool *c
         *converted = false;
 
     static QRegularExpression currencyConversionRegex(
-        "^\\s*([+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+))\\s+([A-Za-z]{2,5})\\s+to\\s+([A-Za-z]{2,5})\\s*$",
+        "^\\s*([+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[eE][+-]?\\d+)?)\\s+([A-Za-z]{2,5})\\s+to\\s+([A-Za-z]{2,5})\\s*$",
         QRegularExpression::CaseInsensitiveOption);
 
     const auto match = currencyConversionRegex.match(expression);
@@ -738,7 +751,9 @@ bool QalcBridge::tryEvaluateCurrencyExpr(const QString &rawExpr,
             expr = expr.mid(1).trimmed();
         }
 
-        static QRegularExpression opRx(R"((?<=[A-Za-z\d])\s*([+-])\s*(?=[A-Za-z\d(]))");
+        // (?<![eE]) prevents the exponent sign in scientific notation (e.g. "1e-3") from
+        // being parsed as an arithmetic operator.
+        static QRegularExpression opRx(R"((?<=[A-Za-z\d])(?<![eE])\s*([+-])\s*(?=[A-Za-z\d(]))");
         QRegularExpressionMatchIterator it = opRx.globalMatch(expr);
         int start = 0;
         int nextSign = initialSign;
@@ -768,9 +783,9 @@ bool QalcBridge::tryEvaluateCurrencyExpr(const QString &rawExpr,
     QVector<QPair<int, Term>> terms;
     bool hasAnyCurrency = false;
 
-    static QRegularExpression numCurrRx("^(\\d+(?:[.,]\\d+)?)\\s*([A-Za-z]{3,5})$");
-    static QRegularExpression currNumRx("^([A-Za-z]{3,5})\\s*(\\d+(?:[.,]\\d+)?)$");
-    static QRegularExpression plainNumRx("^([+-]?\\d+(?:[.,]\\d+)?)$");
+    static QRegularExpression numCurrRx("^(\\d+(?:[.,]\\d+)?(?:[eE][+-]?\\d+)?)\\s*([A-Za-z]{3,5})$");
+    static QRegularExpression currNumRx("^([A-Za-z]{3,5})\\s*(\\d+(?:[.,]\\d+)?(?:[eE][+-]?\\d+)?)$");
+    static QRegularExpression plainNumRx("^([+-]?\\d+(?:[.,]\\d+)?(?:[eE][+-]?\\d+)?)$");
 
     for (const auto &chunk : chunks) {
         const QString &s = chunk.second;
@@ -964,6 +979,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     static QRegularExpression varNameRegex(
         "^([\\p{L}_][\\p{L}\\d_ ]*?)\\s*(?::=|=)",
         QRegularExpression::UseUnicodePropertiesOption);
+    QSet<QString> conflictingInternalNames;
     for (const QString &rawLn : lines) {
         QString t = rawLn.trimmed();
         if (t.startsWith('#') || t.isEmpty()) continue;
@@ -974,8 +990,14 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         QString internalName = displayName;
         internalName.replace(QRegularExpression("\\s+"), "_");
         if (!m_displayToInternal.contains(displayName)) {
-            m_displayToInternal.insert(displayName, internalName);
-            m_internalToDisplay.insert(internalName, displayName);
+            if (m_internalToDisplay.contains(internalName)) {
+                // Two different display names map to the same internal name.
+                // E.g. "monthly income" and "monthly_income" both become "monthly_income".
+                conflictingInternalNames.insert(internalName);
+            } else {
+                m_displayToInternal.insert(displayName, internalName);
+                m_internalToDisplay.insert(internalName, displayName);
+            }
         }
     }
 
@@ -1042,18 +1064,26 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         QString line = rawLine;
 
         // Safely strip thousands separators from numbers.
-        // e.g. "22,045.00" -> "22045.00".
-        // We only strip if it's strictly a thousands separator between two digits.
+        // e.g. "22,045.00" -> "22045.00", "1,000,000" -> "1000000".
+        // Only matches real thousands groups: digit(s) followed by (sep + exactly 3 digits)+.
+        // "10,5" is NOT a thousands separator (only 1 digit after comma) and is left intact
+        // so that European decimal notation like "10,5% of 200" works correctly.
         QLocale locale;
-        QString groupSep = locale.groupSeparator();
-        QString decimalPoint = locale.decimalPoint();
+        const QString groupSep = locale.groupSeparator();
+        const QString decimalPoint = locale.decimalPoint();
         if (!groupSep.isEmpty() && groupSep != decimalPoint) {
-            for (int i = line.length() - (groupSep.length() + 1); i > 0; --i) {
-                if (line.mid(i, groupSep.length()) == groupSep 
-                    && line.at(i - 1).isDigit() 
-                    && line.at(i + groupSep.length()).isDigit()) {
-                    line.remove(i, groupSep.length());
-                }
+            const QRegularExpression thousandsRe(
+                "\\d{1,3}(?:" + QRegularExpression::escape(groupSep) + "\\d{3})+");
+            QRegularExpressionMatchIterator it = thousandsRe.globalMatch(line);
+            QList<QPair<int,int>> spans;
+            while (it.hasNext()) {
+                const auto m = it.next();
+                spans.prepend({m.capturedStart(), m.capturedLength()});
+            }
+            for (const auto &span : spans) {
+                QString num = line.mid(span.first, span.second);
+                num.remove(groupSep);
+                line.replace(span.first, span.second, num);
             }
         }
 
@@ -1081,7 +1111,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         // results to the base fiat currency (USD), losing the original unit.
         // E.g., "UAH 22045 - 600" → "UAH 21,445"
         static QRegularExpression currencyArithRegex(
-            "^([A-Za-z]{3,5})\\s+(\\d+(?:[.,]\\d+)?)\\s*([+\\-])\\s*(\\d+(?:[.,]\\d+)?)$",
+            "^([A-Za-z]{3,5})\\s+(\\d+(?:[.,]\\d+)?(?:[eE][+-]?\\d+)?)\\s*([+\\-])\\s*(\\d+(?:[.,]\\d+)?(?:[eE][+-]?\\d+)?)$",
             QRegularExpression::CaseInsensitiveOption);
         {
             const auto cam = currencyArithRegex.match(line.trimmed());
@@ -1114,7 +1144,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         // libqalculate's print() converting results to the USD base currency.
         // E.g., "500 EUR - 100 USD" → rate(USD→EUR) → "EUR 415"
         static QRegularExpression crossCurrencyRegex(
-            "^(\\d+(?:[.,]\\d+)?)\\s+([A-Za-z]{3,5})\\s*([+\\-])\\s*(\\d+(?:[.,]\\d+)?)\\s+([A-Za-z]{3,5})$",
+            "^(\\d+(?:[.,]\\d+)?(?:[eE][+-]?\\d+)?)\\s+([A-Za-z]{3,5})\\s*([+\\-])\\s*(\\d+(?:[.,]\\d+)?(?:[eE][+-]?\\d+)?)\\s+([A-Za-z]{3,5})$",
             QRegularExpression::CaseInsensitiveOption);
         {
             const auto ccm = crossCurrencyRegex.match(line.trimmed());
@@ -1257,22 +1287,45 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         // 3. Percentage patterns: "X% from Y" / "X% of Y" → "(X/100)*Y"
         //    Applied to RHS for assignments, to the full line otherwise.
         static QRegularExpression percentFromOf(
-            "([\\d.]+)\\s*%\\s+(?:from|of)\\s+(.+)$",
+            "([\\d.,]+)\\s*%\\s+(?:from|of)\\s+(.+)$",
             QRegularExpression::CaseInsensitiveOption);
-
 
         auto applyPercentPreprocess = [&](QString expr) -> QString {
             auto pfm = percentFromOf.match(expr.trimmed());
-            if (pfm.hasMatch())
-                return QString("(%1/100)*%2").arg(pfm.captured(1), pfm.captured(2));
-            return expr;
+            if (!pfm.hasMatch())
+                return expr;
+            QString numStr = pfm.captured(1);
+            numStr.replace(QLatin1Char(','), QLatin1Char('.'));
+            bool ok = false;
+            const double pct = numStr.toDouble(&ok);
+            if (!ok) return expr;
+            // Build an integer fraction to avoid locale-sensitive decimal point
+            // interpretation by libqalculate (some locales treat "." as thousands separator).
+            // E.g. "10.5" → numerator=105, scale=10 → "(105/1000)*RHS" instead of "(10.5/100)*RHS".
+            const int dotPos = numStr.indexOf(QLatin1Char('.'));
+            const int decDigits = (dotPos >= 0) ? (numStr.length() - dotPos - 1) : 0;
+            qint64 scale = 1;
+            for (int i = 0; i < decDigits; ++i) scale *= 10;
+            const qint64 numerator = qRound64(pct * static_cast<double>(scale));
+            return QString("(%1/%2)*%3").arg(numerator).arg(scale * 100LL).arg(pfm.captured(2));
         };
 
         // 4. Variable assignment: detect first, then preprocess RHS
         auto assignMatch = assignmentRegex.match(line.trimmed());
         if (assignMatch.hasMatch()) {
             QString displayName = assignMatch.captured(1).trimmed();
-            QString internalName = m_displayToInternal.value(displayName, displayName);
+            // For names not in the map (skipped due to collision), normalise the same way.
+            QString internalName = m_displayToInternal.contains(displayName)
+                ? m_displayToInternal.value(displayName)
+                : QString(displayName).replace(QRegularExpression("\\s+"), "_");
+
+            // Detect collision: two different display names map to the same internal name.
+            if (conflictingInternalNames.contains(internalName)) {
+                res.ok = false;
+                res.error = QStringLiteral("Variable name conflict: \"%1\" clashes with another variable name").arg(displayName);
+                results.append(res);
+                continue;
+            }
 
             // Validation: prevent using keywords as variable names.
             // We allow shadowing units (like 'A' for Ampere) as it's common in calculations.

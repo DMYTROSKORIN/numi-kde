@@ -100,5 +100,6 @@ private:
     bool m_kwinRuleApplied = false;
     bool m_keepAbove = true;
     QTimer *m_debounceTimer;
-    QFutureWatcher<QList<LineResult>> m_watcher;
+    quint64 m_evalGeneration = 0;
+    QFutureWatcher<QPair<quint64, QList<LineResult>>> m_watcher;
 };
