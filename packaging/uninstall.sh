@@ -58,7 +58,7 @@ log "found: $PACKAGE_NAME $INSTALLED_VERSION"
 
 # ── Remove ────────────────────────────────────────────────────────────────────
 step "Removing"
-sudo dnf remove -y "$PACKAGE_NAME"
+sudo "$PKG_MGR" remove -y "$PACKAGE_NAME"
 log "package removed"
 
 # ── Purge user data (optional) ────────────────────────────────────────────────
