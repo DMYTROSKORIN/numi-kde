@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.1.61 - 2026-05-13
+
+### Fix
+
+- **Async evaluation**: generation ID prevents stale `QtConcurrent` results from overwriting the latest evaluation when source changes rapidly
+- **ShortcutManager**: `registerShortcut()` now returns `false` when `KGlobalAccel` is not compiled in, instead of silently claiming success
+- **UpdateChecker**: `lastCheck` timestamp is written only after a successful HTTP 200 response; previously written before the request, causing a 24 h delay when offline
+- **kwinrulesrc**: `QSaveFile::commit()` failure is now logged via `qWarning()` instead of silently ignored
+- **setDecimalPlaces**: value is clamped to `[0, 10]` at C++ level, not only in the QML slider, preventing excessive formatting from a corrupt settings file
+- **Variable name collision**: `monthly income` and `monthly_income` (and any other pair that normalises to the same internal name) now both produce an error instead of silently overwriting each other
+- **Percent parser**: comma accepted as decimal separator (`10,5% of 200 = 21`); integer-fraction form avoids locale-sensitive libqalculate output
+- **Currency parser — scientific notation**: `1e-3 BTC to USD`, `1e-3 BTC + 1e-3 ETH` and similar expressions now handled correctly; the exponent sign was previously misread as an arithmetic operator
+- **Network status**: `m_fiatStatus` / `m_cryptoStatus` tracked independently; new `Partial` state shown in UI when only one source is available
+
+### CI
+
+- Added `.github/workflows/ci.yml`: build + test + Semgrep + ShellCheck on push/PR to `main`
+- Release workflow pinned to `fedora:44` instead of `fedora:latest`
+- `install.sh`: checksum grep uses `-F` with two-space prefix to match SHA256SUMS format exactly
+
+### Docs
+
+- README and `CLAUDE.md`: corrected C++17 → C++20
+
 ## 0.1.60 - 2026-05-13
 
 ### Fix
