@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.65 - 2026-05-13
+
+### Fix
+
+- **Settings window**: opens at natural content size; cannot be resized smaller than content in either axis
+- **Tray menu**: global shortcut no longer shown twice — only the standard gray hint remains
+
 ## 0.1.64 - 2026-05-13
 
 ### UX
