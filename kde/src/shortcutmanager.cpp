@@ -98,5 +98,5 @@ void ShortcutManager::setStatus(const QString &status)
 void ShortcutManager::updateActionText()
 {
     if (m_action)
-        m_action->setText(QStringLiteral("Show / Hide  (%1)").arg(m_sequence));
+        m_action->setText(QStringLiteral("Show / Hide"));
 }
