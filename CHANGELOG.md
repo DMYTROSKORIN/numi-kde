@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.66 - 2026-05-13
+
+### Feature
+
+- **Auto-download updates**: new "Auto-download updates" checkbox in Settings; when enabled, the app silently downloads the RPM in the background once a newer version is detected on GitHub
+- **Tray install flow**: after download completes, a tray notification appears with an "Install Update" action that runs `pkcon install-local` (PackageKit polkit dialog); after successful install a "Restart to Apply Update" action is shown
+- **Tray one-click install**: clicking the tray balloon message also triggers install; clicking the second balloon triggers restart
+
 ## 0.1.65 - 2026-05-13
 
 ### Fix

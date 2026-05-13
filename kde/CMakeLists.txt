@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(numi-kde-native VERSION 0.1.65 LANGUAGES CXX)
+project(numi-kde-native VERSION 0.1.66 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
