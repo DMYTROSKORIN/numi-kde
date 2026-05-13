@@ -897,7 +897,8 @@ static void runDocumentModelSuite() {
     auto setAndWait = [&](const QString &src) {
         spy.clear();
         model.setSource(src);
-        spy.wait(2000);
+        // 5 s budget; covers slow CI machines where currency/unit I/O takes > 2 s
+        spy.wait(5000);
     };
 
     // ── DocumentModel totals ─────────────────────────────────────────────────
