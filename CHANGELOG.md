@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.62 - 2026-05-13
+
+### Fix
+
+- **Trailing zeros**: integer results no longer show unnecessary decimal places — `100/20` shows `5` instead of `5.00`; fractional trailing zeros also stripped (`52.50` → `52.5`); temperature conversion follows the same rule (`212.00 °F` → `212 °F`)
+
+### UX
+
+- **Settings panel**: replaced sliders with compact numeric input fields (label above, field + hint below); panel width reduced to 176 px; header/footer margins tightened; scrollbar hidden (wheel scroll still works)
+
 ## 0.1.61 - 2026-05-13
 
 ### Fix

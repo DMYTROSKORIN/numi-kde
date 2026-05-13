@@ -268,7 +268,14 @@ void QalcBridge::setDefaultCurrency(const QString &currency) {
 static QString smartFormat(double value, int maxDecimals) {
     if (std::isinf(value) || std::isnan(value)) return QString::number(value);
     QLocale locale;
-    return locale.toString(value, 'f', maxDecimals);
+    if (maxDecimals == 0) return locale.toString(value, 'f', 0);
+    QString s = locale.toString(value, 'f', maxDecimals);
+    const QString dec = locale.decimalPoint();
+    if (s.contains(dec)) {
+        while (s.endsWith(QLatin1Char('0'))) s.chop(1);
+        if (s.endsWith(dec)) s.chop(1);
+    }
+    return s;
 }
 
 static QString pluralize(int value, const QString &one, const QString &many)
@@ -429,7 +436,7 @@ static bool tryTemperatureConversion(const QString &trimmed, int decimalPlaces, 
     else if (toUnit == QStringLiteral("F")) { output = celsius * 9.0 / 5.0 + 32.0;  unitLabel = QStringLiteral("°F"); }
     else                                    { output = celsius + 273.15;              unitLabel = QStringLiteral("K");  }
 
-    *result = QLocale().toString(output, 'f', decimalPlaces) + QLatin1Char(' ') + unitLabel;
+    *result = smartFormat(output, decimalPlaces) + QLatin1Char(' ') + unitLabel;
     return true;
 }
 

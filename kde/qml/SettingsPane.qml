@@ -7,14 +7,14 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 16
+        anchors.margins: 12
         spacing: 0
 
         // Header
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 36
-            Layout.bottomMargin: 10
+            Layout.preferredHeight: 24
+            Layout.bottomMargin: 6
 
             Text {
                 text: "Settings"
@@ -30,20 +30,20 @@ Item {
             Layout.fillWidth: true
             height: 1
             color: "#3a3d47"
-            Layout.bottomMargin: 15
+            Layout.bottomMargin: 8
         }
 
         Controls.ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            Controls.ScrollBar.vertical.policy: Controls.ScrollBar.AsNeeded
+            Controls.ScrollBar.vertical.policy: Controls.ScrollBar.AlwaysOff
             Controls.ScrollBar.horizontal.policy: Controls.ScrollBar.AlwaysOff
 
             ColumnLayout {
                 id: settingsColumn
                 width: parent.width
-                spacing: 20
+                spacing: 12
 
                 // Helper component for CheckBox styling
                 component NumiCheckBox: Controls.CheckBox {
@@ -73,35 +73,26 @@ Item {
                     }
                 }
 
-                // Helper component for Slider styling
-                component NumiSlider: Controls.Slider {
-                    id: slider
-                    Layout.fillWidth: true
-                    handle: Rectangle {
-                        x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
-                        y: slider.topPadding + slider.availableHeight / 2 - height / 2
-                        implicitWidth: 16
-                        implicitHeight: 16
-                        radius: 8
-                        color: slider.pressed ? (Window.window ? Window.window.numiBlue : "#6fc4e8") : "#f0f0f3"
-                        border.color: Window.window ? Window.window.numiWindow : "#22242a"
-                        border.width: 1
-                    }
+                // Helper component for compact numeric input
+                component NumiSpinField: Controls.TextField {
+                    id: spinField
+                    property int minVal: 0
+                    property int maxVal: 100
+                    Layout.preferredWidth: 52
+                    Layout.preferredHeight: 28
+                    horizontalAlignment: Text.AlignHCenter
+                    validator: IntValidator { bottom: spinField.minVal; top: spinField.maxVal }
+                    color: Window.window ? Window.window.numiText : "#f0f0f3"
+                    selectedTextColor: "#22242a"
+                    selectionColor: "#6fc4e8"
+                    font.pixelSize: 13
                     background: Rectangle {
-                        x: slider.leftPadding
-                        y: slider.topPadding + slider.availableHeight / 2 - height / 2
-                        implicitWidth: 200
-                        implicitHeight: 4
-                        width: slider.availableWidth
-                        height: implicitHeight
-                        radius: 2
-                        color: "#343742"
-                        Rectangle {
-                            width: slider.visualPosition * parent.width
-                            height: parent.height
-                            color: Window.window ? Window.window.numiBlue : "#6fc4e8"
-                            radius: 2
-                        }
+                        radius: 4
+                        color: "#1d1f25"
+                        border.color: spinField.activeFocus
+                                      ? (Window.window ? Window.window.numiBlue : "#6fc4e8")
+                                      : "#343742"
+                        border.width: 1
                     }
                 }
 
@@ -125,91 +116,94 @@ Item {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 6
                     Text {
-                        text: "Font size: " + (Window.window ? Window.window.fontSize : 16) + " px"
+                        text: "Font size"
                         color: Window.window ? Window.window.numiText : "#f0f0f3"
                         font.pixelSize: 13
                     }
-                    NumiSlider {
-                        from: 11; to: 24; stepSize: 1
-                        value: Window.window ? Window.window.fontSize : 16
-                        onMoved: if (Window.window) Window.window.fontSize = Math.round(value)
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-                    Text {
-                        text: "Result width: " + (Window.window ? Window.window.resultWidth : 124) + " px"
-                        color: Window.window ? Window.window.numiText : "#f0f0f3"
-                        font.pixelSize: 13
-                    }
-                    NumiSlider {
-                        from: 96; to: 720; stepSize: 8
-                        value: Window.window ? Window.window.resultWidth : 124
-                        onMoved: if (Window.window) Window.window.resultWidth = Math.round(value)
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-                    Text {
-                        text: "Decimal places: " + (Window.window ? Math.round(Window.window.decimalPlaces) : 3)
-                        color: Window.window ? Window.window.numiText : "#f0f0f3"
-                        font.pixelSize: 13
-                    }
-                    NumiSlider {
-                        from: 0; to: 10; stepSize: 1
-                        value: Window.window ? Window.window.decimalPlaces : 3
-                        onMoved: if (Window.window) Window.window.decimalPlaces = Math.round(value)
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    RowLayout {
-                        spacing: 6
-                        Text {
-                            text: "Default currency"
-                            color: Window.window ? Window.window.numiText : "#f0f0f3"
-                            font.pixelSize: 13
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        Item {
-                            width: 16
-                            height: 16
-                            Rectangle {
-                                anchors.centerIn: parent
-                                width: 14; height: 14; radius: 7
-                                color: "transparent"
-                                border.color: Window.window ? Window.window.numiMuted : "#6b6d76"
-                                border.width: 1
-                            }
-                            Text {
-                                anchors.centerIn: parent
-                                text: "?"
-                                color: Window.window ? Window.window.numiMuted : "#6b6d76"
-                                font.pixelSize: 10
-                                font.weight: Font.DemiBold
-                            }
-                            HoverHandler { id: currencyHelpHover }
-                            Controls.ToolTip {
-                                visible: currencyHelpHover.hovered
-                                text: "Used when mixing cryptocurrencies\n(e.g. 1 BTC + 1 ETH → " +
-                                      (documentModel ? documentModel.defaultCurrency : "USD") + ")"
-                                delay: 200
-                            }
+                    NumiSpinField {
+                        minVal: 11; maxVal: 24
+                        Layout.preferredWidth: 84
+                        text: Window.window ? Window.window.fontSize.toString() : "16"
+                        onEditingFinished: {
+                            let v = Math.max(minVal, Math.min(maxVal, parseInt(text) || minVal))
+                            if (Window.window) Window.window.fontSize = v
+                            text = v.toString()
                         }
                     }
+                    Text {
+                        text: "px  (11 – 24)"
+                        width: 84
+                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
+                        font.pixelSize: 11
+                    }
+                }
 
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Text {
+                        text: "Result width"
+                        color: Window.window ? Window.window.numiText : "#f0f0f3"
+                        font.pixelSize: 13
+                    }
+                    NumiSpinField {
+                        minVal: 80; maxVal: 720
+                        Layout.preferredWidth: 84
+                        text: Window.window ? Window.window.resultWidth.toString() : "124"
+                        onEditingFinished: {
+                            let v = Math.max(minVal, Math.min(maxVal, parseInt(text) || minVal))
+                            if (Window.window) Window.window.resultWidth = v
+                            text = v.toString()
+                        }
+                    }
+                    Text {
+                        text: "px  (80 – 720)"
+                        width: 84
+                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
+                        font.pixelSize: 11
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Text {
+                        text: "Decimal places"
+                        color: Window.window ? Window.window.numiText : "#f0f0f3"
+                        font.pixelSize: 13
+                    }
+                    NumiSpinField {
+                        minVal: 0; maxVal: 10
+                        Layout.preferredWidth: 84
+                        text: Window.window ? Window.window.decimalPlaces.toString() : "3"
+                        onEditingFinished: {
+                            let v = Math.max(minVal, Math.min(maxVal, parseInt(text) || 0))
+                            if (Window.window) Window.window.decimalPlaces = v
+                            text = v.toString()
+                        }
+                    }
+                    Text {
+                        text: "(0 – 10)"
+                        width: 84
+                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
+                        font.pixelSize: 11
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Text {
+                        text: "Default currency"
+                        color: Window.window ? Window.window.numiText : "#f0f0f3"
+                        font.pixelSize: 13
+                    }
                     Controls.TextField {
                         id: defaultCurrencyField
-                        Layout.fillWidth: true
+                        Layout.preferredWidth: 72
+                        Layout.preferredHeight: 28
                         text: documentModel ? documentModel.defaultCurrency : "USD"
                         maximumLength: 5
                         validator: RegularExpressionValidator { regularExpression: /[A-Za-z]{0,5}/ }
@@ -233,7 +227,13 @@ Item {
                             border.width: 1
                         }
                     }
-
+                    Text {
+                        text: "output for mixed crypto"
+                        width: 72
+                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
+                        font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+                    }
                 }
 
                 ColumnLayout {
@@ -259,7 +259,8 @@ Item {
 
                     Controls.TextField {
                         id: hotkeyField
-                        Layout.fillWidth: true
+                        Layout.preferredWidth: 140
+                        Layout.preferredHeight: 28
                         text: hotkeyColumn.recordingHotkey ? "Press shortcut..." : (shortcutManager ? shortcutManager.sequence : "Ctrl+Alt+1")
                         readOnly: true
                         focus: hotkeyColumn.recordingHotkey
@@ -309,7 +310,14 @@ Item {
                     }
 
                     Text {
-                        Layout.fillWidth: true
+                        text: hotkeyColumn.recordingHotkey ? "press combo, Esc to cancel" : "click to record"
+                        width: 140
+                        color: Window.window ? Window.window.numiMuted : "#6b6d76"
+                        font.pixelSize: 11
+                    }
+
+                    Text {
+                        Layout.preferredWidth: 140
                         visible: shortcutManager && shortcutManager.status.length > 0
                         text: shortcutManager ? shortcutManager.status : ""
                         color: text === "Shortcut saved" ? (Window.window ? Window.window.numiGreen : "#8fd14f") : (Window.window ? Window.window.numiRed : "#ff5f57")
@@ -325,13 +333,13 @@ Item {
             Layout.fillWidth: true
             height: 1
             color: "#3a3d47"
-            Layout.topMargin: 15
-            Layout.bottomMargin: 10
+            Layout.topMargin: 8
+            Layout.bottomMargin: 6
         }
 
         Text {
             Layout.fillWidth: true
-            Layout.bottomMargin: 10
+            Layout.bottomMargin: 6
             text: "Numi-KDE v" + (documentModel ? documentModel.version : "unknown")
             color: aboutHover.hovered
                    ? (Window.window ? Window.window.numiBlue : "#6fc4e8")

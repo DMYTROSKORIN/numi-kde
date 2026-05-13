@@ -115,13 +115,13 @@ static void runSuite(QalcBridge &bridge) {
     bridge.setDecimalPlaces(2);
     {
         auto r = eval("10000 + 1");
-        check("places=2: integer 10001 shows as 10,001.00",
-              r.ok && r.result == QLocale().toString(10001.0, 'f', 2), r.result, "10,001.00");
+        check("places=2: integer 10001 shows without trailing zeros",
+              r.ok && r.result == QLocale().toString(10001), r.result, "10,001");
     }
     {
         auto r = eval("500 + 0");
-        check("places=2: integer 500 shows as 500.00",
-              r.ok && r.result == QLocale().toString(500.0, 'f', 2), r.result, "500.00");
+        check("places=2: integer 500 shows without trailing zeros",
+              r.ok && r.result == "500", r.result, "500");
     }
     {
         auto r = eval("1 / 3");
@@ -502,11 +502,11 @@ static void runSuite(QalcBridge &bridge) {
     bridge.setDecimalPlaces(2);
     {
         auto r = eval("100 C to F");
-        check("100 C to F = 212.00 °F", r.ok && r.result == "212.00 °F", r.result, "212.00 °F");
+        check("100 C to F = 212 °F", r.ok && r.result == "212 °F", r.result, "212 °F");
     }
     {
         auto r = eval("212 F to C");
-        check("212 F to C = 100.00 °C", r.ok && r.result == "100.00 °C", r.result, "100.00 °C");
+        check("212 F to C = 100 °C", r.ok && r.result == "100 °C", r.result, "100 °C");
     }
     {
         auto r = eval("0 C to K");
@@ -514,7 +514,7 @@ static void runSuite(QalcBridge &bridge) {
     }
     {
         auto r = eval("273.15 K to C");
-        check("273.15 K to C = 0.00 °C", r.ok && r.result == "0.00 °C", r.result, "0.00 °C");
+        check("273.15 K to C = 0 °C", r.ok && r.result == "0 °C", r.result, "0 °C");
     }
     {
         auto r = eval("32 F to K");
@@ -522,12 +522,12 @@ static void runSuite(QalcBridge &bridge) {
     }
     {
         auto r = eval("373.15 K to F");
-        check("373.15 K to F = 212.00 °F", r.ok && r.result == "212.00 °F", r.result, "212.00 °F");
+        check("373.15 K to F = 212 °F", r.ok && r.result == "212 °F", r.result, "212 °F");
     }
     {
         // With ° prefix — same result
         auto r = eval("100 °C to F");
-        check("100 °C to F (with degree symbol) = 212.00 °F", r.ok && r.result == "212.00 °F", r.result, "212.00 °F");
+        check("100 °C to F (with degree symbol) = 212 °F", r.ok && r.result == "212 °F", r.result, "212 °F");
     }
     bridge.setDecimalPlaces(0);
 
@@ -552,24 +552,24 @@ static void runSuite(QalcBridge &bridge) {
         bridge.applyCryptoRates(rates);
 
         auto btcToEth = eval("1 BTC to ETH");
-        check("1 BTC to ETH = ETH 20.00", btcToEth.ok && btcToEth.result == "ETH 20.00",
-              btcToEth.result, "ETH 20.00");
+        check("1 BTC to ETH = ETH 20", btcToEth.ok && btcToEth.result == "ETH 20",
+              btcToEth.result, "ETH 20");
 
         auto usdToEth = eval("400 USD to ETH");
         check("400 USD to ETH = ETH 0.16", usdToEth.ok && usdToEth.result == "ETH 0.16",
               usdToEth.result, "ETH 0.16");
 
         auto ethToUsd = eval("1 ETH to USD");
-        check("1 ETH to USD = USD 2,500.00", ethToUsd.ok && ethToUsd.result == QStringLiteral("USD %1").arg(QLocale().toString(2500.0, 'f', 2)),
-              ethToUsd.result, "USD 2,500.00");
+        check("1 ETH to USD = USD 2,500", ethToUsd.ok && ethToUsd.result == QStringLiteral("USD %1").arg(QLocale().toString(2500)),
+              ethToUsd.result, "USD 2,500");
         check("crypto conversion exposes numeric value",
               ethToUsd.hasNumericValue && ethToUsd.numericValue == 2500.0,
               QString::number(ethToUsd.numericValue), "2500");
 
         auto btcToEur = eval("1 BTC to EUR");
         check("1 BTC to EUR uses Frankfurter fiat target rate",
-              btcToEur.ok && btcToEur.result == QStringLiteral("EUR %1").arg(QLocale().toString(40000.0, 'f', 2)) && btcToEur.hasNumericValue && btcToEur.numericValue == 40000.0,
-              btcToEur.result, "EUR 40,000.00");
+              btcToEur.ok && btcToEur.result == QStringLiteral("EUR %1").arg(QLocale().toString(40000)) && btcToEur.hasNumericValue && btcToEur.numericValue == 40000.0,
+              btcToEur.result, "EUR 40,000");
 
         auto btcToUah = eval("1 BTC to UAH");
         check("1 BTC to UAH supports fiat target",
@@ -594,34 +594,34 @@ static void runSuite(QalcBridge &bridge) {
         {
             // 0.001 BTC * 50000 USD/BTC = 50 USD
             auto r = eval("1e-3 BTC to USD");
-            check("1e-3 BTC to USD = USD 50.00 (scientific notation)",
-                  r.ok && r.result == "USD 50.00", r.result, "USD 50.00");
+            check("1e-3 BTC to USD = USD 50 (scientific notation)",
+                  r.ok && r.result == "USD 50", r.result, "USD 50");
         }
         {
             // uppercase E: 100 BTC * 50000 = 5,000,000 USD
-            const QString expected = QStringLiteral("USD %1").arg(QLocale().toString(5000000.0, 'f', 2));
+            const QString expected = QStringLiteral("USD %1").arg(QLocale().toString(5000000));
             auto r = eval("1E2 BTC to USD");
-            check("1E2 BTC to USD (uppercase E) = USD 5,000,000.00",
+            check("1E2 BTC to USD (uppercase E) = USD 5,000,000",
                   r.ok && r.result == expected, r.result, expected.toUtf8().constData());
         }
         {
             // 150 USD / 1.25 USD/EUR = 120 EUR
             auto r = eval("1.5e2 USD to EUR");
-            check("1.5e2 USD to EUR = EUR 120.00",
-                  r.ok && r.result == "EUR 120.00", r.result, "EUR 120.00");
+            check("1.5e2 USD to EUR = EUR 120",
+                  r.ok && r.result == "EUR 120", r.result, "EUR 120");
         }
         {
             // mixed crypto: 0.001 BTC + 0.001 ETH → USD (default currency)
             // 0.001 * 50000 + 0.001 * 2500 = 50 + 2.5 = 52.5 USD
             auto r = eval("1e-3 BTC + 1e-3 ETH");
-            check("1e-3 BTC + 1e-3 ETH = USD 52.50 (scientific notation, mixed crypto)",
-                  r.ok && r.result == "USD 52.50", r.result, "USD 52.50");
+            check("1e-3 BTC + 1e-3 ETH = USD 52.5 (scientific notation, mixed crypto)",
+                  r.ok && r.result == "USD 52.5", r.result, "USD 52.5");
         }
         {
             // subtraction: 1e-3 BTC - 1e-4 BTC = 0.0009 BTC = 45 USD
             auto r = eval("1e-3 BTC - 1e-4 BTC to USD");
-            check("1e-3 BTC - 1e-4 BTC to USD = USD 45.00",
-                  r.ok && r.result == "USD 45.00", r.result, "USD 45.00");
+            check("1e-3 BTC - 1e-4 BTC to USD = USD 45",
+                  r.ok && r.result == "USD 45", r.result, "USD 45");
         }
     }
     bridge.setDecimalPlaces(3); // switch to 3 places for math functions with irrational results
@@ -629,7 +629,7 @@ static void runSuite(QalcBridge &bridge) {
     // ── Math functions ────────────────────────────────────────────────────────
     {
         auto r = eval("sqrt(9)");
-        check("sqrt(9) = 3.000", r.ok && r.result == QLocale().toString(3.0, 'f', 3), r.result, "3.000");
+        check("sqrt(9) = 3", r.ok && r.result == "3", r.result, "3");
     }
     {
         auto r = eval("sqrt(2)");
@@ -637,7 +637,7 @@ static void runSuite(QalcBridge &bridge) {
     }
     {
         auto r = eval("abs(-5)");
-        check("abs(-5) = 5.000", r.ok && r.result == QLocale().toString(5.0, 'f', 3), r.result, "5.000");
+        check("abs(-5) = 5", r.ok && r.result == "5", r.result, "5");
     }
     bridge.setDecimalPlaces(0); // reset
 
