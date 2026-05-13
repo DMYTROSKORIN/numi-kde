@@ -51,6 +51,16 @@ UpdateChecker::UpdateChecker(QObject *parent)
     s.beginGroup(QStringLiteral("Updates"));
     m_autoDownload = s.value(QStringLiteral("autoDownload"), true).toBool();
     s.endGroup();
+
+    // Check once per hour; the actual 24 h gate is inside shouldAutoCheck().
+    m_periodicTimer = new QTimer(this);
+    m_periodicTimer->setInterval(60 * 60 * 1000);
+    m_periodicTimer->setSingleShot(false);
+    QObject::connect(m_periodicTimer, &QTimer::timeout, this, [this]() {
+        if (shouldAutoCheck())
+            checkAsync();
+    });
+    m_periodicTimer->start();
 }
 
 UpdateChecker::~UpdateChecker()

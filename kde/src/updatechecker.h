@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QTimer>
 #include <QUrl>
 
 class QFile;
@@ -65,9 +66,10 @@ private:
     void setState(State s);
     void setDownloadProgress(int p);
 
-    QNetworkAccessManager *m_nam      = nullptr;
-    QFile                 *m_dlFile   = nullptr;
-    QProcess              *m_pkcon    = nullptr;
+    QNetworkAccessManager *m_nam           = nullptr;
+    QFile                 *m_dlFile        = nullptr;
+    QProcess              *m_pkcon         = nullptr;
+    QTimer                *m_periodicTimer = nullptr;
 
     State   m_state             = State::Idle;
     int     m_downloadProgress  = 0;
