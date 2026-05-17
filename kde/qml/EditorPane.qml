@@ -60,7 +60,7 @@ Controls.ScrollView {
             }
         }
 
-        Controls.TextArea {
+        TextEdit {
             id: editor
 
             anchors.fill: parent
@@ -90,13 +90,6 @@ Controls.ScrollView {
             }
             font.family: root.monoFont
             font.pixelSize: root.monoSize
-            leftPadding: 0
-            rightPadding: 0
-            topPadding: 0
-            bottomPadding: 0
-            placeholderText: root.placeholderText
-            placeholderTextColor: "#1a1c22"
-            opacity: editor.text === "" ? 0.15 : 1.0
 
             property int _wordStart: 0
             property int _segmentStart: 0
@@ -262,10 +255,6 @@ Controls.ScrollView {
                 if (!editor._applyingCompletion && completionPopup.visible) {
                     completionPopup.close()
                 }
-            }
-
-            background: Rectangle {
-                color: "transparent"
             }
 
         }
