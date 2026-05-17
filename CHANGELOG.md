@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.68 - 2026-05-17
+
+### Fix
+
+- **Cursor color independent of KDE theme**: replaced `Controls.TextArea` with `TextEdit` in the editor pane — the cursor now always renders as yellow (`#ffd35a`) regardless of whether the KDE system theme is set to dark or light Breeze
+
 ## 0.1.67 - 2026-05-13
 
 ### Feature
