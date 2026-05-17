@@ -23,6 +23,10 @@ Item {
     onMinimumResultWidthChanged: enforceWindowMinimum()
     onShowResultsSeparatorChanged: enforceWindowMinimum()
 
+    function focusEditor() {
+        editor.flickable.forceActiveFocus()
+    }
+
     function enforceWindowMinimum() {
         if (!Window.window) return
         let needed = page.pageHorizontalMargins
