@@ -237,24 +237,23 @@ int main(int argc, char *argv[])
                 [url]() { QDesktopServices::openUrl(url); });
         });
 
-    // Download complete — show tray notification and "Install" action
+    // Download complete — install automatically without user interaction.
     QObject::connect(&updateChecker, &UpdateChecker::downloadReady,
-        [&tray, installUpdateAction, separatorUpdate](const QString &version) {
+        [&tray, &updateChecker, mainWindow, installUpdateAction, separatorUpdate](const QString &version) {
             separatorUpdate->setVisible(true);
             installUpdateAction->setVisible(true);
-            installUpdateAction->setText(
-                QStringLiteral("Install Update %1…").arg(version));
-            QObject::disconnect(&tray, &QSystemTrayIcon::messageClicked, nullptr, nullptr);
-            QObject::connect(&tray, &QSystemTrayIcon::messageClicked,
-                [installUpdateAction]() { installUpdateAction->trigger(); });
+            installUpdateAction->setEnabled(false);
+            installUpdateAction->setText(QStringLiteral("Installing %1…").arg(version));
+            if (mainWindow)
+                QMetaObject::invokeMethod(mainWindow, "hideWindow");
             tray.showMessage(
                 QStringLiteral("Numi-KDE"),
-                QStringLiteral("Update %1 downloaded — click to install.").arg(version),
+                QStringLiteral("Installing update %1…").arg(version),
                 QSystemTrayIcon::Information, 8000);
+            updateChecker.installUpdate();
         });
 
-    // Install button: hide main window first so the polkit dialog is not
-    // obscured by numi-kde's keep-above window, then start pkcon.
+    // Install action — retry only, shown when auto-install fails.
     QObject::connect(installUpdateAction, &QAction::triggered,
         [&updateChecker, mainWindow, installUpdateAction, &tray]() {
             installUpdateAction->setEnabled(false);
@@ -263,8 +262,8 @@ int main(int argc, char *argv[])
                 QMetaObject::invokeMethod(mainWindow, "hideWindow");
             tray.showMessage(
                 QStringLiteral("Numi-KDE"),
-                QStringLiteral("Confirm the system authentication dialog to install the update."),
-                QSystemTrayIcon::Information, 15000);
+                QStringLiteral("Installing update — confirm system dialog if prompted."),
+                QSystemTrayIcon::Information, 10000);
             updateChecker.installUpdate();
         });
 
