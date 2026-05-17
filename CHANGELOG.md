@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.69 - 2026-05-17
+
+### Fix
+
+- **Update install dialog now visible**: main window hides to tray before pkcon starts, so the system authentication (polkit) dialog is no longer obscured by the keep-above window — user sees the dialog and can confirm it immediately
+- **Install action feedback**: action is disabled and renamed to "Installing…" while pkcon runs; on failure it re-enables as "Install Update (retry)…" so the user can retry without restarting
+- **Install notification**: tray notification now explains that a system authentication dialog requires confirmation
+
 ## 0.1.68 - 2026-05-17
 
 ### Fix
