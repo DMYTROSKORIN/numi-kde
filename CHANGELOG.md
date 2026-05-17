@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.71 - 2026-05-17
+
+### Feature
+
+- **Silent auto-install**: update is installed automatically as soon as the RPM finishes downloading — no tray menu interaction needed; main window hides so any polkit dialog stays visible; on failure the tray shows a retry action
+
 ## 0.1.70 - 2026-05-17
 
 ### Fix
