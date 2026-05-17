@@ -120,6 +120,7 @@ Controls.ApplicationWindow {
             if (typeof documentModel !== "undefined") {
                 Qt.callLater(() => documentModel.setKeepAbove(alwaysOnTop))
             }
+            Qt.callLater(() => documentPage.focusEditor())
         } else {
             restorePositionTimer.stop()
             positionSaveEnabled = false
