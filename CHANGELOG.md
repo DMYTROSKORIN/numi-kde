@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.70 - 2026-05-17
+
+### Fix
+
+- **Editor focus on show**: keyboard focus goes to the editor automatically every time the window is shown — no mouse click required to start typing after toggling via hotkey or tray
+
 ## 0.1.69 - 2026-05-17
 
 ### Fix
