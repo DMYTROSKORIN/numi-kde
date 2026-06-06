@@ -78,6 +78,17 @@ if(KF6GlobalAccel_FOUND)
   target_compile_definitions(numi-kde PRIVATE NUMI_KDE_HAVE_GLOBAL_ACCEL=1)
 endif()
 
+# ── Static Analysis via Semgrep ──────────────────────────────────────────────
+find_program(SEMGREP_BIN semgrep)
+if(SEMGREP_BIN)
+  add_custom_target(semgrep-check
+    COMMAND ${SEMGREP_BIN} scan --config ${CMAKE_SOURCE_DIR}/../.semgrep.yml --config auto --error --exclude "build*" --exclude "third_party" ${CMAKE_SOURCE_DIR}/..
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/..
+    COMMENT "Running Semgrep static analysis..."
+  )
+  add_dependencies(numi-kde semgrep-check)
+endif()
+
 install(TARGETS numi-kde RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES resources/numi-kde.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES resources/numi-kde.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)

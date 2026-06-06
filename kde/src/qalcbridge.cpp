@@ -23,6 +23,9 @@
 #include <QDateTime>
 #include <QTime>
 #include <QLocale>
+#include <QDir>
+#include <QFile>
+#include <QStandardPaths>
 #include <algorithm>
 #include <cmath>
 
@@ -54,6 +57,7 @@ QalcBridge::QalcBridge(QObject *parent) : QObject(parent) {
     m_highlighter = new SyntaxHighlighter(m_calc);
 
     m_nam = new QNetworkAccessManager(this);
+    loadRatesFromCache();
 
     // Fetch on startup, then refresh every hour.
     m_ratesRefreshTimer = new QTimer(this);
@@ -154,6 +158,7 @@ void QalcBridge::onFiatReply(QNetworkReply *reply) {
 
     if (usdRates.size() > 1) {
         applyFiatRates(usdRates);
+        saveRatesToCache(false, usdRates);
         m_fiatStatus = NetworkStatus::Success;
         emit networkStatusChanged();
         emit ratesUpdated();
@@ -182,6 +187,7 @@ void QalcBridge::onCryptoReply(QNetworkReply *reply) {
     }
     if (!rates.isEmpty()) {
         applyCryptoRates(rates);
+        saveRatesToCache(true, rates);
         m_cryptoStatus = NetworkStatus::Success;
         emit networkStatusChanged();
         emit ratesUpdated();
@@ -1671,4 +1677,61 @@ QStringList QalcBridge::getCompletions(const QString &lineContext) {
     });
 
     return result;
+}
+
+void QalcBridge::loadRatesFromCache()
+{
+    const QString filePath = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                             + QStringLiteral("/rates.json");
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly))
+        return;
+
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    if (doc.isNull() || !doc.isObject())
+        return;
+
+    const QJsonObject root = doc.object();
+    const QJsonObject fiatObj   = root.value(QStringLiteral("fiat")).toObject();
+    const QJsonObject cryptoObj = root.value(QStringLiteral("crypto")).toObject();
+
+    if (!fiatObj.isEmpty()) {
+        applyFiatRates(fiatObj);
+        m_fiatStatus = NetworkStatus::Success;
+    }
+    if (!cryptoObj.isEmpty()) {
+        applyCryptoRates(cryptoObj);
+        m_cryptoStatus = NetworkStatus::Success;
+    }
+    if (!fiatObj.isEmpty() || !cryptoObj.isEmpty()) {
+        emit networkStatusChanged();
+        emit ratesUpdated();
+    }
+}
+
+void QalcBridge::saveRatesToCache(bool isCrypto, const QJsonObject &rates)
+{
+    const QString cachePath = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    QDir().mkpath(cachePath);
+    const QString filePath = cachePath + QStringLiteral("/rates.json");
+
+    QJsonObject root;
+    {
+        QFile file(filePath);
+        if (file.open(QIODevice::ReadOnly)) {
+            const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+            if (!doc.isNull() && doc.isObject())
+                root = doc.object();
+        }
+    }
+
+    root[QStringLiteral("timestamp")] = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+    if (isCrypto)
+        root[QStringLiteral("crypto")] = rates;
+    else
+        root[QStringLiteral("fiat")] = rates;
+
+    QFile file(filePath);
+    if (file.open(QIODevice::WriteOnly))
+        file.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
 }

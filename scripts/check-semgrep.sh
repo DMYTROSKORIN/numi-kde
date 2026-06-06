@@ -18,18 +18,18 @@ if [ ! -f "$CONFIG" ]; then
 fi
 
 if [ "$#" -eq 0 ]; then
-    mapfile -t TARGETS < <(git ls-files '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx')
+    mapfile -t TARGETS < <(git ls-files)
 else
     TARGETS=("$@")
 fi
 
 if [ "${#TARGETS[@]}" -eq 0 ]; then
-    echo "No C/C++ files to scan."
+    echo "No files to scan."
     exit 0
 fi
 
 if command -v timeout >/dev/null 2>&1; then
-    timeout "${TIMEOUT_SECONDS}s" semgrep --config "$CONFIG" --error "${TARGETS[@]}"
+    timeout "${TIMEOUT_SECONDS}s" semgrep --config "$CONFIG" --config auto --error "${TARGETS[@]}"
 else
-    semgrep --config "$CONFIG" --error "${TARGETS[@]}"
+    semgrep --config "$CONFIG" --config auto --error "${TARGETS[@]}"
 fi
