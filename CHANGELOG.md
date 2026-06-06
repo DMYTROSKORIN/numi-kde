@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.72 - 2026-06-06
+
+### Feature
+
+- **Instant currency on startup**: exchange rates are cached to disk (`~/.cache/numi-kde/rates.json`) after each successful API response and restored before any network request — currency expressions evaluate correctly from the first keystroke even when offline or before the API replies
+
+### Build
+
+- Semgrep now scans all tracked files (not just C++) using community rules (`--config auto`) in addition to project rules
+- Semgrep runs as a mandatory CMake build dependency (`semgrep-check` target) — the build fails if any rule fires
+
 ## 0.1.71 - 2026-05-17
 
 ### Feature
