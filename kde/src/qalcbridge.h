@@ -82,6 +82,9 @@ private:
     mutable QMutex m_calcMutex;
     NetworkStatus m_fiatStatus   = NetworkStatus::Idle;
     NetworkStatus m_cryptoStatus = NetworkStatus::Idle;
+
+    void loadRatesFromCache();
+    void saveRatesToCache(bool isCrypto, const QJsonObject &rates);
 };
 
 #endif // QALCBRIDGE_H
