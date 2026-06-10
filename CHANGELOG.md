@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.73 - 2026-06-11
+
+### Fix
+
+- **Total footer now works for mixed currency expressions**: when a document combines plain amounts like `23.74 EUR` with conversions like `298.81 AED to EUR`, the total was silently hidden even though all results were in the same currency. Root cause: the `totalKey` used for grouping was derived from the *input expression* text rather than the *result* currency — plain `X EUR` got key `"number"` while `X AED to EUR` got key `"EUR"`. Fixed in all three custom currency evaluation paths (`tryEvaluateCurrencyExpr`, `currencyArithRegex`, `crossCurrencyRegex`).
+
 ## 0.1.72 - 2026-06-06
 
 ### Feature
