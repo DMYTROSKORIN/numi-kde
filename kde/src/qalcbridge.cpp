@@ -1113,7 +1113,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 res.ok = true;
                 res.result = currResult;
                 res.hasNumericValue = parseDisplayNumber(currResult, &res.numericValue);
-                res.totalKey = totalKey;
+                res.totalKey = currTag.isEmpty() ? totalKey : currTag;
                 results.append(res);
                 continue;
             }
@@ -1144,7 +1144,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                         res.result = currency + QLatin1Char(' ') + smartFormat(result, m_decimalPlaces);
                         res.hasNumericValue = true;
                         res.numericValue = result;
-                        res.totalKey = totalKey;
+                        res.totalKey = currency;
                         results.append(res);
                         continue;
                     }
@@ -1183,7 +1183,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                             res.result = curr1 + QLatin1Char(' ') + smartFormat(result, m_decimalPlaces);
                             res.hasNumericValue = true;
                             res.numericValue = result;
-                            res.totalKey = totalKey;
+                            res.totalKey = curr1;
                             results.append(res);
                             continue;
                         }

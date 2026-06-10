@@ -941,6 +941,17 @@ static void runDocumentModelSuite() {
               model.hasTotal() ? QString::number(model.total()) : "no total", "no total");
     }
     {
+        // Bug: "X AED to EUR" got totalKey="EUR" but "X EUR" got totalKey="number",
+        // so they were treated as different dimensions and hasTotal() returned false.
+        setAndWait("200 AED to EUR\n60 EUR");
+        bool ok = model.rowCount() == 2
+               && model.resultCount() == 2
+               && model.errorCount() == 0
+               && model.hasTotal();
+        check("DocumentModel total: conversion-to-EUR + plain-EUR sums correctly", ok,
+              model.hasTotal() ? "has total" : "no total", "has total");
+    }
+    {
         const QString date = QDate::currentDate().addYears(-2).addDays(-5).toString("dd.MM.yyyy");
         setAndWait(QStringLiteral("today - %1\n100").arg(date));
         bool ok = model.rowCount() == 2
