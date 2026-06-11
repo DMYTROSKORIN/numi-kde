@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.77 - 2026-06-11
+
+### Fix
+
+- **2-digit years in date expressions**: `05.03.26` is now treated as 2026 (not 1926). All separators supported: `.`, `/`, `-`. Both `DD.MM.YY` and `DD.MM.YYYY` work interchangeably.
+
 ## 0.1.76 - 2026-06-11
 
 ### Fix
