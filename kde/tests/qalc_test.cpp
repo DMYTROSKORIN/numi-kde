@@ -472,6 +472,37 @@ static void runSuite(QalcBridge &bridge) {
               r.ok && r.result == "01.01.2025",
               r.result, "01.01.2025");
     }
+    // ── 2-digit year input (DD.MM.YY → 2000s) ────────────────────────────────
+    {
+        auto r = eval("01.01.00 + 25 years");
+        check("2-digit year 00 → 2000: date plus 25 years = 01.01.2025",
+              r.ok && r.result == "01.01.2025",
+              r.result, "01.01.2025");
+    }
+    {
+        auto r = eval("01.01.26 - 01.01.25");
+        check("2-digit year: 01.01.26 - 01.01.25 returns 1 year span",
+              r.ok && r.result.contains("1 year"),
+              r.result, "contains '1 year'");
+    }
+    {
+        auto r = eval("05.03.26 + 1 month");
+        check("2-digit year: 05.03.26 + 1 month = 05.04.2026",
+              r.ok && r.result == "05.04.2026",
+              r.result, "05.04.2026");
+    }
+    {
+        auto r = eval("05/03/26 + 1 day");
+        check("2-digit year slash separator: 05/03/26 + 1 day = 06.03.2026",
+              r.ok && r.result == "06.03.2026",
+              r.result, "06.03.2026");
+    }
+    {
+        auto r = eval("05-03-26 + 1 year");
+        check("2-digit year dash separator: 05-03-26 + 1 year = 05.03.2027",
+              r.ok && r.result == "05.03.2027",
+              r.result, "05.03.2027");
+    }
     {
         auto r = eval("today - 01.01.2000");
         check("today is highlighted as an operator",

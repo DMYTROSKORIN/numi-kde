@@ -348,7 +348,7 @@ static QString formatUserDate(const QDate &date)
 
 static QDate parseUserDate(const QString &value)
 {
-    static const QStringList formats = {
+    static const QStringList formatsFullYear = {
         QStringLiteral("d.M.yyyy"),
         QStringLiteral("dd.MM.yyyy"),
         QStringLiteral("d/M/yyyy"),
@@ -357,11 +357,25 @@ static QDate parseUserDate(const QString &value)
         QStringLiteral("dd-MM-yyyy"),
         QStringLiteral("yyyy-MM-dd"),
     };
+    // Qt6 maps yy → 1900–1999; add 100 years to get 2000–2099
+    static const QStringList formatsShortYear = {
+        QStringLiteral("d.M.yy"),
+        QStringLiteral("dd.MM.yy"),
+        QStringLiteral("d/M/yy"),
+        QStringLiteral("dd/MM/yy"),
+        QStringLiteral("d-M-yy"),
+        QStringLiteral("dd-MM-yy"),
+    };
 
-    for (const QString &format : formats) {
-        const QDate date = QDate::fromString(value.trimmed(), format);
-        if (date.isValid())
-            return date;
+    const QString trimmed = value.trimmed();
+
+    for (const QString &format : formatsFullYear) {
+        const QDate date = QDate::fromString(trimmed, format);
+        if (date.isValid()) return date;
+    }
+    for (const QString &format : formatsShortYear) {
+        const QDate date = QDate::fromString(trimmed, format);
+        if (date.isValid()) return date.addYears(100);
     }
     return {};
 }
