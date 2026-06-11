@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
             manualCheckInProgress = false;
         });
 
-    // Update available — show release link (no auto-download message needed; it runs silently)
+    // Update available — show release link in tray menu; auto-download starts silently
     QObject::connect(&updateChecker, &UpdateChecker::updateAvailable,
         [&tray, checkUpdatesAction](const QString &version, const QUrl &url) {
             checkUpdatesAction->setText(
@@ -237,7 +237,26 @@ int main(int argc, char *argv[])
                 [url]() { QDesktopServices::openUrl(url); });
         });
 
-    // Download complete — install automatically without user interaction.
+    // State transitions: notify user when download starts or silently fails
+    auto *prevUpdateState = new UpdateChecker::State(UpdateChecker::State::Idle);
+    QObject::connect(&updateChecker, &UpdateChecker::stateChanged,
+        [&tray, &updateChecker, prevUpdateState](UpdateChecker::State newState) {
+            using S = UpdateChecker::State;
+            if (newState == S::Downloading) {
+                tray.showMessage(
+                    QStringLiteral("Numi-KDE"),
+                    QStringLiteral("Downloading update %1…").arg(updateChecker.availableVersion()),
+                    QSystemTrayIcon::Information, 4000);
+            } else if (newState == S::Error && *prevUpdateState == S::Downloading) {
+                tray.showMessage(
+                    QStringLiteral("Numi-KDE"),
+                    QStringLiteral("Failed to download update. Open the tray menu to get it manually."),
+                    QSystemTrayIcon::Warning, 6000);
+            }
+            *prevUpdateState = newState;
+        });
+
+    // Download complete — install automatically via PackageKit (polkit dialog will appear)
     QObject::connect(&updateChecker, &UpdateChecker::downloadReady,
         [&tray, &updateChecker, mainWindow, installUpdateAction, separatorUpdate](const QString &version) {
             separatorUpdate->setVisible(true);
@@ -248,12 +267,12 @@ int main(int argc, char *argv[])
                 QMetaObject::invokeMethod(mainWindow, "hideWindow");
             tray.showMessage(
                 QStringLiteral("Numi-KDE"),
-                QStringLiteral("Installing update %1…").arg(version),
-                QSystemTrayIcon::Information, 8000);
+                QStringLiteral("Installing update %1… Confirm the system dialog if prompted.").arg(version),
+                QSystemTrayIcon::Information, 10000);
             updateChecker.installUpdate();
         });
 
-    // Install action — retry only, shown when auto-install fails.
+    // Install action — retry only, shown when auto-install fails
     QObject::connect(installUpdateAction, &QAction::triggered,
         [&updateChecker, mainWindow, installUpdateAction, &tray]() {
             installUpdateAction->setEnabled(false);
@@ -262,14 +281,14 @@ int main(int argc, char *argv[])
                 QMetaObject::invokeMethod(mainWindow, "hideWindow");
             tray.showMessage(
                 QStringLiteral("Numi-KDE"),
-                QStringLiteral("Installing update — confirm system dialog if prompted."),
+                QStringLiteral("Installing update — confirm the system dialog if prompted."),
                 QSystemTrayIcon::Information, 10000);
             updateChecker.installUpdate();
         });
 
     // Install complete — offer restart or allow retry
     QObject::connect(&updateChecker, &UpdateChecker::installFinished,
-        [&tray, installUpdateAction, restartAction, separatorUpdate](bool success) {
+        [&tray, &updateChecker, installUpdateAction, restartAction, separatorUpdate](bool success) {
             installUpdateAction->setEnabled(true);
             if (success) {
                 installUpdateAction->setVisible(false);
@@ -279,15 +298,17 @@ int main(int argc, char *argv[])
                     [restartAction]() { restartAction->trigger(); });
                 tray.showMessage(
                     QStringLiteral("Numi-KDE"),
-                    QStringLiteral("Update installed. Restart to apply."),
+                    QStringLiteral("Update installed. Click here or use tray to restart."),
                     QSystemTrayIcon::Information, 8000);
             } else {
-                installUpdateAction->setText(
-                    QStringLiteral("Install Update (retry)…"));
+                installUpdateAction->setText(QStringLiteral("Install Update (retry)…"));
+                const QString err = updateChecker.lastError();
                 tray.showMessage(
                     QStringLiteral("Numi-KDE"),
-                    QStringLiteral("Update installation failed. Try again from the tray menu."),
-                    QSystemTrayIcon::Warning, 5000);
+                    err.isEmpty()
+                        ? QStringLiteral("Update installation failed. Try again from the tray menu.")
+                        : QStringLiteral("Update installation failed: %1").arg(err),
+                    QSystemTrayIcon::Warning, 6000);
             }
         });
 

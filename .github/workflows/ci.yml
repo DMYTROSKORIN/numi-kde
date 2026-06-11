@@ -20,7 +20,8 @@ jobs:
             git cmake ninja-build gcc-c++ \
             qt6-qtbase-devel qt6-qtdeclarative-devel \
             kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
-            libqalculate-devel
+            libqalculate-devel \
+            PackageKit-Qt6-devel
 
       - uses: actions/checkout@v4
 

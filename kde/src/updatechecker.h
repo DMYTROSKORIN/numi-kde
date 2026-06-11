@@ -7,7 +7,7 @@
 
 class QFile;
 class QNetworkAccessManager;
-class QProcess;
+namespace PackageKit { class Transaction; }
 
 class UpdateChecker : public QObject
 {
@@ -25,8 +25,8 @@ public:
         Checking,
         UpdateAvailable,   // newer version found, not yet downloading
         Downloading,       // RPM download in progress
-        DownloadReady,     // RPM on disk, ready for pkcon
-        Installing,        // pkcon running (polkit dialog may be open)
+        DownloadReady,     // RPM on disk, ready for PackageKit
+        Installing,        // PackageKit transaction running (polkit dialog may be open)
         RestartRequired,   // install complete
         Error
     };
@@ -39,6 +39,7 @@ public:
     State   state()               const { return m_state; }
     int     downloadProgress()    const { return m_downloadProgress; }
     QString availableVersion()    const { return m_availableVersion; }
+    QString lastError()           const { return m_lastError; }
 
     // Returns true if the last successful check was more than 24 hours ago.
     bool shouldAutoCheck();
@@ -66,15 +67,16 @@ private:
     void setState(State s);
     void setDownloadProgress(int p);
 
-    QNetworkAccessManager *m_nam           = nullptr;
-    QFile                 *m_dlFile        = nullptr;
-    QProcess              *m_pkcon         = nullptr;
-    QTimer                *m_periodicTimer = nullptr;
+    QNetworkAccessManager     *m_nam             = nullptr;
+    QFile                     *m_dlFile          = nullptr;
+    PackageKit::Transaction   *m_pkTransaction   = nullptr;
+    QTimer                    *m_periodicTimer   = nullptr;
 
     State   m_state             = State::Idle;
     int     m_downloadProgress  = 0;
     bool    m_autoDownload      = true;
     QString m_availableVersion;
+    QString m_lastError;
     QUrl    m_downloadUrl;
     QString m_rpmPath;
 };
