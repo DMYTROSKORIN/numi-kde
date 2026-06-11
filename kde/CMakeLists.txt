@@ -14,6 +14,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(QALCULATE REQUIRED libqalculate)
 find_package(KF6WindowSystem REQUIRED)
 find_package(KF6GlobalAccel QUIET)
+find_package(packagekitqt6 REQUIRED)
 
 qt_policy(SET QTP0001 NEW)
 qt_policy(SET QTP0004 NEW)
@@ -69,6 +70,7 @@ target_link_libraries(numi-kde
     Qt6::Quick
     Qt6::QuickControls2
     KF6::WindowSystem
+    PK::packagekitqt6
     ${QALCULATE_LIBRARIES}
 )
 target_compile_definitions(numi-kde PRIVATE NUMI_KDE_VERSION="${PROJECT_VERSION}")
@@ -153,7 +155,7 @@ set(CPACK_GENERATOR "RPM")
 
 set(CPACK_RPM_PACKAGE_LICENSE "Apache-2.0")
 set(CPACK_RPM_PACKAGE_GROUP "Applications/Productivity")
-set(CPACK_RPM_PACKAGE_REQUIRES "libqalculate, qt6-qtbase, qt6-qtbase-gui, qt6-qtdeclarative, kf6-kwindowsystem")
+set(CPACK_RPM_PACKAGE_REQUIRES "libqalculate, qt6-qtbase, qt6-qtbase-gui, qt6-qtdeclarative, kf6-kwindowsystem, PackageKit-Qt6")
 if(KF6GlobalAccel_FOUND)
   string(APPEND CPACK_RPM_PACKAGE_REQUIRES ", kf6-kglobalaccel")
 endif()

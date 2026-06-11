@@ -16,6 +16,9 @@
 #include <QSysInfo>
 #include <QUrl>
 
+#include <PackageKit/Daemon>
+#include <PackageKit/Transaction>
+
 #ifndef NUMI_KDE_VERSION
 #define NUMI_KDE_VERSION "0.0.0"
 #endif
@@ -251,38 +254,44 @@ void UpdateChecker::startDownload()
     });
 }
 
-// ── Install via pkcon ────────────────────────────────────────────────────────
+// ── Install via PackageKit D-Bus API ─────────────────────────────────────────
 
 void UpdateChecker::installUpdate()
 {
-    if (m_state != State::DownloadReady)
+    if (m_state != State::DownloadReady || m_pkTransaction)
         return;
-
-    const QString pkcon =
-        QStandardPaths::findExecutable(QStringLiteral("pkcon"));
-    if (pkcon.isEmpty()) {
-        // pkcon not found — stay in DownloadReady so the user can try again
-        // after installing PackageKit, or install manually
-        setState(State::Error);
-        return;
-    }
 
     setState(State::Installing);
+    m_lastError.clear();
+    setDownloadProgress(0);
 
-    m_pkcon = new QProcess(this);
-    m_pkcon->setProgram(pkcon);
-    // --plain suppresses progress bars in the output; -y auto-confirms
-    m_pkcon->setArguments({QStringLiteral("install-local"),
-                           QStringLiteral("-y"),
-                           m_rpmPath});
+    // TransactionFlagNone allows installing unsigned (untrusted) local RPMs.
+    // PackageKit daemon handles polkit authentication — KDE polkit agent shows
+    // the confirmation dialog automatically via D-Bus.
+    PackageKit::Transaction *t = PackageKit::Daemon::installFile(
+        m_rpmPath,
+        PackageKit::Transaction::TransactionFlagNone);
+    m_pkTransaction = t;
 
-    QObject::connect(m_pkcon, &QProcess::finished, this,
-        [this](int exitCode, QProcess::ExitStatus) {
-            m_pkcon->deleteLater();
-            m_pkcon = nullptr;
+    QObject::connect(t, &PackageKit::Transaction::percentageChanged, this, [this, t]() {
+        const uint pct = t->percentage();
+        if (pct <= 100)
+            setDownloadProgress(static_cast<int>(pct));
+    });
+
+    QObject::connect(t, &PackageKit::Transaction::errorCode, this,
+        [this](PackageKit::Transaction::Error, const QString &details) {
+            if (m_lastError.isEmpty())
+                m_lastError = details;
+        });
+
+    // Transaction auto-deletes itself after finished() — do not delete manually.
+    QObject::connect(t, &PackageKit::Transaction::finished, this,
+        [this](PackageKit::Transaction::Exit status, uint) {
+            m_pkTransaction = nullptr;
             QFile::remove(m_rpmPath);
 
-            if (exitCode == 0) {
+            if (status == PackageKit::Transaction::ExitSuccess) {
                 setState(State::RestartRequired);
                 emit installFinished(true);
             } else {
@@ -290,8 +299,6 @@ void UpdateChecker::installUpdate()
                 emit installFinished(false);
             }
         });
-
-    m_pkcon->start();
 }
 
 // ── Restart ──────────────────────────────────────────────────────────────────
