@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.75 - 2026-06-11
+
+### Chore
+
+- Test release to verify PackageKit Qt6 auto-update flow end-to-end
+
 ## 0.1.74 - 2026-06-11
 
 ### Fix
