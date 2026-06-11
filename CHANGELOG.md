@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.76 - 2026-06-11
+
+### Fix
+
+- **Auto-update now works without a password prompt**: replaced PackageKit Qt6 D-Bus API with a dedicated polkit helper (`/usr/libexec/numi-kde-install-update`). The helper is invoked via `pkexec` under its own polkit action (`online.skorin.numi-kde.update`, `allow_active=yes`) — active desktop sessions install updates silently with no dialog. Eliminates "Failed to obtain authentication" caused by the PackageKit daemon → D-Bus → polkit chain failing on KDE/Wayland.
+
 ## 0.1.75 - 2026-06-11
 
 ### Chore
