@@ -23,7 +23,6 @@ jobs:
             qt6-qtbase-devel qt6-qtdeclarative-devel \
             kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
             libqalculate-devel \
-            PackageKit-Qt6-devel \
             rpm-build
 
       - uses: actions/checkout@v4
