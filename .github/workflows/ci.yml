@@ -16,12 +16,11 @@ jobs:
     steps:
       - name: Install build dependencies
         run: |
-          dnf install -y \
+          dnf install -y --disablerepo=fedora-cisco-openh264 \
             git cmake ninja-build gcc-c++ \
             qt6-qtbase-devel qt6-qtdeclarative-devel \
             kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
-            libqalculate-devel \
-            PackageKit-Qt6-devel
+            libqalculate-devel
 
       - uses: actions/checkout@v4
 

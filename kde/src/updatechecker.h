@@ -7,7 +7,7 @@
 
 class QFile;
 class QNetworkAccessManager;
-namespace PackageKit { class Transaction; }
+class QProcess;
 
 class UpdateChecker : public QObject
 {
@@ -25,8 +25,8 @@ public:
         Checking,
         UpdateAvailable,   // newer version found, not yet downloading
         Downloading,       // RPM download in progress
-        DownloadReady,     // RPM on disk, ready for PackageKit
-        Installing,        // PackageKit transaction running (polkit dialog may be open)
+        DownloadReady,     // RPM on disk, ready for install
+        Installing,        // pkexec + dnf running (polkit dialog may be open)
         RestartRequired,   // install complete
         Error
     };
@@ -67,10 +67,10 @@ private:
     void setState(State s);
     void setDownloadProgress(int p);
 
-    QNetworkAccessManager     *m_nam             = nullptr;
-    QFile                     *m_dlFile          = nullptr;
-    PackageKit::Transaction   *m_pkTransaction   = nullptr;
-    QTimer                    *m_periodicTimer   = nullptr;
+    QNetworkAccessManager *m_nam           = nullptr;
+    QFile                 *m_dlFile        = nullptr;
+    QProcess              *m_pkcon         = nullptr;
+    QTimer                *m_periodicTimer = nullptr;
 
     State   m_state             = State::Idle;
     int     m_downloadProgress  = 0;

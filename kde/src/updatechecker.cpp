@@ -16,8 +16,6 @@
 #include <QSysInfo>
 #include <QUrl>
 
-#include <PackageKit/Daemon>
-#include <PackageKit/Transaction>
 
 #ifndef NUMI_KDE_VERSION
 #define NUMI_KDE_VERSION "0.0.0"
@@ -254,51 +252,69 @@ void UpdateChecker::startDownload()
     });
 }
 
-// ── Install via PackageKit D-Bus API ─────────────────────────────────────────
+// ── Install via pkexec + polkit helper ───────────────────────────────────────
+
+static const char kHelperPath[] = "/usr/libexec/numi-kde-install-update";
 
 void UpdateChecker::installUpdate()
 {
-    if (m_state != State::DownloadReady || m_pkTransaction)
+    if (m_state != State::DownloadReady || m_pkcon)
         return;
+
+    if (!QFile::exists(QString::fromLatin1(kHelperPath))) {
+        m_lastError = QStringLiteral("Update helper not found — please reinstall numi-kde.");
+        setState(State::Error);
+        emit installFinished(false);
+        return;
+    }
+
+    const QString pkexec =
+        QStandardPaths::findExecutable(QStringLiteral("pkexec"));
+    if (pkexec.isEmpty()) {
+        m_lastError = QStringLiteral("pkexec not found.");
+        setState(State::Error);
+        emit installFinished(false);
+        return;
+    }
 
     setState(State::Installing);
     m_lastError.clear();
-    setDownloadProgress(0);
 
-    // TransactionFlagNone allows installing unsigned (untrusted) local RPMs.
-    // PackageKit daemon handles polkit authentication — KDE polkit agent shows
-    // the confirmation dialog automatically via D-Bus.
-    PackageKit::Transaction *t = PackageKit::Daemon::installFile(
-        m_rpmPath,
-        PackageKit::Transaction::TransactionFlagNone);
-    m_pkTransaction = t;
-
-    QObject::connect(t, &PackageKit::Transaction::percentageChanged, this, [this, t]() {
-        const uint pct = t->percentage();
-        if (pct <= 100)
-            setDownloadProgress(static_cast<int>(pct));
+    // pkexec invokes the installed helper as root via the project's polkit
+    // action (online.skorin.numi-kde.update, allow_active = auth_admin_keep).
+    // KDE polkit agent shows a native authentication dialog.
+    m_pkcon = new QProcess(this);
+    m_pkcon->setProgram(pkexec);
+    m_pkcon->setArguments({
+        QString::fromLatin1(kHelperPath),
+        m_rpmPath
     });
 
-    QObject::connect(t, &PackageKit::Transaction::errorCode, this,
-        [this](PackageKit::Transaction::Error, const QString &details) {
-            if (m_lastError.isEmpty())
-                m_lastError = details;
-        });
+    QObject::connect(m_pkcon, &QProcess::readyReadStandardError, this, [this]() {
+        const QString line =
+            QString::fromUtf8(m_pkcon->readAllStandardError()).trimmed();
+        if (!line.isEmpty())
+            m_lastError = line;
+    });
 
-    // Transaction auto-deletes itself after finished() — do not delete manually.
-    QObject::connect(t, &PackageKit::Transaction::finished, this,
-        [this](PackageKit::Transaction::Exit status, uint) {
-            m_pkTransaction = nullptr;
+    QObject::connect(m_pkcon, &QProcess::finished, this,
+        [this](int exitCode, QProcess::ExitStatus) {
+            m_pkcon->deleteLater();
+            m_pkcon = nullptr;
             QFile::remove(m_rpmPath);
 
-            if (status == PackageKit::Transaction::ExitSuccess) {
+            if (exitCode == 0) {
                 setState(State::RestartRequired);
                 emit installFinished(true);
             } else {
+                if (m_lastError.isEmpty())
+                    m_lastError = QStringLiteral("Installer exited with code %1.").arg(exitCode);
                 setState(State::Error);
                 emit installFinished(false);
             }
         });
+
+    m_pkcon->start();
 }
 
 // ── Restart ──────────────────────────────────────────────────────────────────
