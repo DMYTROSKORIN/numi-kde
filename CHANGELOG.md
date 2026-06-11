@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.74 - 2026-06-11
+
+### Fix
+
+- **Auto-update now reliably installs**: replaced `pkcon` subprocess with PackageKit Qt6 D-Bus API (`PackageKit::Daemon::installFile`). The old approach silently failed on unsigned GitHub release RPMs; polkit authentication is now handled natively by the KDE polkit agent. Added tray notifications for download start and download failure (previously both were invisible to the user). Install error messages now include PackageKit error details.
+
 ## 0.1.73 - 2026-06-11
 
 ### Fix
