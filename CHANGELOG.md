@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.79 - 2026-08-06
+
+### Fix
+
+- **Auto-update on Fedora 44**: DNF5 rejected the `--` end-of-options separator in `dnf install -y --nogpgcheck -- <rpm>`, causing "Unknown argument" error. Removed `--` — the RPM path is always an absolute path and cannot be confused with an option flag.
+
 ## 0.1.78 - 2026-08-06
 
 ### Fix
