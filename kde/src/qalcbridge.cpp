@@ -11,6 +11,7 @@
 #ifndef NUMI_KDE_VERSION
 #define NUMI_KDE_VERSION "0.0.0"
 #endif
+#include <QDebug>
 #include <QStringList>
 #include <QRegularExpression>
 #include <QSet>
@@ -163,6 +164,7 @@ void QalcBridge::onFiatReply(QNetworkReply *reply) {
         emit networkStatusChanged();
         emit ratesUpdated();
     } else {
+        qWarning() << "numi-kde: fiat rates response contained no usable rates (unexpected API format)";
         m_fiatStatus = NetworkStatus::Error;
         emit networkStatusChanged();
     }
@@ -192,6 +194,7 @@ void QalcBridge::onCryptoReply(QNetworkReply *reply) {
         emit networkStatusChanged();
         emit ratesUpdated();
     } else {
+        qWarning() << "numi-kde: crypto rates response contained no usable rates (unexpected API format or all prices zero)";
         m_cryptoStatus = NetworkStatus::Error;
         emit networkStatusChanged();
     }
@@ -449,6 +452,14 @@ static bool tryTemperatureConversion(const QString &trimmed, int decimalPlaces, 
     if (fromUnit == QStringLiteral("C"))      celsius = value;
     else if (fromUnit == QStringLiteral("F")) celsius = (value - 32.0) * 5.0 / 9.0;
     else                                       celsius = value - 273.15;  // K
+
+    // Physical lower bound: absolute zero = 0 K = −273.15 °C.
+    // Return true with empty result to signal a physics error to the caller
+    // (prevents libqalculate from returning a nonsensical fallback).
+    if (celsius < -273.15) {
+        *result = QString();
+        return true;
+    }
 
     double output;
     QString unitLabel;
@@ -1263,9 +1274,15 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         {
             QString tempResult;
             if (tryTemperatureConversion(trimmed, m_decimalPlaces, &tempResult)) {
-                res.ok = true;
-                res.result = tempResult;
-                res.hasNumericValue = parseDisplayNumber(tempResult, &res.numericValue);
+                if (tempResult.isEmpty()) {
+                    // Physics violation (e.g. below absolute zero)
+                    res.ok = false;
+                    res.error = QStringLiteral("Error");
+                } else {
+                    res.ok = true;
+                    res.result = tempResult;
+                    res.hasNumericValue = parseDisplayNumber(tempResult, &res.numericValue);
+                }
                 results.append(res);
                 continue;
             }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.78 - 2026-08-06
+
+### Fix
+
+- **Memory leak in update checker**: `prevUpdateState` was allocated with `new` and never freed; replaced with `std::shared_ptr` for proper lifetime management
+- **Invalid temperature below absolute zero**: expressions like `-300 K to C` now correctly return an error instead of a nonsensical result; physical lower bound (0 K = −273.15 °C) is enforced
+- **API error logging**: currency rate fetch failures now emit a `qWarning` message with details, making network issues easier to diagnose
+
 ## 0.1.77 - 2026-06-11
 
 ### Fix

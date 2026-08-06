@@ -560,6 +560,24 @@ static void runSuite(QalcBridge &bridge) {
         auto r = eval("100 °C to F");
         check("100 °C to F (with degree symbol) = 212 °F", r.ok && r.result == "212 °F", r.result, "212 °F");
     }
+    {
+        // Physically impossible: below absolute zero in Kelvin → must not return a result
+        auto r = eval("-300 K to C");
+        check("-300 K to C is physically impossible, must not produce result",
+              !r.ok || r.result.isEmpty(), r.result, "empty/error");
+    }
+    {
+        // Exactly absolute zero: 0 K = -273.15 °C — must succeed
+        auto r = eval("0 K to C");
+        check("0 K to C = -273.15 °C (absolute zero boundary)",
+              r.ok && r.result == "-273.15 °C", r.result, "-273.15 °C");
+    }
+    {
+        // 1 K above absolute zero: must succeed
+        auto r = eval("1 K to C");
+        check("1 K to C = -272.15 °C (just above absolute zero)",
+              r.ok && r.result == "-272.15 °C", r.result, "-272.15 °C");
+    }
     bridge.setDecimalPlaces(0);
 
     // ── Currency preprocessing (lowercase) ───────────────────────────────────
