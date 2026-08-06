@@ -13,6 +13,7 @@
 #include <QDebug>
 #include <QStandardPaths>
 #include <cstdio>
+#include <memory>
 
 #ifdef NUMI_KDE_HAVE_GLOBAL_ACCEL
 #include <KGlobalAccel>
@@ -238,7 +239,7 @@ int main(int argc, char *argv[])
         });
 
     // State transitions: notify user when download starts or silently fails
-    auto *prevUpdateState = new UpdateChecker::State(UpdateChecker::State::Idle);
+    auto prevUpdateState = std::make_shared<UpdateChecker::State>(UpdateChecker::State::Idle);
     QObject::connect(&updateChecker, &UpdateChecker::stateChanged,
         [&tray, &updateChecker, prevUpdateState](UpdateChecker::State newState) {
             using S = UpdateChecker::State;
