@@ -66,8 +66,12 @@ scripts/check-semgrep.sh       Called by pre-commit hook
 
 | File | Purpose |
 |------|---------|
-| `main.cpp` | Entry point — QApplication, system tray, global hotkey wiring, update checker |
-| `qalcbridge.cpp/h` | Core calculation engine — wraps libqalculate; handles currency, date, percent, unit preprocessing |
+| `main.cpp` | Entry point — QApplication, system tray, global hotkey wiring, update checker; `--probe` goes through the engine process |
+| `engine/enginemain.cpp` | **`numi-kde-engine` process**: hosts `QalcBridge`, speaks the JSON-lines protocol on stdin/stdout, streams per-line progress, `_crash` test hook |
+| `engineclient.cpp/h` | GUI side: spawns/respawns the engine, watchdog (6 s without progress → kill, poison the line, partial results), synchronous completions/highlight with 400 ms timeout, request-id correlation |
+| `engineprotocol.cpp/h` | LineResult ⇄ JSON, message framing; protocol documented in the header |
+| `lineresult.h` | The one struct shared by engine, client and model |
+| `qalcbridge.cpp/h` | Core calculation engine — wraps libqalculate (engine process only); currency, date, percent, unit preprocessing; `evaluateDocument(source, progress, skipLines)` |
 | `documentmodel.cpp/h` | QAbstractListModel exposed to QML — owns document state, session history, KWin rules, autostart |
 | `shortcutmanager.cpp/h` | KGlobalAccel global hotkey management (default: Ctrl+Alt+1) |
 | `syntaxhighlighter.cpp/h` | Token-based HTML highlighter for the editor pane |
@@ -92,15 +96,22 @@ scripts/check-semgrep.sh       Called by pre-commit hook
 EditorPane.onTextChanged
   → documentModel.source = text            [QML]
   → DocumentModel::setSource()             [C++, debounce 50ms timer]
-  → QtConcurrent::run(evaluateDocument)    [background thread via QFutureWatcher]
+  → EngineClient::evaluate(generation)     [JSON over stdin to numi-kde-engine]
+  → engine: QtConcurrent::run(evaluateDocument), streams {ev:progress} per line
   → QalcBridge::evaluateDocument()         per line:
       1. tryEvaluateCurrencyExpr()          custom currency arithmetic regex
       2. tryDateDifference()                date span (today - date)
       3. tryDateArithmetic()                date offset (date + N years)
       4. percent regex                      20% of 500
       5. libqalculate::calculate()          everything else
-  → DocumentModel::onEvaluationFinished()  [main thread — model reset → QML update]
+  → engine replies {id, lines}; EngineClient::evaluated(generation, lines)
+  → DocumentModel::onEvaluated()           [main thread — drops superseded generations, model reset → QML update]
 ```
+
+**Never link libqalculate into `numi-kde` again.** Its `Calculator` is a process-wide singleton whose thread
+cannot be safely stopped; the engine process is what keeps a bad formula from freezing or crashing the app.
+Tests that use `DocumentModel` or `EngineClient` spawn `numi-kde-engine` from the build directory
+(`add_dependencies(numi-kde-tests numi-kde-engine)`); `NUMI_KDE_ENGINE=<path>` overrides the lookup.
 
 ### Currency System
 

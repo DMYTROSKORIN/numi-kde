@@ -25,16 +25,35 @@ set(NUMI_KDE_APP_ID "online.skorin.numi-kde")
 qt_policy(SET QTP0001 NEW)
 qt_policy(SET QTP0004 NEW)
 
-qt_add_executable(numi-kde
-  src/main.cpp
-  src/documentmodel.cpp
-  src/documentmodel.h
-  src/shortcutmanager.cpp
-  src/shortcutmanager.h
+# ── Calculation engine (separate process) ────────────────────────────────────
+# libqalculate is hosted by numi-kde-engine; the GUI never links it. A stuck
+# or crashed calculation is contained to the child and it is respawned.
+qt_add_executable(numi-kde-engine
+  src/engine/enginemain.cpp
+  src/engineprotocol.cpp
+  src/engineprotocol.h
+  src/lineresult.h
   src/qalcbridge.cpp
   src/qalcbridge.h
   src/syntaxhighlighter.cpp
   src/syntaxhighlighter.h
+)
+target_include_directories(numi-kde-engine PRIVATE src ${QALCULATE_INCLUDE_DIRS})
+target_link_libraries(numi-kde-engine PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent ${QALCULATE_LIBRARIES})
+target_compile_definitions(numi-kde-engine PRIVATE NUMI_KDE_VERSION="${PROJECT_VERSION}")
+set_target_properties(numi-kde-engine PROPERTIES AUTOMOC ON)
+
+qt_add_executable(numi-kde
+  src/main.cpp
+  src/documentmodel.cpp
+  src/documentmodel.h
+  src/engineclient.cpp
+  src/engineclient.h
+  src/engineprotocol.cpp
+  src/engineprotocol.h
+  src/lineresult.h
+  src/shortcutmanager.cpp
+  src/shortcutmanager.h
   src/updatechecker.cpp
   src/updatechecker.h
   src/kwinrulemanager.cpp
@@ -42,8 +61,7 @@ qt_add_executable(numi-kde
   src/windowmemory.cpp
   src/windowmemory.h
 )
-
-target_include_directories(numi-kde PRIVATE ${QALCULATE_INCLUDE_DIRS})
+add_dependencies(numi-kde numi-kde-engine)
 
 set_source_files_properties(resources/numi-kde.png PROPERTIES QT_RESOURCE_ALIAS numi-kde.png)
 set_source_files_properties(resources/numi-kde-tray.png PROPERTIES QT_RESOURCE_ALIAS numi-kde-tray.png)
@@ -85,11 +103,11 @@ target_link_libraries(numi-kde
     KF6::ConfigCore
     KF6::DBusAddons
     KF6::Notifications
-    ${QALCULATE_LIBRARIES}
 )
 target_compile_definitions(numi-kde PRIVATE
   NUMI_KDE_VERSION="${PROJECT_VERSION}"
   NUMI_KDE_APP_ID="${NUMI_KDE_APP_ID}"
+  NUMI_KDE_LIBEXECDIR="${CMAKE_INSTALL_FULL_LIBEXECDIR}"
 )
 
 if(KF6GlobalAccel_FOUND)
@@ -111,6 +129,7 @@ if(SEMGREP_BIN)
 endif()
 
 install(TARGETS numi-kde RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS numi-kde-engine RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR})
 install(FILES resources/${NUMI_KDE_APP_ID}.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES resources/${NUMI_KDE_APP_ID}.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
 # The original Numi-KDE logo, pre-rendered from resources/numi-kde.png into
@@ -147,11 +166,14 @@ enable_testing()
 add_executable(numi-kde-tests
   tests/qalc_test.cpp
   src/documentmodel.cpp
+  src/engineclient.cpp
+  src/engineprotocol.cpp
   src/qalcbridge.cpp
   src/syntaxhighlighter.cpp
   src/kwinrulemanager.cpp
   src/windowmemory.cpp
 )
+add_dependencies(numi-kde-tests numi-kde-engine)   # DocumentModel/engine suites spawn it from the build dir
 target_include_directories(numi-kde-tests PRIVATE src ${QALCULATE_INCLUDE_DIRS})
 target_link_libraries(numi-kde-tests
   PRIVATE
@@ -174,6 +196,7 @@ target_compile_definitions(numi-kde-tests PRIVATE
   NUMI_KDE_APP_ID="${NUMI_KDE_APP_ID}"
   NUMI_KDE_KWIN_SCRIPT="${CMAKE_CURRENT_SOURCE_DIR}/resources/kwin-script/contents/code/main.js"
   NUMI_KDE_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+  NUMI_KDE_LIBEXECDIR="${CMAKE_INSTALL_FULL_LIBEXECDIR}"
 )
 
 # -DNUMI_KDE_TSAN=ON builds the test binary with ThreadSanitizer (CI job).
@@ -193,8 +216,9 @@ add_test(NAME kwinrules COMMAND numi-kde-tests kwinrules)
 add_test(NAME kwinscript-dbus COMMAND numi-kde-tests kwinscript)
 add_test(NAME golden COMMAND numi-kde-tests golden)
 add_test(NAME engine-stress COMMAND numi-kde-tests stress)
+add_test(NAME engine-process COMMAND numi-kde-tests engine)
 add_test(NAME install-helper COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/shell/test-install-helper.sh)
-set_tests_properties(qalc-math documentmodel editor-keyhandlers kwinrules kwinscript-dbus golden engine-stress
+set_tests_properties(qalc-math documentmodel editor-keyhandlers kwinrules kwinscript-dbus golden engine-stress engine-process
   PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # ── Packaging ────────────────────────────────────────────────────────────────

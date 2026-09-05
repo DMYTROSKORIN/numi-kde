@@ -15,7 +15,8 @@ Last updated: 2026-09-05.
 
 1. `kde`: primary native KDE app, Qt/QML/C++.
 2. `kde/src/qalcbridge.*`: `libqalculate` evaluation bridge and compatibility preprocessing.
-3. `kde/src/documentmodel.*`: QML model, history, clipboard, settings-backed behavior, KWin integration.
+3. `kde/src/documentmodel.*`: QML model, history, clipboard, settings-backed behavior, KWin integration. Talks to the engine through `engineclient.*`.
+4. `kde/src/engine/enginemain.cpp` + `engineprotocol.*`: the `numi-kde-engine` process that hosts libqalculate (JSON lines over stdin/stdout, per-line progress, respawned by the client on crash or stall).
 4. `kde/src/syntaxhighlighter.*`: C++ semantic-ish highlighting for the editor overlay.
 5. `kde/src/shortcutmanager.*`: KDE global shortcut registration and conflict handling.
 

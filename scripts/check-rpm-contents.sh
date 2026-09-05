@@ -9,6 +9,7 @@ rpm_file="${1:?usage: check-rpm-contents.sh <rpm>}"
 required=(
   /usr/bin/numi-kde
   /usr/libexec/numi-kde-install-update
+  /usr/libexec/numi-kde-engine
   /usr/share/applications/online.skorin.numi-kde.desktop
   /usr/share/metainfo/online.skorin.numi-kde.metainfo.xml
   /usr/share/knotifications6/numi-kde.notifyrc

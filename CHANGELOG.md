@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.87 - 2026-09-05
+
+### Changed
+
+- **The calculation engine runs in its own process.** libqalculate now lives in `numi-kde-engine` (`/usr/libexec`), talking to the app over stdin/stdout with one JSON message per line. The GUI no longer links libqalculate at all.
+- **Nothing a formula does can take the app down.** If the engine crashes it is respawned within a fraction of a second and the document is recomputed. If it stops making progress for 6 seconds, it is killed, the offending line is marked *Calculation took too long* and remembered, the rest of the document is computed by the fresh engine, and that exact line is not sent to the engine again until it is edited. Restart count is exposed to QML as `documentModel.engineRestarts`.
+- Per-line limit inside the engine lowered from 5 to 3 seconds; the GUI watchdog sits above it.
+- `numi-kde --probe` now spawns the real engine and evaluates through it, exactly like the GUI.
+
+### Tests
+
+- New `engine` suite drives the real engine binary: round trip, synchronous completions/highlighting, a stalled line (watchdog kill, poison, restart, skip on re-evaluation, poison lifted when edited), a forced crash, rapid supersedes.
+
 ## 0.1.86 - 2026-09-05
 
 ### Security

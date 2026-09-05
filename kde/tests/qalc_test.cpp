@@ -2,6 +2,9 @@
 #include "../src/documentmodel.h"
 #include "../src/kwinrulemanager.h"
 #include "../src/windowmemory.h"
+#include "../src/engineclient.h"
+#include <QEventLoop>
+#include <QSignalSpy>
 #include <KConfig>
 #include <KConfigGroup>
 #include <QDBusConnection>
@@ -1827,6 +1830,101 @@ static void runEngineStressSuite() {
     }
 }
 
+// ── Engine process: protocol, supersede, stall recovery, crash recovery ─────
+// The GUI must survive anything libqalculate does. These tests drive the real
+// numi-kde-engine binary from the build directory through EngineClient.
+static QList<LineResult> evaluateAndWait(EngineClient &engine, quint64 gen, const QString &source, int timeoutMs, bool *ok) {
+    QList<LineResult> out;
+    QEventLoop loop;
+    bool got = false;
+    QMetaObject::Connection c = QObject::connect(&engine, &EngineClient::evaluated, &loop,
+        [&](quint64 g, const QList<LineResult> &lines) { if (g == gen) { out = lines; got = true; loop.quit(); } });
+    QTimer::singleShot(timeoutMs, &loop, &QEventLoop::quit);
+    engine.evaluate(gen, source);
+    loop.exec();
+    QObject::disconnect(c);
+    *ok = got;
+    return out;
+}
+
+static void runEngineProcessSuite() {
+    EngineClient engine;
+    engine.setWatchdogMs(1500);
+    check("engine: binary found next to the test binary / in libexec", QFile::exists(EngineClient::enginePath()),
+          EngineClient::enginePath(), "existing file");
+    check("engine: process starts", engine.start(), engine.isRunning() ? "running" : "not running", "running");
+
+    bool ok = false;
+    {
+        engine.configure(2, QStringLiteral("USD"));
+        const QList<LineResult> r = evaluateAndWait(engine, 1, QStringLiteral("2 + 2\n1 km to m\n100 USD to EUR"), 10000, &ok);
+        check("engine: evaluate round trip returns one result per line",
+              ok && r.size() == 3 && r.at(0).result == "4" && r.at(1).result == "1,000 m" && r.at(2).result == "EUR 80",
+              ok ? (r.size() == 3 ? r.at(0).result + " | " + r.at(1).result + " | " + r.at(2).result : QString::number(r.size())) : "timeout",
+              "4 | 1,000 m | EUR 80");
+        check("engine: highlighted HTML travels with the result", ok && r.size() == 3 && !r.at(0).highlightedHtml.isEmpty(),
+              ok && r.size() == 3 ? r.at(0).highlightedHtml.left(40) : "n/a", "non-empty html");
+    }
+    {
+        const QStringList c = engine.completions(QStringLiteral("5 kilo"));
+        check("engine: synchronous completions answer", !c.isEmpty() && c.first().startsWith("kilo"), c.join(" | ").left(80), "kilo… entries");
+        const QString h = engine.highlight(QStringLiteral("# note"));
+        check("engine: synchronous highlight answers", h.contains("<span") && h.contains("note"), h.left(60), "html span around the comment");
+    }
+    {
+        // A stalled calculation: watchdog kills the engine, poisons the line,
+        // reports partial results, and the engine comes back for the next document.
+        QSignalSpy restarted(&engine, &EngineClient::engineRestarted);
+        QElapsedTimer t; t.start();
+        const QList<LineResult> r = evaluateAndWait(engine, 2, QStringLiteral("1 + 1\nsum(sin(x), 1, 10^9, x)\n3 + 3"), 20000, &ok);
+        const qint64 ms = t.elapsed();
+        check("engine: stalled line is reported as timed out within the watchdog budget",
+              ok && r.size() == 3 && !r.at(1).ok && r.at(1).error.contains("too long") && ms < 8000,
+              ok ? QStringLiteral("%1 ms, line2='%2'").arg(ms).arg(r.size() == 3 ? r.at(1).error : "n/a") : "timeout",
+              "< 8000 ms, 'Calculation took too long'");
+        restarted.wait(5000);
+        check("engine: process is restarted after a stall", restarted.count() >= 1 && engine.isRunning(),
+              QStringLiteral("restarts=%1 running=%2").arg(restarted.count()).arg(engine.isRunning()), "restarts>=1 running");
+
+        // Same document again: the poisoned line is skipped, the rest computes normally and fast.
+        t.restart();
+        const QList<LineResult> again = evaluateAndWait(engine, 3, QStringLiteral("1 + 1\nsum(sin(x), 1, 10^9, x)\n3 + 3"), 10000, &ok);
+        check("engine: poisoned line is skipped on re-evaluation, other lines computed",
+              ok && again.size() == 3 && again.at(0).result == "2" && !again.at(1).ok && again.at(2).result == "6" && t.elapsed() < 3000,
+              ok ? QStringLiteral("%1 | %2 | %3 in %4 ms").arg(again.value(0).result, again.value(1).error, again.value(2).result).arg(t.elapsed()) : "timeout",
+              "2 | Calculation took too long | 6, fast");
+
+        // Editing the line lifts the poison.
+        const QList<LineResult> edited = evaluateAndWait(engine, 4, QStringLiteral("sum(sin(x), 1, 10, x)"), 10000, &ok);
+        check("engine: a changed line is evaluated again", ok && edited.size() == 1 && edited.at(0).ok,
+              ok && edited.size() == 1 ? edited.at(0).result : "timeout", "1.41");
+    }
+    {
+        // A crash: reported, restarted, and the next evaluation works.
+        QSignalSpy restarted(&engine, &EngineClient::engineRestarted);
+        engine.debugCrashEngine();
+        restarted.wait(5000);
+        const QList<LineResult> r = evaluateAndWait(engine, 5, QStringLiteral("6 * 7"), 10000, &ok);
+        check("engine: after a crash the engine is respawned and answers", restarted.count() >= 1 && ok && r.size() == 1 && r.at(0).result == "42",
+              QStringLiteral("restarts=%1 result=%2").arg(restarted.count()).arg(ok && r.size() == 1 ? r.at(0).result : "timeout"), "restarts>=1 result=42");
+        check("engine: restart counter is exposed", engine.restartCount() >= 2, QString::number(engine.restartCount()), ">= 2");
+    }
+    {
+        // Superseding: only the newest generation is delivered.
+        QList<quint64> delivered;
+        QEventLoop loop;
+        QObject::connect(&engine, &EngineClient::evaluated, &loop, [&](quint64 g, const QList<LineResult> &) {
+            delivered << g; if (g == 12) loop.quit(); });
+        QTimer::singleShot(10000, &loop, &QEventLoop::quit);
+        engine.evaluate(10, QStringLiteral("sum(sin(x), 1, 10^5, x)"));
+        engine.evaluate(11, QStringLiteral("sum(sin(x), 1, 10^5, x)\n1"));
+        engine.evaluate(12, QStringLiteral("7 * 6"));
+        loop.exec();
+        check("engine: the newest document is delivered after rapid supersedes", delivered.contains(12),
+              QStringLiteral("delivered generations: %1").arg([&]{ QStringList l; for (auto g : delivered) l << QString::number(g); return l.join(","); }()), "… 12");
+    }
+}
+
 int main(int argc, char *argv[]) {
     QTemporaryDir tempHome;
     if (!tempHome.isValid()) {
@@ -1858,10 +1956,19 @@ int main(int argc, char *argv[]) {
     if (!std::setlocale(LC_ALL, "en_US.UTF-8"))
         std::printf("WARNING: en_US.UTF-8 locale unavailable (install glibc-langpack-en); golden results may differ\n");
     {
-        const QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-        QDir().mkpath(cacheDir);
-        if (!QFile::copy(QStringLiteral(NUMI_KDE_TEST_FIXTURES "/rates.json"), cacheDir + "/rates.json"))
-            std::printf("WARNING: could not install rates fixture into %s\n", qPrintable(cacheDir));
+        // In-process QalcBridge (this test binary) and the numi-kde-engine child
+        // (application name "numi-kde") read their rate cache from different
+        // directories under XDG_CACHE_HOME; install the fixture in both.
+        const QStringList cacheDirs = {
+            QStandardPaths::writableLocation(QStandardPaths::CacheLocation),
+            tempHome.filePath(".cache/numi-kde"),
+            tempHome.filePath(".cache/numi-kde/numi-kde"),   // org/app layout used by Qt for CacheLocation
+        };
+        for (const QString &cacheDir : cacheDirs) {
+            QDir().mkpath(cacheDir);
+            if (!QFile::copy(QStringLiteral(NUMI_KDE_TEST_FIXTURES "/rates.json"), cacheDir + "/rates.json"))
+                std::printf("WARNING: could not install rates fixture into %s\n", qPrintable(cacheDir));
+        }
     }
 
     const QString suite = argc > 1 ? QString::fromLocal8Bit(argv[1]) : QStringLiteral("qalc");
@@ -1889,6 +1996,9 @@ int main(int argc, char *argv[]) {
     } else if (suite == QStringLiteral("stress")) {
         std::printf("=== numi-kde Engine Stress Test Suite ===\n\n");
         runEngineStressSuite();
+    } else if (suite == QStringLiteral("engine")) {
+        std::printf("=== numi-kde Engine Process Test Suite ===\n\n");
+        runEngineProcessSuite();
     } else {
         std::printf("=== numi-kde QalcBridge Test Suite ===\n\n");
         QalcBridge bridge;

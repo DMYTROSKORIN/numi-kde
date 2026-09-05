@@ -11,7 +11,9 @@
 #include <QIcon>
 #include <QDebug>
 #include <QEvent>
+#include <QEventLoop>
 #include <QPalette>
+#include <QTimer>
 #include <cstdio>
 
 #include <KDBusService>
@@ -19,7 +21,7 @@
 #include <KWindowSystem>
 
 #include "documentmodel.h"
-#include "qalcbridge.h"
+#include "engineclient.h"
 #include "shortcutmanager.h"
 #include "updatechecker.h"
 #include "windowmemory.h"
@@ -40,14 +42,31 @@ static bool hasArgument(int argc, char *argv[], const char *argument)
     return false;
 }
 
+// `--probe`: end-to-end check used after installation — spawns the real
+// engine process and evaluates through it, exactly like the GUI does.
 static int runProbe(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("numi-kde"));
     app.setOrganizationName(QStringLiteral("numi-kde"));
 
-    QalcBridge bridge;
-    const auto results = bridge.evaluateDocument(QStringLiteral("2 + 2\n1 km to m"));
+    EngineClient engine;
+    if (!engine.start()) {
+        std::fprintf(stderr, "numi-kde %s probe failed: engine %s did not start\n",
+                     NUMI_KDE_VERSION, qPrintable(EngineClient::enginePath()));
+        return 1;
+    }
+
+    QList<LineResult> results;
+    QEventLoop loop;
+    QObject::connect(&engine, &EngineClient::evaluated, &loop, [&](quint64, const QList<LineResult> &lines) {
+        results = lines;
+        loop.quit();
+    });
+    QTimer::singleShot(15000, &loop, &QEventLoop::quit);
+    engine.evaluate(1, QStringLiteral("2 + 2\n1 km to m"));
+    loop.exec();
+
     const bool ok = results.size() == 2
                  && results.at(0).ok
                  && results.at(0).hasNumericValue
@@ -57,11 +76,11 @@ static int runProbe(int argc, char *argv[])
                  && results.at(1).numericValue == 1000.0;
 
     if (ok) {
-        std::printf("numi-kde %s probe ok\n", NUMI_KDE_VERSION);
+        std::printf("numi-kde %s probe ok (engine %s)\n", NUMI_KDE_VERSION, qPrintable(engine.engineVersion()));
         return 0;
     }
 
-    std::fprintf(stderr, "numi-kde %s probe failed\n", NUMI_KDE_VERSION);
+    std::fprintf(stderr, "numi-kde %s probe failed (%d lines)\n", NUMI_KDE_VERSION, int(results.size()));
     return 1;
 }
 
