@@ -69,7 +69,9 @@ if [[ "$PURGE" -eq 1 ]]; then
   if [[ "$confirm" == "YES" ]]; then
     rm -rf \
       "${XDG_CONFIG_HOME:-$HOME/.config}/numi-kde" \
-      "${XDG_DATA_HOME:-$HOME/.local/share}/numi-kde"
+      "${XDG_DATA_HOME:-$HOME/.local/share}/numi-kde" \
+      "${XDG_CONFIG_HOME:-$HOME/.config}/autostart/online.skorin.numi-kde.desktop" \
+      "${XDG_CONFIG_HOME:-$HOME/.config}/autostart/numi-kde.desktop"
     log "user data removed"
   else
     log "purge cancelled — user data preserved"

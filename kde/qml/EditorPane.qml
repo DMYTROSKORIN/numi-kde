@@ -13,7 +13,10 @@ Controls.ScrollView {
     property color accentYellow: "#ffd35a"
     property color accentBlue: "#6fc4e8"
     property color mutedColor: "#6b6d76"
-    readonly property alias flickable: editor
+    // The ScrollView's own Flickable: this is what actually scrolls, so the
+    // results column syncs against it. `textEdit` is the editable control.
+    readonly property Item flickable: root.contentItem
+    readonly property alias textEdit: editor
 
     // lineH must match TextArea's actual internal line height, not fontMetrics.lineSpacing,
     // to prevent accumulated vertical drift between highlighted text and the cursor position.
@@ -47,7 +50,6 @@ Controls.ScrollView {
             model: root.highlightModel
             interactive: false
             boundsBehavior: Flickable.StopAtBounds
-            contentY: editor.contentY
             delegate: Text {
                 width: highlightLayer.width
                 height: root.lineH
@@ -239,7 +241,14 @@ Controls.ScrollView {
 
             Keys.onEscapePressed: (event) => {
                 if (!completionPopup.visible) {
-                    event.accepted = false
+                    // No popup to dismiss: Esc puts the calculator away, like KRunner.
+                    let win = Window.window
+                    if (win && win.escHidesWindow && typeof win.hideWindow === "function") {
+                        win.hideWindow()
+                        event.accepted = true
+                    } else {
+                        event.accepted = false
+                    }
                     return
                 }
                 event.accepted = true

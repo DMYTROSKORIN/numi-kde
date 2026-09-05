@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QKeySequence>
 #include <QObject>
 #include <QString>
 
@@ -17,6 +18,7 @@ public:
     QString sequence() const;
     void setSequence(const QString &sequence);
     QString status() const;
+    Q_INVOKABLE void applyKeySequence(const QKeySequence &sequence);
 
 signals:
     void sequenceChanged();

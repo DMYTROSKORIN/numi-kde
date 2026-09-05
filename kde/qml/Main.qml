@@ -42,6 +42,9 @@ Controls.ApplicationWindow {
     property bool showResultsSeparator: windowSettings.showResultsSeparator
     onShowResultsSeparatorChanged: windowSettings.showResultsSeparator = showResultsSeparator
 
+    property bool escHidesWindow: windowSettings.escHidesWindow
+    onEscHidesWindowChanged: windowSettings.escHidesWindow = escHidesWindow
+
     // Only save x/y after user-initiated movement or resize. Compositor remap
     // placement must never overwrite the last user position.
     property bool positionSaveEnabled: false
@@ -69,6 +72,7 @@ Controls.ApplicationWindow {
         property int resultWidth: 124
         property int decimalPlaces: 3
         property bool showResultsSeparator: true
+        property bool escHidesWindow: true
     }
 
     function restoreSavedPosition() {
@@ -127,8 +131,10 @@ Controls.ApplicationWindow {
         }
     }
 
-    onWidthChanged: windowSettings.savedWidth = width
-    onHeightChanged: windowSettings.savedHeight = height
+    // Only remember the size of a normal (not maximized) window, otherwise a
+    // maximized session would come back as a huge "normal" window.
+    onWidthChanged: if (visibility === Window.Windowed) windowSettings.savedWidth = width
+    onHeightChanged: if (visibility === Window.Windowed) windowSettings.savedHeight = height
     onXChanged: {
         if (typeof documentModel !== "undefined" && documentModel.isWayland) return
         if (positionSaveEnabled && visible) windowSettings.savedX = x

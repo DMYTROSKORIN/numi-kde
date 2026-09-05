@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-05-13.
+Last updated: 2026-09-05.
 
 ## Product Shape
 
@@ -64,9 +64,14 @@ Inline `/help` examples are plain strings in QML and are highlighted through the
 - Tray and app icon: Qt resources from `kde/resources`.
 - Global shortcut: `KGlobalAccel`, default `Ctrl+Alt+1`.
 - X11 keep-above: `KX11Extras` / `NET::KeepAbove`.
-- Wayland keep-above: managed KWin Window Rule in `kwinrulesrc` plus DBus `reconfigure`.
-- Autostart: `~/.config/autostart/numi-kde.desktop`.
-- Settings/history: `QSettings`, except KWin rules which are written manually to preserve KWin INI syntax.
+- Wayland keep-above / skip taskbar: two managed KWin window rules (main and settings window) in `kwinrulesrc`, maintained through KConfig by `kde/src/kwinrulemanager.*` in the KWin 6 format (`[General] rules=`, UUID groups) plus DBus `reconfigure`. Only our own keys are written.
+- Wayland window position: KWin does not persist `positionrule=4` (Remember) for Wayland windows, so the package ships a KWin script (`kde/resources/kwin-script`, installed to `share/kwin/scripts/numi-kde-window-memory`, enabled by default). The script calls `online.skorin.numi_kde.WindowMemory` on our D-Bus service (`kde/src/windowmemory.*`) to store `x,y` per window caption in `QSettings [WindowMemory]` and applies it on `workspace.windowAdded`. `main.cpp` asks KWin to reconfigure once when the script is installed but not loaded.
+- Application id: `online.skorin.numi-kde` (desktop file, AppStream, icons, Wayland `app_id`). `applicationName` stays `numi-kde` for QSettings and the KGlobalAccel component.
+- Single instance: `KDBusService(Unique)`; a second launch forwards its arguments and the first instance shows the window.
+- Autostart: `$XDG_CONFIG_HOME/autostart/online.skorin.numi-kde.desktop` with `Exec=numi-kde --hidden`.
+- Notifications: `KNotification` events from `kde/resources/numi-kde.notifyrc`.
+- Settings/history: `QSettings` (`~/.config/numi-kde/numi-kde.conf`).
+- Self-update: `updatechecker.*` polls GitHub releases; installation runs `pkexec /usr/libexec/numi-kde-install-update <version>`. The helper downloads and verifies the RPM itself (SHA256SUMS, package name, no downgrade). The app restarts with `--hidden` as soon as the window is not visible.
 
 ## Compatibility Strategy
 

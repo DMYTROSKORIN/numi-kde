@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Id": "numi-kde-window-memory",
+        "Name": "Numi-KDE window memory",
+        "Description": "Puts the Numi-KDE calculator back where you left it. Wayland has no client-side window positioning, so KWin remembers it on the app's behalf.",
+        "Authors": [ { "Name": "DMYTRO SKORIN", "Email": "dev@skorin.online" } ],
+        "Version": "1.0",
+        "License": "Apache-2.0",
+        "EnabledByDefault": true
+    },
+    "KPackageStructure": "KWin/Script",
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

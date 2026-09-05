@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.1.81 - 2026-09-05
+
+### Fix
+
+- **Window position on Wayland**: two problems. (1) The KWin rule was written in the KWin 5 `count=` format and the whole `kwinrulesrc` was rewritten on every start, which left KWin with an empty rule list — no keep-above at all. Rules are now managed through KConfig in the format KWin 6 reads (`[General] rules=` / `Order=`, UUID groups), only our own keys are touched, and the file is written only when something changed. (2) KWin never persists a "Remember position" rule for Wayland windows, so even a correct rule cannot bring the window back. Position memory is now done by a small KWin script shipped with the package (`numi-kde-window-memory`): it reports the geometry to the app over D-Bus when a window is moved or hidden and puts the window back when it appears. Legacy rule and autostart entries from earlier versions are migrated on first start.
+- **Separate rule for the settings window**, exact `app_id` match instead of substring; the settings window position is remembered independently.
+- **Maximized size no longer saved** as the normal window size.
+- **Thread safety in the calculation engine**: autocomplete, help rendering and the settings setters no longer touch libqalculate state while a background evaluation is running (snapshot for completions, mutex in the remaining readers).
+- **Running calculation is aborted** when new input arrives instead of finishing in the background.
+- **Results column scroll sync** was bound to a `TextEdit` without a `contentY`; it now follows the editor's real Flickable.
+- **Hourly rate refresh** updates the existing currency units in place instead of allocating new ones.
+- Tray/QML warnings on start removed; unused `HelpPane.qml` deleted.
+
+### Update flow
+
+- **Privileged helper takes a version number, not a file path**: it downloads the RPM and `SHA256SUMS` from the GitHub release itself, verifies the checksum and the package name and refuses downgrades. Nothing writable by the user session is installed anymore.
+- **Silent install, restart when idle**: the update is installed in the background without hiding the window. If the window is hidden the app restarts immediately (`--hidden`); otherwise it restarts on the next hide, with a notification offering "Restart now". A single "Numi-KDE updated" notification is shown after the restart.
+- Failed installs can be retried; the setting is now "Install updates automatically".
+
+### KDE / Linux integration
+
+- **Single instance** via `KDBusService`: a second launch shows the existing window.
+- **Reverse-DNS application id** `online.skorin.numi-kde` for the desktop file, AppStream metadata, icons and Wayland `app_id`; scalable SVG icon and a symbolic tray icon that follows the panel colour scheme.
+- **KNotification** with a `notifyrc` for update events (configurable in System Settings).
+- **Standard KDE shortcut recorder** (`KeySequenceItem`) in Settings; window activation via `KWindowSystem::activateWindow`; component shown as "Numi-KDE" in Shortcuts settings.
+- **Esc hides the window** (new setting, on by default).
+- Autostart entry written under `$XDG_CONFIG_HOME` with a relative `Exec`.
+- AppStream metadata gained releases, screenshot, content rating and keywords; `desktop-file-validate` and `appstreamcli validate` run in CI.
+- Semgrep uses the project's own rules only (no online registry) in the build and pre-commit hook.
+- RPM now requires `kf6-kconfig`, `kf6-kdbusaddons`, `kf6-knotifications`, `kf6-qqc2-desktop-style`, `kf6-kdeclarative` and `curl`.
+
 ## 0.1.80 - 2026-09-05
 
 ### CI

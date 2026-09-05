@@ -1,0 +1,19 @@
+[Global]
+IconName=online.skorin.numi-kde
+Comment=Numi-KDE
+DesktopEntry=online.skorin.numi-kde
+
+[Event/updateInstalled]
+Name=Update installed
+Comment=A new version was installed and is waiting for a restart
+Action=Popup
+
+[Event/updated]
+Name=Updated
+Comment=Numi-KDE restarted into a new version
+Action=Popup
+
+[Event/updateFailed]
+Name=Update failed
+Comment=An update could not be installed
+Action=Popup

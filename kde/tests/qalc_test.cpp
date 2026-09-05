@@ -1,5 +1,9 @@
 #include "../src/qalcbridge.h"
 #include "../src/documentmodel.h"
+#include "../src/kwinrulemanager.h"
+#include "../src/windowmemory.h"
+#include <KConfig>
+#include <KConfigGroup>
 #include <QApplication>
 #include <QDir>
 #include <QFile>
@@ -9,6 +13,7 @@
 #include <QString>
 #include <QList>
 #include <QTemporaryDir>
+#include <QStandardPaths>
 #include <QQuickView>
 #include <QQmlContext>
 #include <QQuickItem>
@@ -1030,16 +1035,41 @@ static void runDocumentModelSuite() {
 
     // ── Autostart desktop file ───────────────────────────────────────────────
     {
+        const QString autostartDir = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) + "/autostart";
+        const QString path = autostartDir + "/" NUMI_KDE_APP_ID ".desktop";
+        const QString legacyPath = autostartDir + "/numi-kde.desktop";
+
         model.setAutostart(true);
-        const QString path = QDir::homePath() + "/.config/autostart/numi-kde.desktop";
-        bool enabled = model.autostart() && QFile::exists(path);
-        check("DocumentModel autostart creates desktop file", enabled,
-              QFile::exists(path) ? "exists" : "missing", "exists");
+        QString exec;
+        {
+            QFile f(path);
+            if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                for (const QString &line : QString::fromUtf8(f.readAll()).split('\n'))
+                    if (line.startsWith("Exec=")) exec = line;
+            }
+        }
+        bool enabled = model.autostart() && QFile::exists(path) && exec == "Exec=numi-kde --hidden";
+        check("DocumentModel autostart creates XDG desktop file with relative Exec", enabled,
+              QFile::exists(path) ? exec : "missing", "Exec=numi-kde --hidden");
 
         model.setAutostart(false);
         bool disabled = !model.autostart() && !QFile::exists(path);
         check("DocumentModel autostart removes desktop file", disabled,
               QFile::exists(path) ? "exists" : "missing", "missing");
+
+        // <= 0.1.80 wrote ~/.config/autostart/numi-kde.desktop; migration replaces it.
+        QDir().mkpath(autostartDir);
+        {
+            QFile legacy(legacyPath);
+            legacy.open(QIODevice::WriteOnly | QIODevice::Text);
+            legacy.write("[Desktop Entry]\nType=Application\nExec=/usr/bin/numi-kde --hidden\n");
+        }
+        model.migrateLegacyState();
+        bool migrated = QFile::exists(path) && !QFile::exists(legacyPath) && model.autostart();
+        check("DocumentModel migrates legacy autostart entry", migrated,
+              QStringLiteral("new=%1 legacy=%2").arg(QFile::exists(path)).arg(QFile::exists(legacyPath)),
+              "new=1 legacy=0");
+        model.setAutostart(false);
     }
 
     // ── /help command ────────────────────────────────────────────────────────
@@ -1246,6 +1276,135 @@ static void runEditorSuite() {
     }
 }
 
+// ── KWin rule manager tests ─────────────────────────────────────────────────
+// kwinrulesrc is owned by KWin; we must only ever touch our own group and the
+// [General] rules list, in the format KWin 6 actually reads.
+static void runKWinRulesSuite() {
+    QTemporaryDir dir;
+    const QString path = dir.filePath("kwinrulesrc");
+    const QString foreignId = QStringLiteral("11111111-2222-3333-4444-555555555555");
+    const QString legacyDesc = QStringLiteral("Numi-KDE keep above (managed)");
+    const QString mainDesc = QStringLiteral("Numi-KDE main window (managed by numi-kde)");
+
+    // Fixture: a user rule in KWin 6 format plus the legacy numeric group that
+    // numi-kde <= 0.1.80 wrote, listed via the KWin 5 count= key.
+    {
+        QFile f(path);
+        f.open(QIODevice::WriteOnly | QIODevice::Text);
+        f.write(QStringLiteral(
+            "[General]\ncount=1\nrules=%1\n\n"
+            "[%1]\nDescription=User rule for Firefox\nwmclass=firefox\nwmclassmatch=1\n\n"
+            "[1]\nDescription=%2\nabove=true\naboverule=2\nwmclass=numi-kde\nwmclassmatch=2\nposition=100,200\npositionrule=4\n")
+            .arg(foreignId, legacyDesc).toUtf8());
+    }
+
+    KWinRuleManager mgr(path);
+    KWinRuleManager::RuleSpec spec;
+    spec.description = mainDesc;
+    spec.wmClass = QStringLiteral(NUMI_KDE_APP_ID);
+    spec.title = QStringLiteral("Numi-KDE");
+    spec.keepAbove = true;
+
+    {
+        const bool changed = mgr.cleanupLegacy({legacyDesc});
+        KConfig cfg(path, KConfig::SimpleConfig);
+        const bool legacyGone = !cfg.hasGroup(QStringLiteral("1"));
+        const bool countGone = !KConfigGroup(&cfg, "General").hasKey("count");
+        const bool foreignKept = cfg.hasGroup(foreignId)
+            && KConfigGroup(&cfg, foreignId).readEntry("wmclass") == QStringLiteral("firefox");
+        check("kwinrules: legacy numeric group and count= removed, foreign rule kept",
+              changed && legacyGone && countGone && foreignKept,
+              QStringLiteral("changed=%1 legacyGone=%2 countGone=%3 foreignKept=%4")
+                  .arg(changed).arg(legacyGone).arg(countGone).arg(foreignKept),
+              "all true");
+    }
+
+    QString groupName;
+    {
+        const bool changed = mgr.ensureRule(spec);
+        groupName = mgr.findGroupByDescription(mainDesc);
+        KConfig cfg(path, KConfig::SimpleConfig);
+        const QStringList rules = KConfigGroup(&cfg, "General").readEntry("rules", QStringList());
+        KConfigGroup g(&cfg, groupName);
+        const bool ok = changed && !groupName.isEmpty()
+            && rules == QStringList{foreignId, groupName}
+            && g.readEntry("wmclass") == QStringLiteral(NUMI_KDE_APP_ID)
+            && g.readEntry("wmclassmatch") == QStringLiteral("1")
+            && g.readEntry("title") == QStringLiteral("Numi-KDE")
+            && g.readEntry("above") == QStringLiteral("true")
+            && g.readEntry("positionrule") == QStringLiteral("4");
+        check("kwinrules: ensureRule creates UUID group listed after foreign rule", ok,
+              QStringLiteral("group=%1 rules=%2").arg(groupName, rules.join(',')), "listed");
+    }
+    {
+        const bool changed = mgr.ensureRule(spec);
+        check("kwinrules: ensureRule is a no-op when nothing changed", !changed,
+              changed ? "changed" : "unchanged", "unchanged");
+    }
+    {
+        // KWin stores the remembered position in our group; toggling keep-above must keep it.
+        {
+            KConfig cfg(path, KConfig::SimpleConfig);
+            KConfigGroup(&cfg, groupName).writeEntry("position", "640,480");
+            cfg.sync();
+        }
+        spec.keepAbove = false;
+        const bool changed = mgr.ensureRule(spec);
+        KConfig cfg(path, KConfig::SimpleConfig);
+        KConfigGroup g(&cfg, groupName);
+        const bool ok = changed
+            && g.readEntry("above") == QStringLiteral("false")
+            && g.readEntry("position") == QStringLiteral("640,480")
+            && mgr.findGroupByDescription(mainDesc) == groupName;
+        check("kwinrules: keep-above toggle preserves KWin's remembered position", ok,
+              QStringLiteral("above=%1 position=%2").arg(g.readEntry("above"), g.readEntry("position")),
+              "above=false position=640,480");
+    }
+    {
+        // Newer KWin keeps the list under [General] Order=; when present we maintain both.
+        {
+            KConfig cfg(path, KConfig::SimpleConfig);
+            KConfigGroup(&cfg, "General").writeEntry("Order", QStringList{foreignId});
+            cfg.sync();
+        }
+        KWinRuleManager::RuleSpec second = spec;
+        second.description = QStringLiteral("Numi-KDE settings window (managed by numi-kde)");
+        second.title = QStringLiteral("Numi-KDE Settings");
+        mgr.ensureRule(second);
+        KConfig cfg(path, KConfig::SimpleConfig);
+        const QStringList order = KConfigGroup(&cfg, "General").readEntry("Order", QStringList());
+        const QString settingsGroup = mgr.findGroupByDescription(second.description);
+        const bool ok = !settingsGroup.isEmpty() && order.contains(settingsGroup) && order.contains(foreignId);
+        check("kwinrules: new rule is appended to Order= when KWin uses it", ok,
+              order.join(','), "foreign + settings group");
+    }
+}
+
+// ── WindowMemory (KWin script D-Bus endpoint) ────────────────────────────────
+static void runWindowMemorySuite() {
+    WindowMemory memory;
+    {
+        check("windowmemory: nothing saved yet returns empty string",
+              memory.savedGeometry(QStringLiteral("Numi-KDE")).isEmpty(),
+              memory.savedGeometry(QStringLiteral("Numi-KDE")), "");
+    }
+    {
+        memory.rememberGeometry(QStringLiteral("Numi-KDE"), 100, 120, 813, 523);
+        memory.rememberGeometry(QStringLiteral("Numi-KDE Settings"), 640, 300, 280, 400);
+        const bool ok = memory.savedGeometry(QStringLiteral("Numi-KDE")) == QStringLiteral("100,120")
+                     && memory.savedGeometry(QStringLiteral("Numi-KDE Settings")) == QStringLiteral("640,300");
+        check("windowmemory: geometry is stored per window caption", ok,
+              memory.savedGeometry(QStringLiteral("Numi-KDE")) + " / " + memory.savedGeometry(QStringLiteral("Numi-KDE Settings")),
+              "100,120 / 640,300");
+    }
+    {
+        memory.rememberGeometry(QStringLiteral("Numi-KDE"), -40, 7, 813, 523);
+        check("windowmemory: latest position wins",
+              memory.savedGeometry(QStringLiteral("Numi-KDE")) == QStringLiteral("-40,7"),
+              memory.savedGeometry(QStringLiteral("Numi-KDE")), "-40,7");
+    }
+}
+
 int main(int argc, char *argv[]) {
     QTemporaryDir tempHome;
     if (!tempHome.isValid()) {
@@ -1270,6 +1429,11 @@ int main(int argc, char *argv[]) {
     } else if (suite == QStringLiteral("editor")) {
         std::printf("=== numi-kde Editor Key Handler Test Suite ===\n\n");
         runEditorSuite();
+    } else if (suite == QStringLiteral("kwinrules")) {
+        std::printf("=== numi-kde KWin Rules Test Suite ===\n\n");
+        runKWinRulesSuite();
+        std::printf("\n=== numi-kde Window Memory Test Suite ===\n\n");
+        runWindowMemorySuite();
     } else {
         std::printf("=== numi-kde QalcBridge Test Suite ===\n\n");
         QalcBridge bridge;

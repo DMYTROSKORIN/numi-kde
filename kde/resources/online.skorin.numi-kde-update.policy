@@ -6,6 +6,11 @@
   <vendor>Numi-KDE</vendor>
   <vendor_url>https://github.com/DMYTROSKORIN/numi-kde</vendor_url>
 
+  <!--
+    The helper accepts only a version number, downloads the release RPM itself,
+    verifies its checksum and package name and refuses downgrades, so an active
+    local session may run it without authentication.
+  -->
   <action id="online.skorin.numi-kde.update">
     <description>Install Numi-KDE update</description>
     <message>Authentication is required to install an update for Numi-KDE.</message>

@@ -1,8 +1,6 @@
 #pragma once
 
 #include <QAbstractListModel>
-#include <QJsonArray>
-#include <QJsonObject>
 #include <QString>
 #include <QVariantList>
 #include <QFutureWatcher>
@@ -64,6 +62,7 @@ public:
     Q_INVOKABLE void copyText(const QString &text);
     Q_INVOKABLE void setKeepAbove(bool above);
     Q_INVOKABLE void prepareShow();
+    Q_INVOKABLE void migrateLegacyState();
     Q_INVOKABLE void saveSession();
     Q_INVOKABLE void restoreSession(int index);
     Q_INVOKABLE void clearHistory();
@@ -83,12 +82,12 @@ signals:
 private:
     void evaluate();
     void onEvaluationFinished();
-    static QString firstDiagnostic(const QJsonObject &line);
-    static void setKWinKeepAboveRule(bool enabled);
-    static void reloadKWinRules();
+    bool applyKWinRules(bool keepAbove);
+    static QString autostartPath();
+    static QString legacyAutostartPath();
 
     QString m_source;
-    QJsonArray m_lines;
+    QList<LineResult> m_lines;
     int m_errorCount = 0;
     int m_resultCount = 0;
     bool m_hasTotal = false;
@@ -97,7 +96,6 @@ private:
     int m_decimalPlaces = 3;
     QString m_defaultCurrency = QStringLiteral("USD");
     double m_total = 0.0;
-    bool m_kwinRuleApplied = false;
     bool m_keepAbove = true;
     QTimer *m_debounceTimer;
     quint64 m_evalGeneration = 0;

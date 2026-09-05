@@ -9,23 +9,24 @@
 #include <QMenu>
 #include <QAction>
 #include <QIcon>
-#include <QKeySequence>
 #include <QDebug>
-#include <QStandardPaths>
 #include <cstdio>
-#include <memory>
 
-#ifdef NUMI_KDE_HAVE_GLOBAL_ACCEL
-#include <KGlobalAccel>
-#endif
+#include <KDBusService>
+#include <KNotification>
+#include <KWindowSystem>
 
 #include "documentmodel.h"
 #include "qalcbridge.h"
 #include "shortcutmanager.h"
 #include "updatechecker.h"
+#include "windowmemory.h"
 
 #ifndef NUMI_KDE_VERSION
 #define NUMI_KDE_VERSION "0.0.0"
+#endif
+#ifndef NUMI_KDE_APP_ID
+#define NUMI_KDE_APP_ID "online.skorin.numi-kde"
 #endif
 
 static bool hasArgument(int argc, char *argv[], const char *argument)
@@ -62,27 +63,40 @@ static int runProbe(int argc, char *argv[])
     return 1;
 }
 
+static void showWindow(QWindow *win, DocumentModel *model)
+{
+    if (!win) return;
+    if (model)
+        model->prepareShow();
+    win->setWindowStates(win->windowStates() & ~Qt::WindowMinimized);
+    win->show();
+    // KWindowSystem applies the xdg-activation token handed to us by
+    // kglobalacceld / the tray, which plain requestActivate() would miss.
+    KWindowSystem::activateWindow(win);
+}
+
 // Toggle main window show/hide
 static void toggleWindow(QWindow *win, DocumentModel *model)
 {
     if (!win) return;
 
-    // Keep the stable 0.1.27 toggle contract: a visible window hides, a hidden
-    // or minimized window is shown. The QML minimize button hides to tray, so
-    // Wayland compositor minimize state is not needed for the common path.
     const bool minimized = win->windowState() & Qt::WindowMinimized;
-
     if (win->isVisible() && !minimized) {
         if (!QMetaObject::invokeMethod(win, "hideWindow"))
             win->hide();
     } else {
-        if (model)
-            model->prepareShow();
-        win->setWindowStates(win->windowStates() & ~Qt::WindowMinimized);
-        win->show();
-        win->raise();
-        win->requestActivate();
+        showWindow(win, model);
     }
+}
+
+static KNotification *notify(const QString &event, const QString &title, const QString &text)
+{
+    auto *n = new KNotification(event, KNotification::CloseOnTimeout);
+    n->setComponentName(QStringLiteral("numi-kde"));
+    n->setTitle(title);
+    n->setText(text);
+    n->setIconName(QStringLiteral(NUMI_KDE_APP_ID));
+    return n;
 }
 
 int main(int argc, char *argv[])
@@ -93,9 +107,7 @@ int main(int argc, char *argv[])
     }
     if (hasArgument(argc, argv, "--probe"))
         return runProbe(argc, argv);
-    if (hasArgument(argc, argv, "--hidden")) {
-        // Just continue to start the app in background
-    } else if (hasArgument(argc, argv, "--help")) {
+    if (hasArgument(argc, argv, "--help")) {
         std::printf("Usage: numi-kde [--version] [--probe] [--hidden]\n");
         return 0;
     }
@@ -103,17 +115,35 @@ int main(int argc, char *argv[])
     // DocumentModel MUST be declared before engine so it outlives QML's
     // Component.onDestruction (stack is unwound in reverse: engine first, then model)
     QApplication app(argc, argv);
+    // applicationName/organizationName stay "numi-kde" so QSettings, the
+    // KGlobalAccel component and the history location are unchanged.
     app.setApplicationName(QStringLiteral("numi-kde"));
-    app.setDesktopFileName(QStringLiteral("numi-kde"));
+    app.setApplicationDisplayName(QStringLiteral("Numi-KDE"));
     app.setOrganizationName(QStringLiteral("numi-kde"));
+    app.setOrganizationDomain(QStringLiteral("skorin.online"));
+    app.setDesktopFileName(QStringLiteral(NUMI_KDE_APP_ID));
+    app.setApplicationVersion(QStringLiteral(NUMI_KDE_VERSION));
     app.setQuitOnLastWindowClosed(false);   // stay alive in tray when window is closed
-    const QIcon appIcon(QStringLiteral(":/icons/numi-kde.png"));
-    const QIcon trayIcon(QStringLiteral(":/icons/numi-kde-tray.png"));
+    const QIcon appIcon = QIcon::fromTheme(QStringLiteral(NUMI_KDE_APP_ID),
+                                           QIcon(QStringLiteral(":/icons/numi-kde.png")));
     app.setWindowIcon(appIcon);
+
+    // Single instance: a second launch (menu, autostart, `numi-kde` from a
+    // shell) forwards its arguments to us and exits.
+    KDBusService service(KDBusService::Unique);
+
+    // Wayland window positions: KWin's own "remember position" rule is never
+    // persisted for Wayland windows, so our KWin script reports and restores
+    // geometry through this D-Bus object instead.
+    WindowMemory windowMemory;
+    windowMemory.registerOnSessionBus();
+    if (KWindowSystem::isPlatformWayland())
+        WindowMemory::ensureKWinScriptLoaded();
 
     QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
 
     DocumentModel documentModel;
+    documentModel.migrateLegacyState();
     const bool startHidden = hasArgument(argc, argv, "--hidden");
     QAction showHideAction;
     showHideAction.setObjectName(QStringLiteral("toggle-window"));
@@ -158,17 +188,22 @@ int main(int argc, char *argv[])
 
     if (mainWindow) {
         documentModel.setKeepAbove(mainWindow->property("alwaysOnTop").toBool());
-        if (!startHidden) {
-            documentModel.prepareShow();
-            mainWindow->show();
-            mainWindow->raise();
-            mainWindow->requestActivate();
-        }
+        if (!startHidden)
+            showWindow(mainWindow, &documentModel);
     }
+
+    // Second instance asked for the window unless it was an autostart (--hidden).
+    QObject::connect(&service, &KDBusService::activateRequested,
+        [mainWindow, &documentModel](const QStringList &arguments, const QString &) {
+            if (arguments.contains(QStringLiteral("--hidden")))
+                return;
+            showWindow(mainWindow, &documentModel);
+        });
 
     // ── System tray ──────────────────────────────────────────────────────
     QSystemTrayIcon tray;
-    tray.setIcon(trayIcon);
+    tray.setIcon(QIcon::fromTheme(QStringLiteral(NUMI_KDE_APP_ID "-symbolic"),
+                                  QIcon(QStringLiteral(":/icons/numi-kde-tray.png"))));
     tray.setToolTip(QStringLiteral("Numi-KDE"));
 
     QMenu trayMenu;
@@ -227,94 +262,93 @@ int main(int argc, char *argv[])
             manualCheckInProgress = false;
         });
 
-    // Update available — show release link in tray menu; auto-download starts silently
+    // Update available — show release link in tray menu. Installation starts
+    // on its own when auto-install is enabled; nothing is shown to the user.
     QObject::connect(&updateChecker, &UpdateChecker::updateAvailable,
-        [&tray, checkUpdatesAction](const QString &version, const QUrl &url) {
-            checkUpdatesAction->setText(
-                QStringLiteral("Update available: %1").arg(version));
+        [&tray, &updateChecker, checkUpdatesAction, installUpdateAction, separatorUpdate]
+        (const QString &version, const QUrl &url) {
+            checkUpdatesAction->setText(QStringLiteral("Update available: %1").arg(version));
             tray.setToolTip(QStringLiteral("Numi-KDE — update %1 available").arg(version));
             QObject::disconnect(checkUpdatesAction, &QAction::triggered, nullptr, nullptr);
             QObject::connect(checkUpdatesAction, &QAction::triggered,
                 [url]() { QDesktopServices::openUrl(url); });
-        });
-
-    // State transitions: notify user when download starts or silently fails
-    auto prevUpdateState = std::make_shared<UpdateChecker::State>(UpdateChecker::State::Idle);
-    QObject::connect(&updateChecker, &UpdateChecker::stateChanged,
-        [&tray, &updateChecker, prevUpdateState](UpdateChecker::State newState) {
-            using S = UpdateChecker::State;
-            if (newState == S::Downloading) {
-                tray.showMessage(
-                    QStringLiteral("Numi-KDE"),
-                    QStringLiteral("Downloading update %1…").arg(updateChecker.availableVersion()),
-                    QSystemTrayIcon::Information, 4000);
-            } else if (newState == S::Error && *prevUpdateState == S::Downloading) {
-                tray.showMessage(
-                    QStringLiteral("Numi-KDE"),
-                    QStringLiteral("Failed to download update. Open the tray menu to get it manually."),
-                    QSystemTrayIcon::Warning, 6000);
+            if (!updateChecker.autoInstallUpdates()) {
+                separatorUpdate->setVisible(true);
+                installUpdateAction->setVisible(true);
+                installUpdateAction->setText(QStringLiteral("Install Update %1").arg(version));
             }
-            *prevUpdateState = newState;
         });
 
-    // Download complete — install automatically via PackageKit (polkit dialog will appear)
-    QObject::connect(&updateChecker, &UpdateChecker::downloadReady,
-        [&tray, &updateChecker, mainWindow, installUpdateAction, separatorUpdate](const QString &version) {
-            separatorUpdate->setVisible(true);
-            installUpdateAction->setVisible(true);
-            installUpdateAction->setEnabled(false);
-            installUpdateAction->setText(QStringLiteral("Installing %1…").arg(version));
-            if (mainWindow)
-                QMetaObject::invokeMethod(mainWindow, "hideWindow");
-            tray.showMessage(
-                QStringLiteral("Numi-KDE"),
-                QStringLiteral("Installing update %1… Confirm the system dialog if prompted.").arg(version),
-                QSystemTrayIcon::Information, 10000);
-            updateChecker.installUpdate();
-        });
-
-    // Install action — retry only, shown when auto-install fails
     QObject::connect(installUpdateAction, &QAction::triggered,
-        [&updateChecker, mainWindow, installUpdateAction, &tray]() {
+        [&updateChecker, installUpdateAction]() {
             installUpdateAction->setEnabled(false);
             installUpdateAction->setText(QStringLiteral("Installing…"));
-            if (mainWindow)
-                QMetaObject::invokeMethod(mainWindow, "hideWindow");
-            tray.showMessage(
-                QStringLiteral("Numi-KDE"),
-                QStringLiteral("Installing update — confirm the system dialog if prompted."),
-                QSystemTrayIcon::Information, 10000);
             updateChecker.installUpdate();
         });
 
-    // Install complete — offer restart or allow retry
+    // Restart policy: restart immediately when the window is hidden (the user
+    // is not looking), otherwise wait for the next hide and offer a
+    // notification action in the meantime. The window is never taken away.
+    bool restartPending = false;
+    auto restartNow = [&updateChecker, &restartPending]() {
+        restartPending = false;
+        updateChecker.restartApp();
+    };
+
+    if (mainWindow) {
+        QObject::connect(mainWindow, &QWindow::visibleChanged,
+            [&restartPending, restartNow](bool visible) {
+                if (!visible && restartPending)
+                    restartNow();
+            });
+    }
+
     QObject::connect(&updateChecker, &UpdateChecker::installFinished,
-        [&tray, &updateChecker, installUpdateAction, restartAction, separatorUpdate](bool success) {
+        [&updateChecker, mainWindow, installUpdateAction, restartAction, separatorUpdate,
+         &restartPending, restartNow](bool success) {
             installUpdateAction->setEnabled(true);
             if (success) {
                 installUpdateAction->setVisible(false);
+                const bool windowInUse = mainWindow && mainWindow->isVisible();
+                if (!windowInUse) {
+                    restartNow();
+                    return;
+                }
+                restartPending = true;
+                separatorUpdate->setVisible(true);
                 restartAction->setVisible(true);
-                QObject::disconnect(&tray, &QSystemTrayIcon::messageClicked, nullptr, nullptr);
-                QObject::connect(&tray, &QSystemTrayIcon::messageClicked,
-                    [restartAction]() { restartAction->trigger(); });
-                tray.showMessage(
-                    QStringLiteral("Numi-KDE"),
-                    QStringLiteral("Update installed. Click here or use tray to restart."),
-                    QSystemTrayIcon::Information, 8000);
+                KNotification *n = notify(QStringLiteral("updateInstalled"),
+                    QStringLiteral("Update %1 installed").arg(updateChecker.availableVersion()),
+                    QStringLiteral("Numi-KDE will restart as soon as you hide the window."));
+                KNotificationAction *restart = n->addAction(QStringLiteral("Restart now"));
+                QObject::connect(restart, &KNotificationAction::activated, restartNow);
+                n->sendEvent();
             } else {
+                separatorUpdate->setVisible(true);
+                installUpdateAction->setVisible(true);
                 installUpdateAction->setText(QStringLiteral("Install Update (retry)…"));
                 const QString err = updateChecker.lastError();
-                tray.showMessage(
-                    QStringLiteral("Numi-KDE"),
+                KNotification *n = notify(QStringLiteral("updateFailed"),
+                    QStringLiteral("Update failed"),
                     err.isEmpty()
                         ? QStringLiteral("Update installation failed. Try again from the tray menu.")
-                        : QStringLiteral("Update installation failed: %1").arg(err),
-                    QSystemTrayIcon::Warning, 6000);
+                        : err);
+                n->sendEvent();
             }
         });
 
-    QObject::connect(restartAction, &QAction::triggered,
-        &updateChecker, &UpdateChecker::restartApp);
+    QObject::connect(restartAction, &QAction::triggered, restartNow);
+
+    // First start after an update: say so once, then get out of the way.
+    {
+        const QString previous = UpdateChecker::consumeLastRunVersion();
+        if (!previous.isEmpty() && previous != QStringLiteral(NUMI_KDE_VERSION)) {
+            notify(QStringLiteral("updated"),
+                   QStringLiteral("Numi-KDE updated"),
+                   QStringLiteral("Now running version %1.").arg(QStringLiteral(NUMI_KDE_VERSION)))
+                ->sendEvent();
+        }
+    }
 
     // Auto-check once per 24 hours on startup
     if (updateChecker.shouldAutoCheck())

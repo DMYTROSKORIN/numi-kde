@@ -2,20 +2,17 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
-#include <QDir>
 #include <QFile>
-#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QStandardPaths>
-#include <QSysInfo>
 #include <QUrl>
-
 
 #ifndef NUMI_KDE_VERSION
 #define NUMI_KDE_VERSION "0.0.0"
@@ -23,6 +20,8 @@
 
 static const char kApiUrl[] =
     "https://api.github.com/repos/DMYTROSKORIN/numi-kde/releases/latest";
+static const char kReleasePagePrefix[] = "https://github.com/DMYTROSKORIN/numi-kde";
+static const char kHelperPath[] = "/usr/libexec/numi-kde-install-update";
 
 static bool isNewerVersion(const QString &latest, const QString &current)
 {
@@ -45,18 +44,24 @@ static bool isNewerVersion(const QString &latest, const QString &current)
     return false;
 }
 
+static QSettings updateSettings()
+{
+    return QSettings(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
+}
+
 UpdateChecker::UpdateChecker(QObject *parent)
     : QObject(parent), m_nam(new QNetworkAccessManager(this))
 {
-    QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
+    QSettings s = updateSettings();
     s.beginGroup(QStringLiteral("Updates"));
-    m_autoDownload = s.value(QStringLiteral("autoDownload"), true).toBool();
+    // "autoDownload" is the pre-0.1.81 key; honour it once, then use autoInstall.
+    m_autoInstall = s.value(QStringLiteral("autoInstall"),
+                            s.value(QStringLiteral("autoDownload"), true)).toBool();
     s.endGroup();
 
     // Check once per hour; the actual 24 h gate is inside shouldAutoCheck().
     m_periodicTimer = new QTimer(this);
     m_periodicTimer->setInterval(60 * 60 * 1000);
-    m_periodicTimer->setSingleShot(false);
     QObject::connect(m_periodicTimer, &QTimer::timeout, this, [this]() {
         if (shouldAutoCheck())
             checkAsync();
@@ -64,33 +69,35 @@ UpdateChecker::UpdateChecker(QObject *parent)
     m_periodicTimer->start();
 }
 
-UpdateChecker::~UpdateChecker()
-{
-    if (m_dlFile) {
-        m_dlFile->close();
-        delete m_dlFile;
-    }
-}
-
 bool UpdateChecker::shouldAutoCheck()
 {
-    QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
+    QSettings s = updateSettings();
     s.beginGroup(QStringLiteral("Updates"));
     const QDateTime last = s.value(QStringLiteral("lastCheck")).toDateTime();
     s.endGroup();
     return !last.isValid() || last.secsTo(QDateTime::currentDateTimeUtc()) >= 86400;
 }
 
-void UpdateChecker::setAutoDownloadUpdates(bool enabled)
+QString UpdateChecker::consumeLastRunVersion()
 {
-    if (m_autoDownload == enabled)
-        return;
-    m_autoDownload = enabled;
-    QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
+    QSettings s = updateSettings();
     s.beginGroup(QStringLiteral("Updates"));
-    s.setValue(QStringLiteral("autoDownload"), enabled);
+    const QString previous = s.value(QStringLiteral("lastRunVersion")).toString();
+    s.setValue(QStringLiteral("lastRunVersion"), QStringLiteral(NUMI_KDE_VERSION));
     s.endGroup();
-    emit autoDownloadUpdatesChanged();
+    return previous;
+}
+
+void UpdateChecker::setAutoInstallUpdates(bool enabled)
+{
+    if (m_autoInstall == enabled)
+        return;
+    m_autoInstall = enabled;
+    QSettings s = updateSettings();
+    s.beginGroup(QStringLiteral("Updates"));
+    s.setValue(QStringLiteral("autoInstall"), enabled);
+    s.endGroup();
+    emit autoInstallUpdatesChanged();
 }
 
 void UpdateChecker::setState(State s)
@@ -101,19 +108,12 @@ void UpdateChecker::setState(State s)
     emit stateChanged(s);
 }
 
-void UpdateChecker::setDownloadProgress(int p)
-{
-    if (m_downloadProgress == p)
-        return;
-    m_downloadProgress = p;
-    emit downloadProgressChanged(p);
-}
-
 // ── Version check ────────────────────────────────────────────────────────────
 
 void UpdateChecker::checkAsync()
 {
-    if (m_state == State::Checking)
+    if (m_state == State::Checking || m_state == State::Installing
+            || m_state == State::RestartRequired)
         return;
     setState(State::Checking);
 
@@ -126,139 +126,49 @@ void UpdateChecker::checkAsync()
     QObject::connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
-            setState(State::Idle);
+            setState(m_availableVersion.isEmpty() ? State::Idle : State::UpdateAvailable);
             emit checkFinished(false);
             return;
         }
 
-        QSettings s(QStringLiteral("numi-kde"), QStringLiteral("numi-kde"));
-        s.beginGroup(QStringLiteral("Updates"));
-        s.setValue(QStringLiteral("lastCheck"), QDateTime::currentDateTimeUtc());
-        s.endGroup();
+        {
+            QSettings s = updateSettings();
+            s.beginGroup(QStringLiteral("Updates"));
+            s.setValue(QStringLiteral("lastCheck"), QDateTime::currentDateTimeUtc());
+            s.endGroup();
+        }
 
         const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
         const QString tag = obj.value(QStringLiteral("tag_name")).toString();
         const QString htmlUrl = obj.value(QStringLiteral("html_url")).toString();
 
-        const bool found = !tag.isEmpty()
+        static const QRegularExpression tagPattern(QStringLiteral("^v?\\d+\\.\\d+\\.\\d+$"));
+        const bool found = tagPattern.match(tag).hasMatch()
+                        && htmlUrl.startsWith(QString::fromLatin1(kReleasePagePrefix))
                         && isNewerVersion(tag, QStringLiteral(NUMI_KDE_VERSION));
 
-        if (found && htmlUrl.startsWith(QStringLiteral("https://github.com/DMYTROSKORIN/numi-kde"))) {
-            // Find the RPM asset download URL
-            const QJsonArray assets = obj.value(QStringLiteral("assets")).toArray();
-            for (const QJsonValue &a : assets) {
-                const QJsonObject ao = a.toObject();
-                const QString name = ao.value(QStringLiteral("name")).toString();
-                if (name.startsWith(QStringLiteral("numi-kde-")) && name.endsWith(QStringLiteral(".rpm"))) {
-                    const QString dlUrl = ao.value(QStringLiteral("browser_download_url")).toString();
-                    if (dlUrl.startsWith(QStringLiteral("https://")))
-                        m_downloadUrl = QUrl(dlUrl);
-                    break;
-                }
-            }
-
+        if (found) {
             m_availableVersion = tag;
             emit availableVersionChanged();
             setState(State::UpdateAvailable);
             emit updateAvailable(tag, QUrl(htmlUrl));
-
-            if (m_autoDownload && m_downloadUrl.isValid())
-                startDownload();
+            emit checkFinished(true);
+            if (m_autoInstall)
+                installUpdate();
         } else {
             setState(State::Idle);
+            emit checkFinished(false);
         }
-
-        emit checkFinished(found);
-    });
-}
-
-// ── Download ─────────────────────────────────────────────────────────────────
-
-void UpdateChecker::startDownload()
-{
-    if (m_state != State::UpdateAvailable || !m_downloadUrl.isValid())
-        return;
-
-    const QDir cacheDir(
-        QStandardPaths::writableLocation(QStandardPaths::CacheLocation));
-    cacheDir.mkpath(QStringLiteral("."));
-
-    // Version string without leading 'v'
-    QString ver = m_availableVersion;
-    if (ver.startsWith(QLatin1Char('v')))
-        ver = ver.mid(1);
-
-    const QString arch = QSysInfo::currentCpuArchitecture();
-    const QString rpmName =
-        QStringLiteral("numi-kde-%1-%2.rpm").arg(ver, arch);
-    m_rpmPath = cacheDir.filePath(rpmName);
-
-    // Remove stale partial download if any
-    QFile::remove(m_rpmPath + QStringLiteral(".part"));
-
-    m_dlFile = new QFile(m_rpmPath + QStringLiteral(".part"), this);
-    if (!m_dlFile->open(QIODevice::WriteOnly)) {
-        delete m_dlFile;
-        m_dlFile = nullptr;
-        setState(State::Error);
-        return;
-    }
-
-    setState(State::Downloading);
-    setDownloadProgress(0);
-
-    QNetworkRequest req(m_downloadUrl);
-    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                     QNetworkRequest::NoLessSafeRedirectPolicy);
-    req.setRawHeader("User-Agent", "numi-kde/" NUMI_KDE_VERSION);
-
-    QNetworkReply *reply = m_nam->get(req);
-
-    QObject::connect(reply, &QNetworkReply::readyRead, this, [this, reply]() {
-        if (m_dlFile)
-            m_dlFile->write(reply->readAll());
-    });
-
-    QObject::connect(reply, &QNetworkReply::downloadProgress, this,
-        [this](qint64 received, qint64 total) {
-            if (total > 0)
-                setDownloadProgress(int(received * 100 / total));
-        });
-
-    QObject::connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-
-        const QString partPath = m_rpmPath + QStringLiteral(".part");
-        if (m_dlFile) {
-            m_dlFile->close();
-            delete m_dlFile;
-            m_dlFile = nullptr;
-        }
-
-        if (reply->error() != QNetworkReply::NoError) {
-            QFile::remove(partPath);
-            setState(State::Error);
-            return;
-        }
-
-        if (!QFile::rename(partPath, m_rpmPath)) {
-            QFile::remove(partPath);
-            setState(State::Error);
-            return;
-        }
-
-        setState(State::DownloadReady);
-        emit downloadReady(m_availableVersion);
     });
 }
 
 // ── Install via pkexec + polkit helper ───────────────────────────────────────
 
-static const char kHelperPath[] = "/usr/libexec/numi-kde-install-update";
-
 void UpdateChecker::installUpdate()
 {
-    if (m_state != State::DownloadReady || m_pkcon)
+    if (m_installer || m_availableVersion.isEmpty())
+        return;
+    if (m_state != State::UpdateAvailable && m_state != State::Error)
         return;
 
     if (!QFile::exists(QString::fromLatin1(kHelperPath))) {
@@ -268,8 +178,7 @@ void UpdateChecker::installUpdate()
         return;
     }
 
-    const QString pkexec =
-        QStandardPaths::findExecutable(QStringLiteral("pkexec"));
+    const QString pkexec = QStandardPaths::findExecutable(QStringLiteral("pkexec"));
     if (pkexec.isEmpty()) {
         m_lastError = QStringLiteral("pkexec not found.");
         setState(State::Error);
@@ -280,30 +189,24 @@ void UpdateChecker::installUpdate()
     setState(State::Installing);
     m_lastError.clear();
 
-    // pkexec invokes the installed helper as root via the project's polkit
-    // action (online.skorin.numi-kde.update, allow_active = auth_admin_keep).
-    // KDE polkit agent shows a native authentication dialog.
-    m_pkcon = new QProcess(this);
-    m_pkcon->setProgram(pkexec);
-    m_pkcon->setArguments({
-        QString::fromLatin1(kHelperPath),
-        m_rpmPath
+    // The helper gets only the version number; it downloads and verifies the
+    // RPM itself as root, so nothing writable by this user is ever installed.
+    m_installer = new QProcess(this);
+    m_installer->setProgram(pkexec);
+    m_installer->setArguments({QString::fromLatin1(kHelperPath), m_availableVersion});
+
+    QObject::connect(m_installer, &QProcess::readyReadStandardError, this, [this]() {
+        const QString text = QString::fromUtf8(m_installer->readAllStandardError()).trimmed();
+        if (!text.isEmpty())
+            m_lastError = text.section(QLatin1Char('\n'), -1);
     });
 
-    QObject::connect(m_pkcon, &QProcess::readyReadStandardError, this, [this]() {
-        const QString line =
-            QString::fromUtf8(m_pkcon->readAllStandardError()).trimmed();
-        if (!line.isEmpty())
-            m_lastError = line;
-    });
+    QObject::connect(m_installer, &QProcess::finished, this,
+        [this](int exitCode, QProcess::ExitStatus status) {
+            m_installer->deleteLater();
+            m_installer = nullptr;
 
-    QObject::connect(m_pkcon, &QProcess::finished, this,
-        [this](int exitCode, QProcess::ExitStatus) {
-            m_pkcon->deleteLater();
-            m_pkcon = nullptr;
-            QFile::remove(m_rpmPath);
-
-            if (exitCode == 0) {
+            if (status == QProcess::NormalExit && exitCode == 0) {
                 setState(State::RestartRequired);
                 emit installFinished(true);
             } else {
@@ -314,14 +217,21 @@ void UpdateChecker::installUpdate()
             }
         });
 
-    m_pkcon->start();
+    m_installer->start();
 }
 
 // ── Restart ──────────────────────────────────────────────────────────────────
 
 void UpdateChecker::restartApp()
 {
-    QProcess::startDetached(QCoreApplication::applicationFilePath(),
-                            QCoreApplication::arguments());
+    // Prefer the installed binary by name: /proc/self/exe may point at the
+    // replaced (deleted) inode after an RPM upgrade.
+    QString exe = QStandardPaths::findExecutable(QStringLiteral("numi-kde"));
+    if (exe.isEmpty())
+        exe = QCoreApplication::applicationFilePath();
+
+    // Always come back hidden: the update was applied in the background and
+    // the user has not asked for the window.
+    QProcess::startDetached(exe, {QStringLiteral("--hidden")});
     QCoreApplication::quit();
 }

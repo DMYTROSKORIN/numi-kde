@@ -29,7 +29,7 @@ if [ "${#TARGETS[@]}" -eq 0 ]; then
 fi
 
 if command -v timeout >/dev/null 2>&1; then
-    timeout "${TIMEOUT_SECONDS}s" semgrep --config "$CONFIG" --config auto --error "${TARGETS[@]}"
+    timeout "${TIMEOUT_SECONDS}s" semgrep --config "$CONFIG" --error "${TARGETS[@]}"
 else
-    semgrep --config "$CONFIG" --config auto --error "${TARGETS[@]}"
+    semgrep --config "$CONFIG" --error "${TARGETS[@]}"
 fi
