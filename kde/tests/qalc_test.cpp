@@ -29,6 +29,7 @@
 #include <QQmlContext>
 #include <QQuickItem>
 #include <cstdio>
+#include <clocale>
 
 // Minimal mock for EditorPane QML tests — only Q_INVOKABLEs accessed by EditorPane.qml
 class MockDocumentModel : public QObject {
@@ -1740,6 +1741,10 @@ int main(int argc, char *argv[]) {
     qputenv("XDG_CACHE_HOME", tempHome.filePath(".cache").toUtf8());
     if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
         qputenv("QT_QPA_PLATFORM", "offscreen");
+    // libqalculate's Calculator() re-reads the locale from the environment
+    // (setlocale(LC_ALL, "")), so the environment itself has to be pinned.
+    qputenv("LC_ALL", "en_US.UTF-8");
+    qputenv("LANG", "en_US.UTF-8");
 
     // Deterministic, network-free exchange rates: QalcBridge loads them from
     // the cache file, and NUMI_KDE_OFFLINE_RATES stops it from fetching live ones.
@@ -1748,6 +1753,12 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setApplicationName("numi-kde-test");
     app.setOrganizationName("numi-kde");
+    // Number formatting must not depend on the machine: smartFormat() uses the
+    // default QLocale, libqalculate's digit grouping reads the C locale at
+    // Calculator construction. Pin both to en_US before any QalcBridge exists.
+    QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+    if (!std::setlocale(LC_ALL, "en_US.UTF-8"))
+        std::printf("WARNING: en_US.UTF-8 locale unavailable (install glibc-langpack-en); golden results may differ\n");
     {
         const QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
         QDir().mkpath(cacheDir);

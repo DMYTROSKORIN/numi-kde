@@ -57,7 +57,7 @@ export PATH="$stubs:$PATH"
 
 arch=$(uname -m)
 make_release() { # version name-inside-rpm [break-checksum]
-  local ver="$1" name="$2" rpm="numi-kde-$1-$arch.rpm"
+  local name="$2" rpm="numi-kde-$1-$arch.rpm"
   rm -f "$work/release"/*
   printf '%s\nfake rpm payload\n' "$name" > "$work/release/$rpm"
   ( cd "$work/release" && sha256sum "$rpm" > SHA256SUMS )

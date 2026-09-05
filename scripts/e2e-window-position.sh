@@ -48,10 +48,11 @@ visible() { [[ "$(geometry)" != "none" ]]; }
 echo "=== numi-kde window position e2e ($X,$Y) ==="
 busctl --user list | grep -q "$SERVICE" || { echo "numi-kde is not running (service $SERVICE missing)"; exit 1; }
 loaded=$(busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s numi-kde-window-memory | awk '{print $2}')
-[[ "$loaded" == "true" ]] && pass "KWin script numi-kde-window-memory is loaded" || fail "KWin script loaded" "$loaded"
+if [[ "$loaded" == "true" ]]; then pass "KWin script numi-kde-window-memory is loaded"; else fail "KWin script loaded" "$loaded"; fi
 
 visible || toggle
-g=$(geometry); [[ "$g" == *"above=true" ]] && pass "window shown with keep-above" || fail "keep-above" "$g"
+g=$(geometry)
+if [[ "$g" == *"above=true" ]]; then pass "window shown with keep-above"; else fail "keep-above" "$g"; fi
 
 kwin_script "$work/move.js" >/dev/null
 sleep 0.5
@@ -59,7 +60,7 @@ toggle   # hide → script reports geometry to the app
 sleep 1
 toggle   # show → script restores it
 g=$(geometry)
-[[ "$g" == "$X,$Y above=true" ]] && pass "position restored after hide/show" || fail "position after hide/show" "$g"
+if [[ "$g" == "$X,$Y above=true" ]]; then pass "position restored after hide/show"; else fail "position after hide/show" "$g"; fi
 
 toggle   # hide
 pkill -TERM -x numi-kde || true
@@ -68,11 +69,11 @@ setsid nohup numi-kde --hidden >/dev/null 2>&1 &
 sleep 3
 toggle   # show
 g=$(geometry)
-[[ "$g" == "$X,$Y above=true" ]] && pass "position restored after app restart" || fail "position after restart" "$g"
+if [[ "$g" == "$X,$Y above=true" ]]; then pass "position restored after app restart"; else fail "position after restart" "$g"; fi
 toggle   # leave it hidden
 
 saved=$(grep -A1 '^\[WindowMemory\]' "${XDG_CONFIG_HOME:-$HOME/.config}/numi-kde/numi-kde.conf" 2>/dev/null | tail -1)
-[[ "$saved" == *"$X,$Y"* ]] && pass "position persisted in numi-kde.conf" || fail "persisted position" "$saved"
+if [[ "$saved" == *"$X,$Y"* ]]; then pass "position persisted in numi-kde.conf"; else fail "persisted position" "$saved"; fi
 
 printf '\n=== Results: %d passed, %d failed ===\n' "$ok" "$bad"
 [[ $bad -eq 0 ]]

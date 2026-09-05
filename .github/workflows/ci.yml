@@ -21,7 +21,7 @@ jobs:
             qt6-qtbase-devel qt6-qtdeclarative-devel \
             kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
             kf6-kconfig-devel kf6-kdbusaddons-devel kf6-knotifications-devel \
-            libqalculate-devel dbus-daemon rpm-build
+            libqalculate-devel dbus-daemon glibc-langpack-en rpm-build
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -55,7 +55,7 @@ jobs:
             qt6-qtbase-devel qt6-qtdeclarative-devel \
             kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
             kf6-kconfig-devel kf6-kdbusaddons-devel kf6-knotifications-devel \
-            libqalculate-devel dbus-daemon
+            libqalculate-devel dbus-daemon glibc-langpack-en
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -68,7 +68,7 @@ jobs:
       - name: Run under ThreadSanitizer
         env:
           QT_QPA_PLATFORM: offscreen
-          TSAN_OPTIONS: "suppressions=${{ github.workspace }}/kde/tests/tsan.supp halt_on_error=1 second_deadlock_stack=1"
+          TSAN_OPTIONS: "suppressions=kde/tests/tsan.supp halt_on_error=1 second_deadlock_stack=1"
         run: |
           for suite in qalc stress kwinrules golden; do
             echo "::group::$suite"
