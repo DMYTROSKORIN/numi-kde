@@ -55,6 +55,22 @@ The project ships **RPM only** (Fedora). DEB packages are not built or distribut
 > and `install.sh` would fail on Ubuntu/Debian with a 404 when trying to download a
 > non-existent release asset.
 
+## Signing
+
+Every release RPM is signed in CI (`.github/workflows/release.yml`, step "Sign RPM").
+
+- Key: `Numi-KDE Release Signing <dev@skorin.online>`, RSA 4096, fingerprint
+  `7022A791 58931F41 31646599 411C68B8 56CEC16E`, expires 2029-09-04.
+- Secrets: `RPM_SIGNING_KEY` (armored private key, no passphrase) and `RPM_SIGNING_KEY_ID` (fingerprint).
+  The private key is stored nowhere else than GitHub secrets and the owner's password manager.
+- Public key: `packaging/RPM-GPG-KEY-numi-kde` — committed, installed to `/etc/pki/rpm-gpg/`, uploaded with each release.
+- Consumers verify with `rpmkeys --checksig` (must report `signatures OK`) and check the signer key id
+  `411c68b856cec16e` (`rpm -qp --qf '%{RSAHEADER:pgpsig}'`): the update helper, `install.sh`, and the release job itself.
+
+Rotation: generate a new key, update the secrets, replace `packaging/RPM-GPG-KEY-numi-kde`, update `EXPECTED_KEY_ID`
+in `kde/resources/numi-kde-install-update.sh` and `packaging/install.sh`, release. Installed clients verify the next
+release with the key shipped by the *previous* package, so ship the new public key one release before switching the signer.
+
 ## Build Artifacts Policy
 
 Build directories and packaged files are **gitignored** and must never be committed:

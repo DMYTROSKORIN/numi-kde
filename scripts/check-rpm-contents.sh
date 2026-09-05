@@ -13,6 +13,7 @@ required=(
   /usr/share/metainfo/online.skorin.numi-kde.metainfo.xml
   /usr/share/knotifications6/numi-kde.notifyrc
   /usr/share/polkit-1/actions/online.skorin.numi-kde-update.policy
+  /etc/pki/rpm-gpg/RPM-GPG-KEY-numi-kde
   /usr/share/kwin/scripts/numi-kde-window-memory/metadata.json
   /usr/share/kwin/scripts/numi-kde-window-memory/contents/code/main.js
   /usr/share/icons/hicolor/16x16/apps/online.skorin.numi-kde.png

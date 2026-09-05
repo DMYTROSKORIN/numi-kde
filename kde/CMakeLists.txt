@@ -103,7 +103,7 @@ if(SEMGREP_BIN)
   add_custom_target(semgrep-check
     # Project rules only: the online registry (--config auto) made the build
     # depend on network access and on rule sets that change under us.
-    COMMAND ${SEMGREP_BIN} scan --config ${CMAKE_SOURCE_DIR}/../.semgrep.yml --error --exclude "build*" --exclude "third_party" ${CMAKE_SOURCE_DIR}/..
+    COMMAND ${SEMGREP_BIN} scan --config ${CMAKE_SOURCE_DIR}/../.semgrep.yml --error --timeout 60 --exclude "build*" --exclude "third_party" ${CMAKE_SOURCE_DIR}/..
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/..
     COMMENT "Running Semgrep static analysis..."
   )
@@ -120,6 +120,11 @@ install(DIRECTORY resources/icons/hicolor
 )
 install(FILES resources/numi-kde.notifyrc
   DESTINATION ${CMAKE_INSTALL_DATADIR}/knotifications6
+)
+# Public half of the release signing key: lets the update helper and install.sh
+# verify every RPM they are about to install.
+install(FILES ../packaging/RPM-GPG-KEY-numi-kde
+  DESTINATION /etc/pki/rpm-gpg
 )
 # KWin script: remembers window positions on Wayland (see resources/kwin-script/contents/code/main.js)
 install(DIRECTORY resources/kwin-script/

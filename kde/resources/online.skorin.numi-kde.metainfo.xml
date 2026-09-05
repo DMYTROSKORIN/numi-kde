@@ -44,6 +44,11 @@
     <color type="primary" scheme_preference="dark">#22242a</color>
   </branding>
   <releases>
+    <release version="0.1.86" date="2026-09-05">
+      <description>
+        <p>Releases are GPG-signed; the update helper and installer verify the signature.</p>
+      </description>
+    </release>
     <release version="0.1.85" date="2026-09-05">
       <description>
         <p>Autocomplete for units, currencies and functions; error explanations on hover.</p>

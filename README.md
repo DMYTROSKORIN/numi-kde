@@ -42,7 +42,7 @@ Inspired by [Numi](https://numi.app) on macOS — built from scratch for KDE on 
 curl -fsSL https://raw.githubusercontent.com/DMYTROSKORIN/numi-kde/main/packaging/install.sh | bash
 ```
 
-The installer downloads the `.rpm` from GitHub Releases, verifies `SHA256SUMS`, installs via `dnf`, and runs a smoke test.
+The installer downloads the `.rpm` from GitHub Releases, verifies `SHA256SUMS` and the GPG signature (project key `7022A791 58931F41 31646599 411C68B8 56CEC16E`, shipped as `RPM-GPG-KEY-numi-kde`), installs via `dnf`, and runs a smoke test. Built-in updates verify the same signature.
 
 <details>
 <summary>More install options</summary>

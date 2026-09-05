@@ -40,6 +40,32 @@ jobs:
       - name: Package
         run: cmake --build build/release --target package
 
+      # Signing: the private key lives only in the repository secrets; the
+      # public half is committed as packaging/RPM-GPG-KEY-numi-kde and shipped
+      # inside the package so the update helper can verify the next release.
+      - name: Sign RPM
+        env:
+          RPM_SIGNING_KEY: ${{ secrets.RPM_SIGNING_KEY }}
+          RPM_SIGNING_KEY_ID: ${{ secrets.RPM_SIGNING_KEY_ID }}
+        run: |
+          dnf install -y rpm-sign gnupg2
+          [ -n "$RPM_SIGNING_KEY" ] || { echo "RPM_SIGNING_KEY secret is missing"; exit 1; }
+          export GNUPGHOME="$(mktemp -d)"
+          printf '%s' "$RPM_SIGNING_KEY" | gpg --batch --import
+          printf '%%_gpg_name %s\n%%_gpg_digest_algo sha256\n' "$RPM_SIGNING_KEY_ID" > ~/.rpmmacros
+          rpmsign --addsign build/release/*.rpm
+          rm -rf "$GNUPGHOME"
+
+      - name: Verify signature against the committed public key
+        run: |
+          rpmkeys --import packaging/RPM-GPG-KEY-numi-kde
+          rpmkeys --checksig build/release/*.rpm | tee /tmp/checksig
+          grep -q 'signatures OK' /tmp/checksig || { echo "RPM is not signed"; exit 1; }
+          sig=$(rpm -qp --qf '%{RSAHEADER:pgpsig}' build/release/*.rpm)
+          echo "signature: $sig"
+          key_id=$(gpg --batch --show-keys --with-colons packaging/RPM-GPG-KEY-numi-kde | awk -F: '$1=="fpr"{print tolower(substr($10,25)); exit}')
+          echo "$sig" | grep -qi "Key ID $key_id" || { echo "RPM signed with an unexpected key (want $key_id)"; exit 1; }
+
       - name: Inspect RPM
         run: |
           rpm -qpi build/release/*.rpm
@@ -81,8 +107,8 @@ jobs:
           name: rpm
           path: dist/
 
-      - name: Copy installer scripts
-        run: cp packaging/install.sh packaging/uninstall.sh dist/
+      - name: Copy installer scripts and public key
+        run: cp packaging/install.sh packaging/uninstall.sh packaging/RPM-GPG-KEY-numi-kde dist/
 
       - name: Generate SHA256SUMS
         run: |

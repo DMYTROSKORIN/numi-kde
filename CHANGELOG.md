@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.86 - 2026-09-05
+
+### Security
+
+- **Signed releases.** Every RPM is signed in CI with the project key `Numi-KDE Release Signing <dev@skorin.online>` (fingerprint `7022 A791 5893 1F41 3164 6599 411C 68B8 56CE C16E`, valid until 2029-09-04). The public key ships in the package as `/etc/pki/rpm-gpg/RPM-GPG-KEY-numi-kde` and in every release as `RPM-GPG-KEY-numi-kde`.
+- **Update helper verifies the signature**: after checksum and package-name checks it imports the project key, requires `rpmkeys --checksig` to report a valid signature made by that key, and installs without `--nogpgcheck`. Unsigned or foreign-signed packages are refused.
+- **install.sh verifies the signature** the same way (imports the key with sudo, checks signer key id). Releases before 0.1.86 are unsigned and can no longer be installed with the new installer; use their own `install.sh`.
+
+### Fix
+
+- Semgrep in the local build gets 60 s per file instead of 5 s, so large sources are scanned fully instead of timing out.
+
 ## 0.1.85 - 2026-09-05
 
 ### Added

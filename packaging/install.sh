@@ -92,6 +92,10 @@ PKG_FILE="${PACKAGE_NAME}-${VERSION#v}-x86_64.rpm"
 DOWNLOAD_BASE="https://github.com/${REPO}/releases/download/${VERSION}"
 PKG_URL="${DOWNLOAD_BASE}/${PKG_FILE}"
 SUMS_URL="${DOWNLOAD_BASE}/SHA256SUMS"
+KEY_FILE="RPM-GPG-KEY-numi-kde"
+KEY_URL="${DOWNLOAD_BASE}/${KEY_FILE}"
+# Last 16 hex digits of the project key fingerprint (7022A791 ... 56CEC16E)
+EXPECTED_KEY_ID="411c68b856cec16e"
 
 # ── Download ──────────────────────────────────────────────────────────────────
 step "Downloading"
@@ -101,7 +105,9 @@ log "checksums: SHA256SUMS"
 if [[ "$DRY_RUN" -eq 1 ]]; then
   log "[dry-run] would download $PKG_URL"
   log "[dry-run] would download $SUMS_URL"
-  log "[dry-run] would verify checksum"
+  log "[dry-run] would download $KEY_URL"
+  log "[dry-run] would verify checksum and GPG signature (key $EXPECTED_KEY_ID)"
+  log "[dry-run] would run: sudo rpmkeys --import $KEY_FILE"
   log "[dry-run] would run: sudo dnf install ./$PKG_FILE"
   log "[dry-run] would run: numi-kde --probe"
   printf '\n\033[32mDry run complete — no changes made.\033[0m\n'
@@ -113,14 +119,29 @@ trap 'rm -rf "$TMPDIR"' EXIT
 
 curl -fsSL --progress-bar "$PKG_URL"   -o "$TMPDIR/$PKG_FILE"
 curl -fsSL                "$SUMS_URL"  -o "$TMPDIR/SHA256SUMS"
+curl -fsSL                "$KEY_URL"   -o "$TMPDIR/$KEY_FILE" \
+  || die "this release has no $KEY_FILE — releases before v0.1.86 are unsigned; pick a newer version"
 
 # ── Checksum verification ─────────────────────────────────────────────────────
 step "Verifying checksum"
 cd "$TMPDIR"
 grep -F "  $PKG_FILE" SHA256SUMS | sha256sum --check --status \
   || die "checksum verification failed for $PKG_FILE"
+grep -F "  $KEY_FILE" SHA256SUMS | sha256sum --check --status \
+  || die "checksum verification failed for $KEY_FILE"
 log "ok"
 cd - >/dev/null
+
+# ── Signature verification ───────────────────────────────────────────────────
+step "Verifying signature"
+log "importing project key (sudo)"
+sudo rpmkeys --import "$TMPDIR/$KEY_FILE" || die "could not import $KEY_FILE"
+rpmkeys --checksig "$TMPDIR/$PKG_FILE" | grep -q 'signatures OK' \
+  || die "$PKG_FILE is not signed or its signature does not verify"
+SIGNATURE=$(rpm -qp --qf '%{RSAHEADER:pgpsig}' "$TMPDIR/$PKG_FILE")
+printf '%s' "$SIGNATURE" | grep -qi "Key ID $EXPECTED_KEY_ID" \
+  || die "$PKG_FILE is signed with an unexpected key: $SIGNATURE"
+log "signed by key $EXPECTED_KEY_ID"
 
 # ── Install ───────────────────────────────────────────────────────────────────
 step "Installing"
