@@ -22,7 +22,7 @@ jobs:
             kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
             libqalculate-devel
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure
         run: cmake -S kde -B build -GNinja -DCMAKE_BUILD_TYPE=Debug
@@ -45,7 +45,7 @@ jobs:
           dnf install -y git python3-pip ShellCheck
           pip3 install semgrep --quiet
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Semgrep
         run: semgrep --config .semgrep.yml --error kde/src kde/tests

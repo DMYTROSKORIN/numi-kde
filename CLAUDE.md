@@ -206,6 +206,6 @@ git config core.hooksPath .githooks
 
 ## Personal Data Policy
 
-- Commit author: `DMYTROSKORIN` / `DMYTROSKORIN@users.noreply.github.com`
+- Commit author: `DMYTROSKORIN` / `dev@skorin.online`
 - Public contact in source files: `dev@skorin.online`
 - No other personal emails, tokens, or private paths anywhere in the repository
