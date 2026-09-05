@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.84 - 2026-09-05
+
+### Fix
+
+- **Complex results** are printed as libqalculate writes them (`sqrt(-1)` → `i`, `sqrt(-4)` → `2i`) instead of a bogus `0`.
+- **Scientific notation** for magnitudes a double cannot show exactly (≥ 1e15: `6.022e23 * 2` → `1.204e24`, `2^100` → `1.268e30`) and for non-zero values that would otherwise vanish into `0` at the chosen precision (`1e-7` → `1e-7`, `1 / 3e10` → `3.333e-11`). At 0 decimals small values still round to `0`, as requested.
+- **Rounding is half-away-from-zero at every precision**: `2.5` → `3`, `-2.5` → `-3`, `1.005 * 100` → `101` at 0 decimals; `0.125` → `0.13`, `2.675` → `2.68`, `-1.005` → `-1.01` at 2 decimals. Previously the platform's banker's rounding and binary representation made `.5` cases inconsistent.
+
 ## 0.1.83 - 2026-09-05
 
 ### Fix
@@ -18,12 +26,6 @@
 - **Install helper tests** (bash, stubbed `curl`/`rpm`/`dnf`): path arguments, bad versions, downgrades, missing assets, checksum mismatches and foreign package names never reach `dnf`.
 - **RPM contents check** on every PR and release: all runtime files (desktop, metainfo, notifyrc, polkit policy, KWin script, all icon sizes) and dependencies must be present; `rpmlint` runs informationally.
 - **End-to-end script** `scripts/e2e-window-position.sh` for a live Plasma session: show, move, hide, show, restart, compare geometry.
-
-### Known issues found by the new tests (not changed in this release)
-
-- `sqrt(-1)` displays `0` instead of an error or `i`.
-- Very large or very small results are printed as long decimal expansions (`6.022e23 * 2`, `1e-7`, `1 / 3e10` → `0` at 3 decimals) instead of scientific notation.
-- Rounding to 0 decimals is inconsistent at .5 (`1.5 → 2`, `2.5 → 2`, `100 * 1.005 → 101`).
 
 ## 0.1.82 - 2026-09-05
 
