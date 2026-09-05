@@ -18,3 +18,8 @@ deadlock:libQt6Core
 
 # libqalculate keeps its calculation thread alive until process exit.
 thread:libqalculate
+
+# QThreadPool teardown at process exit: Qt-internal wait condition, no user frames.
+race:QWaitCondition::~QWaitCondition
+race:QThreadPoolThread
+race:QThreadPoolPrivate
