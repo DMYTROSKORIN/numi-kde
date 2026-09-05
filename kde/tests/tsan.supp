@@ -1,7 +1,16 @@
 # ThreadSanitizer suppressions for numi-kde tests.
-# libqalculate runs its own calculation thread and signals it through plain
-# flags; Qt's QML engine and event loop have known benign reports.
+#
+# libqalculate performs timed calculations on its own internal thread and
+# hands MathStructure/Number objects (GMP/MPFR memory) back across it with
+# plain flags; the GMP/MPFR allocator traffic shows up as races that live
+# entirely inside those libraries. Qt's QML engine and event loop have known
+# benign reports as well. Our own code (numi-kde-tests, QalcBridge,
+# DocumentModel, WindowMemory, KWinRuleManager) is NOT suppressed.
 race:libqalculate
+race:libgmp
+race:libmpfr
+race:__gmp
+race:__mpfr
 race:libQt6Qml
 race:libQt6Quick
 race:libQt6QuickControls2
