@@ -32,6 +32,7 @@
 #include <QQmlContext>
 #include <QQuickItem>
 #include <cstdio>
+#include <cstdlib>
 #include <clocale>
 
 // Minimal mock for EditorPane QML tests — only Q_INVOKABLEs accessed by EditorPane.qml
@@ -1756,21 +1757,23 @@ static bool waitFinished(const QFuture<void> &f, int ms) {
 static void runEngineStressSuite() {
     // ONE engine for the whole suite: libqalculate's Calculator is a
     // process-wide singleton (global CALCULATOR pointer) and a second instance
-    // next to a live one misbehaves. The heavy line below must finish on its
-    // own well inside libqalculate's 5 s per-line timeout — a force-stopped
-    // calculation thread makes ~Calculator() and process exit hang.
-    QalcBridge bridgeObject;
-    QalcBridge *bridge = &bridgeObject;
+    // next to a live one misbehaves. It is never destroyed: if the per-line
+    // timeout ever force-stops the calculation thread (slow CI runners),
+    // ~Calculator() and static destructors hang — main() leaves via _Exit()
+    // after this suite for the same reason.
+    auto *bridge = new QalcBridge;
     bridge->setDecimalPlaces(2);
 
     // 1. Cancelling a document skips the lines not yet reached while the line
     //    in flight runs to completion (~0.6 s here, a few seconds on CI).
     {
-        const QString heavy = QStringLiteral("sum(sin(x), 1, 10^5, x)\n2 + 2\n1 km to m");
+        // ~0.2 s locally, a second or two on a slow runner: far below the 3 s
+        // per-line timeout, so libqalculate never has to force-stop anything.
+        const QString heavy = QStringLiteral("sum(sin(x), 1, 3 * 10^4, x)\n2 + 2\n1 km to m");
         QList<LineResult> results;
         QElapsedTimer t; t.start();
         QFuture<void> fut = QtConcurrent::run([bridge, heavy, &results]() { results = bridge->evaluateDocument(heavy); });
-        QThread::msleep(50);
+        QThread::msleep(20);
         bridge->abortCalculation();
         const bool finished = waitFinished(fut, 20000);
         const qint64 ms = t.elapsed();
@@ -2008,6 +2011,12 @@ int main(int argc, char *argv[]) {
     }
 
     std::printf("\n=== Results: %d passed, %d failed ===\n", passed, failed);
+    if (suite == QStringLiteral("stress")) {
+        // The stress engine is deliberately leaked (see runEngineStressSuite);
+        // skip static destructors that could wait on its calculation thread.
+        std::fflush(stdout);
+        std::_Exit(failed > 0 ? 1 : 0);
+    }
     return failed > 0 ? 1 : 0;
 }
 
