@@ -15,3 +15,6 @@ race:libQt6Qml
 race:libQt6Quick
 race:libQt6QuickControls2
 deadlock:libQt6Core
+
+# libqalculate keeps its calculation thread alive until process exit.
+thread:libqalculate
