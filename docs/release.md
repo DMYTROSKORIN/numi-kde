@@ -8,7 +8,7 @@ All commits must use the project owner as both author and committer:
 
 ```sh
 git config user.name "DMYTROSKORIN"
-git config user.email "DMYTROSKORIN@users.noreply.github.com"
+git config user.email "dev@skorin.online"
 ```
 
 Do not add `Co-Authored-By` lines for AI systems or individual models. Multiple AI
@@ -22,6 +22,39 @@ git log -1 --format='%an <%ae> / %cn <%ce>'
 git shortlog -sne --all
 ```
 
+## Workflow (GitHub Flow)
+
+Every change goes through a branch and a pull request; `main` receives only merges and the
+version-bump commit of a release.
+
+```sh
+git checkout main && git pull
+git checkout -b feature/short-description   # or fix/...
+# work, commit — tests green before each commit
+git push -u origin feature/short-description
+gh pr create --base main --head feature/short-description --title "..." --body "..."
+# wait for CI (Build & Test, Static Analysis, ThreadSanitizer), then
+gh pr merge <n> --merge --delete-branch
+```
+
+## Tests
+
+Run the whole suite before every commit. The D-Bus contract test needs a session bus:
+
+```sh
+cmake -S kde -B kde/build -DCMAKE_BUILD_TYPE=Debug -GNinja
+cmake --build kde/build -j$(nproc)
+dbus-run-session -- ctest --test-dir kde/build --output-on-failure --timeout 300
+```
+
+Targets: `qalc-math`, `documentmodel`, `editor-keyhandlers`, `kwinrules`, `kwinscript-dbus`, `golden`,
+`engine-stress`, `engine-process`, `install-helper`. Golden documents: `./kde/build/numi-kde-tests golden --record`
+regenerates `kde/tests/fixtures/golden/*.expected` after an intended output change — review the diff.
+Exchange rates in tests come from `kde/tests/fixtures/rates.json`, never from the network.
+
+Before a release that touches window handling, run the live check on a Plasma Wayland session:
+`scripts/e2e-window-position.sh`.
+
 ## Semgrep
 
 Use the tracked hook path:
@@ -30,18 +63,9 @@ Use the tracked hook path:
 git config core.hooksPath .githooks
 ```
 
-The pre-commit hook runs `scripts/check-semgrep.sh` with the repository-local
-`.semgrep.yml`. This avoids network-dependent `semgrep --config=auto` behavior in
-normal commits.
-
-For manual checks:
-
-```sh
-scripts/check-semgrep.sh
-```
-
-Use `semgrep --config=auto` only as an optional manual or CI check where network
-access is expected.
+The pre-commit hook runs `scripts/check-semgrep.sh` on staged source files with the repository-local
+`.semgrep.yml` (`system()`, `popen()`, `strcpy()`, `sprintf()` are forbidden). Neither the hook nor the
+build use the online registry (`--config auto`): builds must not depend on network access.
 
 ## Packaging
 
@@ -50,6 +74,9 @@ The project ships **RPM only** (Fedora). DEB packages are not built or distribut
 - `CPACK_GENERATOR "RPM"` in `kde/CMakeLists.txt` — only RPM is configured.
 - `install.sh` / `uninstall.sh` support Fedora (`dnf`) only.
 - For other distributions, users build from source (see README).
+- `scripts/check-rpm-contents.sh` lists every file and dependency the RPM must carry (both binaries, desktop file,
+  AppStream metadata, notifyrc, polkit policy, KWin script, public key, all icon sizes); it runs on every PR and
+  in the release job.
 
 > Do not add `CPACK_GENERATOR "DEB"` back. There is no CI job to build or test DEB,
 > and `install.sh` would fail on Ubuntu/Debian with a 404 when trying to download a
@@ -64,8 +91,9 @@ Every release RPM is signed in CI (`.github/workflows/release.yml`, step "Sign R
 - Secrets: `RPM_SIGNING_KEY` (armored private key, no passphrase) and `RPM_SIGNING_KEY_ID` (fingerprint).
   The private key is stored nowhere else than GitHub secrets and the owner's password manager.
 - Public key: `packaging/RPM-GPG-KEY-numi-kde` — committed, installed to `/etc/pki/rpm-gpg/`, uploaded with each release.
-- Consumers verify with `rpmkeys --checksig` (must report `signatures OK`) and check the signer key id
-  `411c68b856cec16e` (`rpm -qp --qf '%{RSAHEADER:pgpsig}'`): the update helper, `install.sh`, and the release job itself.
+- Consumers verify with `rpmkeys --checksig` (must report `signatures OK`; an unsigned RPM prints only `digests OK`
+  and exits 0) and check the signer key id `411c68b856cec16e` (`rpm -qp --qf '%{RSAHEADER:pgpsig}'`): the update
+  helper, `install.sh`, and the release job itself.
 
 Rotation: generate a new key, update the secrets, replace `packaging/RPM-GPG-KEY-numi-kde`, update `EXPECTED_KEY_ID`
 in `kde/resources/numi-kde-install-update.sh` and `packaging/install.sh`, release. Installed clients verify the next
@@ -93,40 +121,53 @@ git rm --cached *.rpm *.deb SHA256SUMS 2>/dev/null || true
 
 ## Release Checklist
 
-1. Fix the issue and keep unrelated refactors out.
-2. Bump `project(... VERSION X.Y.Z ...)` in `kde/CMakeLists.txt`.
-3. Add a top entry to `CHANGELOG.md`.
-4. (Optional) Verify locally before tagging:
+Runs **after** the feature PR is merged into `main`. The `CHANGELOG.md` entry and the
+`<release>` element in `kde/resources/online.skorin.numi-kde.metainfo.xml` belong in the feature PR.
+
+1. Bump `project(... VERSION X.Y.Z ...)` in `kde/CMakeLists.txt`.
+2. Commit on `main` (version bump only):
 
 ```sh
-cmake -S kde -B kde/build -DCMAKE_BUILD_TYPE=Release
-cmake --build kde/build --target numi-kde numi-kde-tests -j$(nproc)
-./kde/build/numi-kde-tests qalc
-./kde/build/numi-kde-tests documentmodel
-./kde/build/numi-kde-tests editor
-```
-
-5. Commit and push to main:
-
-```sh
-git add kde/CMakeLists.txt CHANGELOG.md
-# (do NOT git add build artifacts)
+git checkout main && git pull
+git add kde/CMakeLists.txt
 git commit -m "vX.Y.Z: <description>"
 git push origin main
 ```
 
-6. Tag and push — **this triggers CI and publishes the release:**
+3. Tag and push — **this triggers CI and publishes the release:**
 
 ```sh
 git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-CI builds the RPM in a clean Fedora container, runs all tests, and publishes the
-GitHub Release with `numi-kde-X.Y.Z-x86_64.rpm`, `install.sh`, `uninstall.sh`,
-and `SHA256SUMS` — all in one atomic step.
+The release job builds the RPM in a clean Fedora container, runs all tests under `dbus-run-session`,
+signs the RPM, verifies the signature against the committed public key, verifies the RPM contents,
+installs the RPM and runs `numi-kde --probe` (which spawns the real engine), then publishes the GitHub
+Release with `numi-kde-X.Y.Z-x86_64.rpm`, `RPM-GPG-KEY-numi-kde`, `install.sh`, `uninstall.sh` and
+`SHA256SUMS` in one step.
 
 > **Never** use `gh release create <file>` or upload the RPM manually.
 > Doing so creates a race condition: the local RPM is uploaded immediately, then CI
 > replaces it with the CI-built one while generating SHA256SUMS — leaving a window
 > where `install.sh` downloads the RPM but gets a 404 on SHA256SUMS.
+
+### If the release job fails
+
+Nothing was published (the release is created in the last step). Fix the cause through a normal PR,
+then move the tag to the new `main` head — the tag never pointed at a published release:
+
+```sh
+git checkout main && git pull
+git tag -d vX.Y.Z
+git push origin :refs/tags/vX.Y.Z
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+Tags that were never released stay in history only if they predate this rule (e.g. `v0.1.77`).
+
+## Version Numbers
+
+Patch releases (`0.1.X`) for everything so far; the version in `kde/CMakeLists.txt` is the single source,
+compiled into both binaries (`numi-kde --version`, `numi-kde-engine --version`) and used by the RPM.
