@@ -47,12 +47,14 @@ target_include_directories(numi-kde PRIVATE ${QALCULATE_INCLUDE_DIRS})
 
 set_source_files_properties(resources/numi-kde.png PROPERTIES QT_RESOURCE_ALIAS numi-kde.png)
 set_source_files_properties(resources/numi-kde-tray.png PROPERTIES QT_RESOURCE_ALIAS numi-kde-tray.png)
+set_source_files_properties(resources/numi-kde-tray-light.png PROPERTIES QT_RESOURCE_ALIAS numi-kde-tray-light.png)
 
 qt_add_resources(numi-kde "icons"
   PREFIX "/icons"
   FILES
     resources/numi-kde.png
     resources/numi-kde-tray.png
+    resources/numi-kde-tray-light.png
 )
 
 qt_add_qml_module(numi-kde
@@ -165,7 +167,16 @@ target_link_libraries(numi-kde-tests
 target_compile_definitions(numi-kde-tests PRIVATE
   NUMI_KDE_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml"
   NUMI_KDE_APP_ID="${NUMI_KDE_APP_ID}"
+  NUMI_KDE_KWIN_SCRIPT="${CMAKE_CURRENT_SOURCE_DIR}/resources/kwin-script/contents/code/main.js"
+  NUMI_KDE_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
 )
+
+# -DNUMI_KDE_TSAN=ON builds the test binary with ThreadSanitizer (CI job).
+option(NUMI_KDE_TSAN "Build numi-kde-tests with ThreadSanitizer" OFF)
+if(NUMI_KDE_TSAN)
+  target_compile_options(numi-kde-tests PRIVATE -fsanitize=thread -g -O1)
+  target_link_options(numi-kde-tests PRIVATE -fsanitize=thread)
+endif()
 set_target_properties(numi-kde-tests PROPERTIES
   AUTOMOC ON
 )
@@ -174,7 +185,12 @@ add_test(NAME qalc-math COMMAND numi-kde-tests qalc)
 add_test(NAME documentmodel COMMAND numi-kde-tests documentmodel)
 add_test(NAME editor-keyhandlers COMMAND numi-kde-tests editor)
 add_test(NAME kwinrules COMMAND numi-kde-tests kwinrules)
-set_tests_properties(qalc-math documentmodel editor-keyhandlers kwinrules PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+add_test(NAME kwinscript-dbus COMMAND numi-kde-tests kwinscript)
+add_test(NAME golden COMMAND numi-kde-tests golden)
+add_test(NAME engine-stress COMMAND numi-kde-tests stress)
+add_test(NAME install-helper COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/shell/test-install-helper.sh)
+set_tests_properties(qalc-math documentmodel editor-keyhandlers kwinrules kwinscript-dbus golden engine-stress
+  PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # ── Packaging ────────────────────────────────────────────────────────────────
 set(CPACK_PACKAGE_NAME "numi-kde")

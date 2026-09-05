@@ -67,8 +67,13 @@ QalcBridge::QalcBridge(QObject *parent) : QObject(parent) {
         fetchFiatRates();
         fetchCryptoRates();
     });
-    m_ratesRefreshTimer->start();
 
+    // Tests set NUMI_KDE_OFFLINE_RATES: rates come only from the cache file
+    // (a fixture), so results never depend on the network or live prices.
+    if (qEnvironmentVariableIsSet("NUMI_KDE_OFFLINE_RATES"))
+        return;
+
+    m_ratesRefreshTimer->start();
     fetchFiatRates();
     fetchCryptoRates();
 }

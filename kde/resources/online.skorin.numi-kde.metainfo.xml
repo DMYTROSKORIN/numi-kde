@@ -44,6 +44,11 @@
     <color type="primary" scheme_preference="dark">#22242a</color>
   </branding>
   <releases>
+    <release version="0.1.83" date="2026-09-05">
+      <description>
+        <p>Build-time test coverage for window position memory, the update helper and the calculation engine; no functional changes.</p>
+      </description>
+    </release>
     <release version="0.1.82" date="2026-09-05">
       <description>
         <p>Original application and tray icons restored in all hicolor sizes.</p>

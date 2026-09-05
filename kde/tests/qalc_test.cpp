@@ -4,6 +4,17 @@
 #include "../src/windowmemory.h"
 #include <KConfig>
 #include <KConfigGroup>
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusReply>
+#include <QElapsedTimer>
+#include <QJSEngine>
+#include <QJSValue>
+#include <QRegularExpression>
+#include <QtConcurrent>
+#include <QFuture>
+#include <QThread>
+#include <QMetaClassInfo>
 #include <QApplication>
 #include <QDir>
 #include <QFile>
@@ -1405,6 +1416,318 @@ static void runWindowMemorySuite() {
     }
 }
 
+
+// ── KWin script (resources/kwin-script/contents/code/main.js) ────────────────
+// The script runs inside KWin, which we cannot start in CI. Instead it runs in
+// a QJSEngine with a mocked `workspace` and `callDBus`, which is enough to pin
+// down its contract: which windows it touches, what it sends, what it applies.
+static QString readTextFile(const QString &path) {
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return {};
+    return QString::fromUtf8(f.readAll());
+}
+
+static void runKWinScriptSuite() {
+    const QString scriptPath = QStringLiteral(NUMI_KDE_KWIN_SCRIPT);
+    const QString script = readTextFile(scriptPath);
+    check("kwinscript: main.js is readable", !script.isEmpty(), scriptPath, "non-empty file");
+    if (script.isEmpty()) return;
+
+    QJSEngine engine;
+    engine.installExtensions(QJSEngine::ConsoleExtension);
+    const QString prelude = QStringLiteral(R"JS(
+        var __calls = [];
+        var __savedReply = "";
+        function __signal() {
+            var handlers = [];
+            return {
+                connect: function (f) { handlers.push(f); },
+                emit: function () { for (var i = 0; i < handlers.length; i++) handlers[i].apply(null, arguments); }
+            };
+        }
+        var workspace = {
+            __windows: [],
+            windowList: function () { return this.__windows.slice(); },
+            windowAdded: __signal(),
+            virtualScreenGeometry: { x: 0, y: 0, width: 2560, height: 1440 }
+        };
+        function callDBus(service, path, iface, method) {
+            var args = Array.prototype.slice.call(arguments, 4);
+            var cb = (args.length && typeof args[args.length - 1] === "function") ? args.pop() : null;
+            __calls.push({ service: service, path: path, iface: iface, method: method, args: args });
+            if (cb && method === "savedGeometry") cb(__savedReply);
+        }
+        function __makeWindow(cls, caption, x, y, w, h, normal) {
+            return {
+                resourceClass: cls, caption: caption,
+                normalWindow: normal === undefined ? true : normal,
+                move: false, resize: false,
+                frameGeometry: { x: x, y: y, width: w, height: h },
+                interactiveMoveResizeFinished: __signal(),
+                closed: __signal()
+            };
+        }
+        function __add(w) { workspace.__windows.push(w); workspace.windowAdded.emit(w); return w; }
+        function __calls_of(method) { return __calls.filter(function (c) { return c.method === method; }); }
+    )JS");
+    QJSValue r = engine.evaluate(prelude, QStringLiteral("prelude.js"));
+    check("kwinscript: mock prelude evaluates", !r.isError(), r.toString(), "no error");
+
+    r = engine.evaluate(script, scriptPath);
+    check("kwinscript: main.js evaluates without error", !r.isError(), r.toString(), "no error");
+    if (r.isError()) return;
+
+    auto eval = [&engine](const QString &js) { return engine.evaluate(js); };
+    auto count = [&](const QString &method) { return eval(QStringLiteral("__calls_of('%1').length").arg(method)).toInt(); };
+
+    // 1. Foreign windows are ignored completely.
+    eval(QStringLiteral("__add(__makeWindow('org.kde.konsole', 'Konsole', 10, 10, 800, 600));"
+                        "__add(__makeWindow('org.mozilla.firefox', 'Numi-KDE', 10, 10, 800, 600));"));
+    check("kwinscript: foreign windows trigger no D-Bus traffic", count(QStringLiteral("savedGeometry")) == 0,
+          QString::number(count(QStringLiteral("savedGeometry"))), "0");
+
+    // 2. Our window without a saved position asks once and stays put.
+    eval(QStringLiteral("__savedReply = ''; var w1 = __add(__makeWindow('online.skorin.numi-kde', 'Numi-KDE', 873, 436, 813, 523));"));
+    const bool asked = count(QStringLiteral("savedGeometry")) == 1
+        && eval(QStringLiteral("__calls_of('savedGeometry')[0].args[0]")).toString() == QStringLiteral("Numi-KDE");
+    check("kwinscript: our window asks savedGeometry once with its caption", asked,
+          eval(QStringLiteral("JSON.stringify(__calls_of('savedGeometry'))")).toString(), "one call, arg 'Numi-KDE'");
+    check("kwinscript: empty reply leaves geometry untouched",
+          eval(QStringLiteral("w1.frameGeometry.x + ',' + w1.frameGeometry.y")).toString() == QStringLiteral("873,436"),
+          eval(QStringLiteral("w1.frameGeometry.x + ',' + w1.frameGeometry.y")).toString(), "873,436");
+
+    // 3. Saved position is applied, size preserved.
+    eval(QStringLiteral("__savedReply = '100,120'; var w2 = __add(__makeWindow('online.skorin.numi-kde', 'Numi-KDE', 873, 436, 813, 523));"));
+    const QString g2 = eval(QStringLiteral("[w2.frameGeometry.x, w2.frameGeometry.y, w2.frameGeometry.width, w2.frameGeometry.height].join(',')")).toString();
+    check("kwinscript: saved position is applied on windowAdded, size kept", g2 == QStringLiteral("100,120,813,523"), g2, "100,120,813,523");
+
+    // 4. Off-screen positions are rejected (monitor removed, resolution changed).
+    eval(QStringLiteral("__savedReply = '5000,5000'; var w3 = __add(__makeWindow('online.skorin.numi-kde', 'Numi-KDE', 873, 436, 813, 523));"));
+    const QString g3 = eval(QStringLiteral("w3.frameGeometry.x + ',' + w3.frameGeometry.y")).toString();
+    check("kwinscript: off-screen saved position is ignored", g3 == QStringLiteral("873,436"), g3, "873,436");
+    eval(QStringLiteral("__savedReply = '-900,10'; var w3b = __add(__makeWindow('online.skorin.numi-kde', 'Numi-KDE', 873, 436, 813, 523));"));
+    const QString g3b = eval(QStringLiteral("w3b.frameGeometry.x + ',' + w3b.frameGeometry.y")).toString();
+    check("kwinscript: negative off-screen position is ignored", g3b == QStringLiteral("873,436"), g3b, "873,436");
+
+    // 5. Finished interactive move reports rounded geometry with the caption.
+    eval(QStringLiteral("__calls = []; w2.frameGeometry = { x: 640.6, y: 300.2, width: 813.33, height: 523.33 }; w2.interactiveMoveResizeFinished.emit();"));
+    const QString rem = eval(QStringLiteral("JSON.stringify(__calls_of('rememberGeometry').map(function(c){return c.args;}))")).toString();
+    check("kwinscript: move end reports caption + rounded x,y,w,h", rem == QStringLiteral("[[\"Numi-KDE\",641,300,813,523]]"), rem, "[[\"Numi-KDE\",641,300,813,523]]");
+
+    // 6. Nothing is reported while a move/resize is still in progress.
+    eval(QStringLiteral("__calls = []; w2.move = true; w2.interactiveMoveResizeFinished.emit(); w2.move = false;"));
+    check("kwinscript: in-progress move is not reported", count(QStringLiteral("rememberGeometry")) == 0,
+          QString::number(count(QStringLiteral("rememberGeometry"))), "0");
+
+    // 7. Hiding the window (toplevel closed) saves the position too.
+    eval(QStringLiteral("__calls = []; w2.closed.emit();"));
+    check("kwinscript: closed window reports its last position", count(QStringLiteral("rememberGeometry")) == 1,
+          QString::number(count(QStringLiteral("rememberGeometry"))), "1");
+
+    // 8. Non-normal windows (popups, tooltips) of ours are ignored.
+    eval(QStringLiteral("__calls = []; __add(__makeWindow('online.skorin.numi-kde', 'Numi-KDE', 0, 0, 10, 10, false));"));
+    check("kwinscript: non-normal windows are ignored", count(QStringLiteral("savedGeometry")) == 0,
+          QString::number(count(QStringLiteral("savedGeometry"))), "0");
+
+    // 9. Every call targets the same service/path/interface triple.
+    const QString triple = eval(QStringLiteral("(function(){ var s = {}; __calls.forEach(function(c){ s[c.service+'|'+c.path+'|'+c.iface] = 1; }); "
+                                              "__calls = []; __add(__makeWindow('online.skorin.numi-kde', 'Numi-KDE', 1, 1, 10, 10)); "
+                                              "__calls.forEach(function(c){ s[c.service+'|'+c.path+'|'+c.iface] = 1; }); return Object.keys(s).join(';'); })()")).toString();
+    check("kwinscript: single service|path|interface triple",
+          triple == QStringLiteral("online.skorin.numi-kde|/WindowMemory|online.skorin.numi_kde.WindowMemory"),
+          triple, "online.skorin.numi-kde|/WindowMemory|online.skorin.numi_kde.WindowMemory");
+}
+
+// ── D-Bus contract between main.js and WindowMemory ──────────────────────────
+// A hyphen in the interface name silently broke every call in development.
+// This suite reads the constants out of main.js, validates them against the
+// D-Bus spec and the C++ Q_CLASSINFO, and round-trips through a real bus.
+static QString jsConst(const QString &script, const QString &name) {
+    const QRegularExpression re(QStringLiteral("const\\s+%1\\s*=\\s*\"([^\"]+)\"").arg(name));
+    return re.match(script).captured(1);
+}
+
+static bool validDBusInterfaceName(const QString &name) {
+    if (name.size() > 255 || !name.contains(QLatin1Char('.'))) return false;
+    static const QRegularExpression element(QStringLiteral("^[A-Za-z_][A-Za-z0-9_]*$"));
+    for (const QString &part : name.split(QLatin1Char('.')))
+        if (!element.match(part).hasMatch()) return false;
+    return true;
+}
+
+static void runDBusContractSuite() {
+    const QString script = readTextFile(QStringLiteral(NUMI_KDE_KWIN_SCRIPT));
+    const QString service = jsConst(script, QStringLiteral("SERVICE"));
+    const QString path    = jsConst(script, QStringLiteral("PATH"));
+    const QString iface   = jsConst(script, QStringLiteral("IFACE"));
+    const QString appId   = jsConst(script, QStringLiteral("APP_ID"));
+
+    check("dbus: main.js declares SERVICE/PATH/IFACE/APP_ID",
+          !service.isEmpty() && !path.isEmpty() && !iface.isEmpty() && !appId.isEmpty(),
+          service + " " + path + " " + iface + " " + appId, "four non-empty constants");
+
+    check("dbus: interface name is valid per D-Bus spec (no '-')", validDBusInterfaceName(iface), iface, "elements of [A-Za-z0-9_]");
+
+    QString classInfo;
+    const QMetaObject &mo = WindowMemory::staticMetaObject;
+    for (int i = 0; i < mo.classInfoCount(); ++i)
+        if (QLatin1String(mo.classInfo(i).name()) == QLatin1String("D-Bus Interface"))
+            classInfo = QString::fromLatin1(mo.classInfo(i).value());
+    check("dbus: main.js IFACE equals WindowMemory Q_CLASSINFO", iface == classInfo, iface + " vs " + classInfo, "identical");
+
+    check("dbus: main.js APP_ID equals the build's NUMI_KDE_APP_ID", appId == QStringLiteral(NUMI_KDE_APP_ID), appId, NUMI_KDE_APP_ID);
+
+    // KDBusService(Unique) derives the service name from organizationDomain
+    // ("skorin.online" reversed) + applicationName ("numi-kde"), see main.cpp.
+    check("dbus: SERVICE matches KDBusService name for skorin.online / numi-kde",
+          service == QStringLiteral("online.skorin.numi-kde"), service, "online.skorin.numi-kde");
+
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    if (!bus.isConnected()) {
+        std::printf("  SKIP  dbus: no session bus (run under dbus-run-session for the live round trip)\n");
+        return;
+    }
+    // The real app may own SERVICE on a developer machine; use a private name
+    // for the round trip. Path and interface are the ones the script uses.
+    const QString testService = QStringLiteral("online.skorin.numi_kde.test%1").arg(QCoreApplication::applicationPid());
+    WindowMemory memory;
+    const bool registered = bus.registerService(testService)
+                         && bus.registerObject(path, &memory, QDBusConnection::ExportAllSlots);
+    check("dbus: WindowMemory registers at the script's PATH", registered, path, "registered");
+    if (!registered) return;
+
+    QDBusInterface remote(testService, path, iface, bus);
+    check("dbus: remote interface object is valid", remote.isValid(), remote.lastError().message(), "valid");
+    QDBusReply<void> setReply = remote.call(QStringLiteral("rememberGeometry"), QStringLiteral("Numi-KDE"), 321, 654, 813, 523);
+    check("dbus: rememberGeometry(s,i,i,i,i) call succeeds", setReply.isValid(), setReply.error().message(), "no error");
+    QDBusReply<QString> getReply = remote.call(QStringLiteral("savedGeometry"), QStringLiteral("Numi-KDE"));
+    check("dbus: savedGeometry(s) returns what was remembered",
+          getReply.isValid() && getReply.value() == QStringLiteral("321,654"),
+          getReply.isValid() ? getReply.value() : getReply.error().message(), "321,654");
+    bus.unregisterObject(path);
+    bus.unregisterService(testService);
+}
+
+// ── Golden documents (tests/fixtures/golden/*.numi → *.expected) ─────────────
+// Each .numi is evaluated as a whole document; every line's result (or ERROR)
+// must match the .expected file line by line. `--record` rewrites .expected.
+static QString goldenLineOutput(const LineResult &r) {
+    if (!r.ok) return QStringLiteral("ERROR");
+    return r.result.isEmpty() ? QStringLiteral("(empty)") : r.result;
+}
+
+static void runGoldenSuite(bool record) {
+    QDir dir(QStringLiteral(NUMI_KDE_TEST_FIXTURES "/golden"));
+    const QStringList files = dir.entryList({QStringLiteral("*.numi")}, QDir::Files, QDir::Name);
+    check("golden: fixture directory has documents", !files.isEmpty(), dir.absolutePath(), "at least one .numi");
+
+    for (const QString &name : files) {
+        const QString source = readTextFile(dir.filePath(name));
+        QStringList lines = source.split(QLatin1Char('\n'));
+        if (!lines.isEmpty() && lines.last().isEmpty()) lines.removeLast();
+
+        int decimals = 3;
+        static const QRegularExpression directive(QStringLiteral("^#\\s*decimals\\s*=\\s*(\\d+)"));
+        if (!lines.isEmpty()) {
+            const auto m = directive.match(lines.first());
+            if (m.hasMatch()) decimals = m.captured(1).toInt();
+        }
+
+        QalcBridge bridge;
+        bridge.setDecimalPlaces(decimals);
+        const QList<LineResult> results = bridge.evaluateDocument(lines.join(QLatin1Char('\n')));
+
+        QStringList actual;
+        for (const LineResult &r : results) actual << goldenLineOutput(r);
+
+        const QString expectedPath = dir.filePath(QString(name).replace(QStringLiteral(".numi"), QStringLiteral(".expected")));
+        if (record) {
+            QFile f(expectedPath);
+            f.open(QIODevice::WriteOnly | QIODevice::Text);
+            f.write((actual.join(QLatin1Char('\n')) + QLatin1Char('\n')).toUtf8());
+            std::printf("  RECORDED  %s (%d lines)\n", qPrintable(name), int(actual.size()));
+            continue;
+        }
+
+        QStringList expected = readTextFile(expectedPath).split(QLatin1Char('\n'));
+        if (!expected.isEmpty() && expected.last().isEmpty()) expected.removeLast();
+
+        bool same = expected.size() == actual.size();
+        QString firstDiff;
+        for (int i = 0; same && i < expected.size(); ++i) {
+            if (expected.at(i) != actual.at(i)) {
+                same = false;
+                firstDiff = QStringLiteral("line %1 '%2': got '%3', expected '%4'")
+                                .arg(i + 1).arg(lines.value(i), actual.at(i), expected.at(i));
+            }
+        }
+        if (!same && firstDiff.isEmpty())
+            firstDiff = QStringLiteral("%1 lines, expected %2").arg(actual.size()).arg(expected.size());
+        check(qPrintable(QStringLiteral("golden: %1").arg(name)), same, firstDiff, "matches .expected");
+    }
+}
+
+// ── Engine stress: abort + concurrent readers ────────────────────────────────
+static void runEngineStressSuite() {
+    // 1. A long-running evaluation must stop promptly when aborted.
+    {
+        QalcBridge bridge;
+        bridge.setDecimalPlaces(2);
+        // Nested factorials are expensive for libqalculate; 5 s timeout inside.
+        const QString heavy = QStringLiteral("factorial(factorial(9))\nfactorial(200000)\n2^(2^30)");
+        QElapsedTimer t; t.start();
+        QFuture<QList<LineResult>> fut = QtConcurrent::run([&bridge, heavy]() { return bridge.evaluateDocument(heavy); });
+        QThread::msleep(150);
+        bridge.abortCalculation();
+        fut.waitForFinished();
+        const qint64 ms = t.elapsed();
+        check("stress: aborted evaluation finishes well under the 5 s per-line timeout", ms < 4000,
+              QStringLiteral("%1 ms").arg(ms), "< 4000 ms");
+        check("stress: aborted evaluation still returns one result per line", fut.result().size() == 3,
+              QString::number(fut.result().size()), "3");
+    }
+
+    // 2. GUI-thread readers hammer the bridge while evaluations run in the pool.
+    {
+        QalcBridge bridge;
+        bridge.setDecimalPlaces(2);
+        QString doc;
+        for (int i = 0; i < 60; ++i)
+            doc += QStringLiteral("Variable number %1 = %2 * 1.5\n").arg(i).arg(i + 1);
+        doc += QStringLiteral("Variable number 3 + Variable number 4\n1 km to m\n20% of 500\n");
+
+        std::atomic<bool> stop{false};
+        std::atomic<int> evaluations{0};
+        QFuture<void> worker = QtConcurrent::run([&]() {
+            while (!stop.load()) {
+                bridge.evaluateDocument(doc);
+                ++evaluations;
+            }
+        });
+
+        QElapsedTimer t; t.start();
+        int reads = 0;
+        while (t.elapsed() < 1500) {
+            bridge.getCompletions(QStringLiteral("Variable num"));
+            bridge.getCompletion(QStringLiteral("kil"));
+            bridge.highlightLine(QStringLiteral("Variable number 3 + 4 km"));
+            bridge.setDecimalPlaces(reads % 5);
+            bridge.setDefaultCurrency(reads % 2 ? QStringLiteral("EUR") : QStringLiteral("USD"));
+            ++reads;
+        }
+        stop.store(true);
+        worker.waitForFinished();
+        check("stress: concurrent completions/highlighting during evaluation do not crash",
+              reads > 0 && evaluations.load() > 0,
+              QStringLiteral("%1 reads, %2 evaluations").arg(reads).arg(evaluations.load()), "> 0 each");
+
+        const QStringList completions = bridge.getCompletions(QStringLiteral("Variable number 1"));
+        check("stress: completion snapshot is consistent after the run",
+              completions.size() == 11 /* 1, 10..19 */,
+              QString::number(completions.size()), "11");
+    }
+}
+
 int main(int argc, char *argv[]) {
     QTemporaryDir tempHome;
     if (!tempHome.isValid()) {
@@ -1414,12 +1737,23 @@ int main(int argc, char *argv[]) {
 
     qputenv("HOME", tempHome.path().toUtf8());
     qputenv("XDG_CONFIG_HOME", tempHome.filePath(".config").toUtf8());
+    qputenv("XDG_CACHE_HOME", tempHome.filePath(".cache").toUtf8());
     if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
         qputenv("QT_QPA_PLATFORM", "offscreen");
+
+    // Deterministic, network-free exchange rates: QalcBridge loads them from
+    // the cache file, and NUMI_KDE_OFFLINE_RATES stops it from fetching live ones.
+    qputenv("NUMI_KDE_OFFLINE_RATES", "1");
 
     QApplication app(argc, argv);
     app.setApplicationName("numi-kde-test");
     app.setOrganizationName("numi-kde");
+    {
+        const QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+        QDir().mkpath(cacheDir);
+        if (!QFile::copy(QStringLiteral(NUMI_KDE_TEST_FIXTURES "/rates.json"), cacheDir + "/rates.json"))
+            std::printf("WARNING: could not install rates fixture into %s\n", qPrintable(cacheDir));
+    }
 
     const QString suite = argc > 1 ? QString::fromLocal8Bit(argv[1]) : QStringLiteral("qalc");
 
@@ -1434,6 +1768,18 @@ int main(int argc, char *argv[]) {
         runKWinRulesSuite();
         std::printf("\n=== numi-kde Window Memory Test Suite ===\n\n");
         runWindowMemorySuite();
+    } else if (suite == QStringLiteral("kwinscript")) {
+        std::printf("=== numi-kde KWin Script Test Suite ===\n\n");
+        runKWinScriptSuite();
+        std::printf("\n=== numi-kde D-Bus Contract Test Suite ===\n\n");
+        runDBusContractSuite();
+    } else if (suite == QStringLiteral("golden")) {
+        const bool record = argc > 2 && QString::fromLocal8Bit(argv[2]) == QStringLiteral("--record");
+        std::printf("=== numi-kde Golden Document Test Suite%s ===\n\n", record ? " (recording)" : "");
+        runGoldenSuite(record);
+    } else if (suite == QStringLiteral("stress")) {
+        std::printf("=== numi-kde Engine Stress Test Suite ===\n\n");
+        runEngineStressSuite();
     } else {
         std::printf("=== numi-kde QalcBridge Test Suite ===\n\n");
         QalcBridge bridge;

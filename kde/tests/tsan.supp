@@ -1,0 +1,8 @@
+# ThreadSanitizer suppressions for numi-kde tests.
+# libqalculate runs its own calculation thread and signals it through plain
+# flags; Qt's QML engine and event loop have known benign reports.
+race:libqalculate
+race:libQt6Qml
+race:libQt6Quick
+race:libQt6QuickControls2
+deadlock:libQt6Core
