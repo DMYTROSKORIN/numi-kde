@@ -314,17 +314,54 @@ void QalcBridge::setDefaultCurrency(const QString &currency) {
 
 // Format a number with exactly maxDecimals decimal places.
 // Uses system locale for thousands separators and decimal point.
-static QString smartFormat(double value, int maxDecimals) {
-    if (std::isinf(value) || std::isnan(value)) return QString::number(value);
-    QLocale locale;
-    if (maxDecimals == 0) return locale.toString(value, 'f', 0);
-    QString s = locale.toString(value, 'f', maxDecimals);
-    const QString dec = locale.decimalPoint();
+// Drops trailing zeros (and a dangling decimal point) from a formatted number.
+static QString trimFraction(QString s, const QString &dec) {
     if (s.contains(dec)) {
         while (s.endsWith(QLatin1Char('0'))) s.chop(1);
         if (s.endsWith(dec)) s.chop(1);
     }
     return s;
+}
+
+// Human formatting of a double at up to `maxDecimals` places:
+//  * .5 always rounds away from zero (2.5 → 3, -2.5 → -3), never banker's;
+//  * magnitudes a double cannot show exactly (>= 1e15) and non-zero values
+//    that would collapse to 0 at the requested precision use scientific
+//    notation with `maxDecimals` (at least 3) significant decimals: 1.204e24.
+static QString smartFormat(double value, int maxDecimals) {
+    if (std::isinf(value) || std::isnan(value)) return QString::number(value);
+    QLocale locale;
+    const QString dec = locale.decimalPoint();
+    const double magnitude = std::fabs(value);
+
+    const bool tooLarge = magnitude >= 1e15;
+    // At 0 decimals the user asked for integers: 0.4 → 0 is the expected
+    // answer, not 4e-1. With decimals enabled, a non-zero value that would
+    // vanish into "0" is shown in scientific notation instead.
+    const bool tooSmall = maxDecimals > 0 && value != 0.0
+                       && magnitude < 0.5 * std::pow(10.0, -maxDecimals);
+    if (tooLarge || tooSmall) {
+        const int sig = std::max(3, maxDecimals);
+        QString e = locale.toString(value, 'e', sig);          // 1.204000e+24
+        const int ePos = e.indexOf(QLatin1Char('e'));
+        if (ePos < 0) return e;
+        QString mantissa = trimFraction(e.left(ePos), dec);
+        int exponent = e.mid(ePos + 1).toInt();                 // handles "+24" / "-07"
+        return mantissa + QLatin1Char('e') + QString::number(exponent);
+    }
+
+    // Round half away from zero at the requested precision, then print exactly.
+    // The nudge keeps halves that binary representation left a hair below .5
+    // (1.005 → 1.00499999…) rounding up like the user expects.
+    const double scale = std::pow(10.0, maxDecimals);
+    const double scaled = value * scale;
+    double rounded = value;
+    if (std::fabs(scaled) < 9007199254740992.0) {              // 2^53: exact integer range
+        rounded = std::round(scaled + std::copysign(1e-9, scaled)) / scale;
+        if (rounded == 0.0) rounded = 0.0;                      // no "-0"
+    }
+    if (maxDecimals == 0) return locale.toString(rounded, 'f', 0);
+    return trimFraction(locale.toString(rounded, 'f', maxDecimals), dec);
 }
 
 static QString pluralize(int value, const QString &one, const QString &many)
@@ -1487,7 +1524,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                     MathStructure _assignTmp;
                     m_calc->calculate(&_assignTmp, assignment.toStdString(), 5000, eo);
 
-                    if (rhsResult.isNumber()) {
+                    if (rhsResult.isNumber() && !rhsResult.number().hasImaginaryPart()) {
                         double v = rhsResult.number().floatValue();
                         if (!std::isfinite(v)) {
                             res.ok = false;
@@ -1563,7 +1600,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 if (m_calc->aborted() || hasCalculationError(m_calc) || result.isUndefined() || result.isInfinite()) {
                     res.ok = false;
                     res.error = "Error";
-                } else if (result.isNumber()) {
+                } else if (result.isNumber() && !result.number().hasImaginaryPart()) {
                     double v = result.number().floatValue();
                     if (!std::isfinite(v)) {
                         res.ok = false;
