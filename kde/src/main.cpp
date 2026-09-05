@@ -126,6 +126,8 @@ int main(int argc, char *argv[])
     app.setQuitOnLastWindowClosed(false);   // stay alive in tray when window is closed
     const QIcon appIcon = QIcon::fromTheme(QStringLiteral(NUMI_KDE_APP_ID),
                                            QIcon(QStringLiteral(":/icons/numi-kde.png")));
+    // The tray keeps the original monochrome Numi-KDE badge from the resources.
+    const QIcon trayIcon(QStringLiteral(":/icons/numi-kde-tray.png"));
     app.setWindowIcon(appIcon);
 
     // Single instance: a second launch (menu, autostart, `numi-kde` from a
@@ -202,8 +204,7 @@ int main(int argc, char *argv[])
 
     // ── System tray ──────────────────────────────────────────────────────
     QSystemTrayIcon tray;
-    tray.setIcon(QIcon::fromTheme(QStringLiteral(NUMI_KDE_APP_ID "-symbolic"),
-                                  QIcon(QStringLiteral(":/icons/numi-kde-tray.png"))));
+    tray.setIcon(trayIcon);
     tray.setToolTip(QStringLiteral("Numi-KDE"));
 
     QMenu trayMenu;

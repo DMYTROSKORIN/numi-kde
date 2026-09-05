@@ -39,7 +39,8 @@ kde/
   src/           C++ backend
   qml/           QML frontend
   tests/         Unit tests (qalc_test.cpp)
-  resources/     Icons (PNG, SVG, symbolic), online.skorin.numi-kde.desktop / .metainfo.xml,
+  resources/     Icons (original PNG logo, pre-rendered hicolor sizes in icons/hicolor — no SVG, owner's decision),
+                 online.skorin.numi-kde.desktop / .metainfo.xml,
                  numi-kde.notifyrc, polkit policy + update helper script
   CMakeLists.txt Build definition (version lives here)
 docs/

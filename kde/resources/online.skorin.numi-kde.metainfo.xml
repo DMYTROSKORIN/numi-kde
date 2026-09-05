@@ -44,6 +44,11 @@
     <color type="primary" scheme_preference="dark">#22242a</color>
   </branding>
   <releases>
+    <release version="0.1.82" date="2026-09-05">
+      <description>
+        <p>Original application and tray icons restored in all hicolor sizes.</p>
+      </description>
+    </release>
     <release version="0.1.81" date="2026-09-05">
       <description>
         <p>Window position is remembered again on Wayland, updates install silently and restart the app when it is not in use, hardened update helper, single-instance, thread-safety fixes, standard app id and icons.</p>

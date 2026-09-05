@@ -111,15 +111,10 @@ endif()
 install(TARGETS numi-kde RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES resources/${NUMI_KDE_APP_ID}.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES resources/${NUMI_KDE_APP_ID}.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
-install(FILES resources/numi-kde.png
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
-  RENAME ${NUMI_KDE_APP_ID}.png
-)
-install(FILES resources/${NUMI_KDE_APP_ID}.svg
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
-)
-install(FILES resources/${NUMI_KDE_APP_ID}-symbolic.svg
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/symbolic/apps
+# The original Numi-KDE logo, pre-rendered from resources/numi-kde.png into
+# every hicolor size Plasma asks for (menus, task manager, notifications).
+install(DIRECTORY resources/icons/hicolor
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons
 )
 install(FILES resources/numi-kde.notifyrc
   DESTINATION ${CMAKE_INSTALL_DATADIR}/knotifications6
