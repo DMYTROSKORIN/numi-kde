@@ -33,7 +33,7 @@ jobs:
 
       # dbus-run-session gives the D-Bus contract test a real session bus.
       - name: Test
-        run: dbus-run-session -- ctest --test-dir build --output-on-failure
+        run: dbus-run-session -- ctest --test-dir build --output-on-failure --timeout 300
 
       # Every PR must still produce an RPM that carries all runtime files.
       - name: Package and verify RPM contents

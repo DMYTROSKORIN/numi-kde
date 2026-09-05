@@ -299,11 +299,12 @@ void QalcBridge::setDecimalPlaces(int places) {
 
 void QalcBridge::abortCalculation() {
     // Safe to call from any thread. The flag makes evaluateDocument() skip the
-    // lines it has not reached yet; libqalculate's abort() interrupts the line
-    // being calculated right now (it only acts while a timed calculate() runs).
+    // lines it has not reached yet. The line being calculated right now is
+    // left to libqalculate's own per-line timeout: calling Calculator::abort()
+    // from another thread races with that timeout machinery and has been seen
+    // to hang the calculation thread on slow machines (CI), which would
+    // freeze every later evaluation.
     m_abortRequested.store(true);
-    if (m_calc->busy())
-        m_calc->abort();
 }
 
 void QalcBridge::setDefaultCurrency(const QString &currency) {
