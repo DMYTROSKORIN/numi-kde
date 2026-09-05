@@ -216,6 +216,18 @@ replaced by the CI-built one while SHA256SUMS is still being generated, causing 
 3. `main.cpp`: window hidden → `restartApp()` immediately (`numi-kde --hidden`); window visible → restart on next hide,
    KNotification with "Restart now". First start after an update shows one "Numi-KDE updated" notification.
 
+### Release signing
+
+- CI signs the RPM (`rpmsign --addsign`) with the key from repository secrets `RPM_SIGNING_KEY` (armored private key)
+  and `RPM_SIGNING_KEY_ID` (fingerprint). Public key: `packaging/RPM-GPG-KEY-numi-kde`, installed to
+  `/etc/pki/rpm-gpg/RPM-GPG-KEY-numi-kde` and published with every release.
+- Key: `Numi-KDE Release Signing <dev@skorin.online>`, fingerprint `7022A79158931F4131646599411C68B856CEC16E`,
+  expires 2029-09-04. The helper and `install.sh` hard-code the key id `411c68b856cec16e` — **rotate all three
+  places together** (key file, `EXPECTED_KEY_ID` in `resources/numi-kde-install-update.sh` and `packaging/install.sh`).
+- Verification is `rpmkeys --checksig` → must print `signatures OK` (an unsigned RPM prints only `digests OK` and
+  exits 0, so the string check is the gate) plus `rpm -qp --qf '%{RSAHEADER:pgpsig}'` → must name the key id.
+- The private key exists only in GitHub secrets and the owner's password manager. Never commit it.
+
 ## Test Layers
 
 | Layer | What it guards | Where |

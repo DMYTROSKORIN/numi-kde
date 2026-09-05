@@ -7,13 +7,17 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
-HELPER="$ROOT/kde/resources/numi-kde-install-update.sh"
+HELPER_SRC="$ROOT/kde/resources/numi-kde-install-update.sh"
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 stubs="$work/bin"
 mkdir -p "$stubs" "$work/release"
 export STUB_DIR="$work"
+# The helper reads the project key from /etc/pki/rpm-gpg; the test copy points at a fixture instead.
+cp "$ROOT/packaging/RPM-GPG-KEY-numi-kde" "$work/RPM-GPG-KEY-numi-kde"
+HELPER="$work/helper.sh"
+sed "s|^PUBLIC_KEY=.*|PUBLIC_KEY=\"$work/RPM-GPG-KEY-numi-kde\"|" "$HELPER_SRC" > "$HELPER"
 
 passed=0
 failed=0
@@ -41,12 +45,29 @@ name=$(basename "$url")
 [[ -f "$STUB_DIR/release/$name" ]] || exit 22
 cp "$STUB_DIR/release/$name" "$out"
 EOF
-# rpm -q --qf %{VERSION} numi-kde → installed version; rpm -qp --qf %{NAME} <file> → first line of the fake rpm.
+# Fake rpm layout: line 1 = package name, line 2 = signer key id ("unsigned" for none).
+# rpm -q --qf %{VERSION} numi-kde → installed version
+# rpm -qp --qf %{NAME} <file>      → line 1;  rpm -qp --qf %{RSAHEADER:pgpsig} → "RSA/SHA256, ..., Key ID <line 2>"
 cat > "$stubs/rpm" <<'EOF'
 #!/usr/bin/env bash
-if [[ "$1" == "-qp" ]]; then head -n1 "${@: -1}"; exit 0; fi
+if [[ "$1" == "-qp" ]]; then
+  file="${@: -1}"
+  if [[ "$*" == *RSAHEADER* ]]; then
+    signer=$(sed -n 2p "$file")
+    [[ "$signer" == "unsigned" ]] && { printf '(none)'; exit 0; }
+    printf 'RSA/SHA256, Fri Sep  5 2026, Key ID %s' "$signer"; exit 0
+  fi
+  head -n1 "$file"; exit 0
+fi
 [[ -n "${STUB_INSTALLED:-}" ]] || exit 1
 printf '%s' "$STUB_INSTALLED"
+EOF
+# rpmkeys --import <key> → records; rpmkeys --checksig <rpm> → "signatures OK" only for signed fakes.
+cat > "$stubs/rpmkeys" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "--import" ]]; then echo "import $2" >> "$STUB_DIR/rpmkeys.log"; exit 0; fi
+file="${@: -1}"
+if [[ "$(sed -n 2p "$file")" == "unsigned" ]]; then echo "$file: digests OK"; else echo "$file: digests signatures OK"; fi
 EOF
 cat > "$stubs/dnf" <<'EOF'
 #!/usr/bin/env bash
@@ -56,10 +77,13 @@ chmod +x "$stubs"/*
 export PATH="$stubs:$PATH"
 
 arch=$(uname -m)
-make_release() { # version name-inside-rpm [break-checksum]
-  local name="$2" rpm="numi-kde-$1-$arch.rpm"
+GOOD_KEY="411c68b856cec16e"
+make_release() { # version name-inside-rpm [break-checksum|unsigned|wrongkey]
+  local name="$2" rpm="numi-kde-$1-$arch.rpm" signer="$GOOD_KEY"
+  [[ "${3:-}" == "unsigned" ]] && signer="unsigned"
+  [[ "${3:-}" == "wrongkey" ]] && signer="deadbeefcafef00d"
   rm -f "$work/release"/*
-  printf '%s\nfake rpm payload\n' "$name" > "$work/release/$rpm"
+  printf '%s\n%s\nfake rpm payload\n' "$name" "$signer" > "$work/release/$rpm"
   ( cd "$work/release" && sha256sum "$rpm" > SHA256SUMS )
   if [[ "${3:-}" == "break-checksum" ]]; then
     echo "tampered" >> "$work/release/$rpm"
@@ -106,12 +130,21 @@ make_release 0.1.90 evil-package
 run_helper "0.1.90"
 check "foreign package name is refused (exit 6, no dnf)" "$([[ $rc -eq 6 && $(dnf_called) == no ]] && echo true || echo false)" "rc=$rc dnf=$(dnf_called)" "rc=6 dnf=no"
 
+make_release 0.1.90 numi-kde unsigned
+run_helper "0.1.90"
+check "unsigned rpm is refused (exit 7, no dnf)" "$([[ $rc -eq 7 && $(dnf_called) == no ]] && echo true || echo false)" "rc=$rc dnf=$(dnf_called)" "rc=7 dnf=no"
+
+make_release 0.1.90 numi-kde wrongkey
+run_helper "0.1.90"
+check "rpm signed by a foreign key is refused (exit 8, no dnf)" "$([[ $rc -eq 8 && $(dnf_called) == no ]] && echo true || echo false)" "rc=$rc dnf=$(dnf_called)" "rc=8 dnf=no"
+
 make_release 0.1.90 numi-kde
 run_helper "0.1.90"
 dnf_args=$(cat "$work/dnf.log" 2>/dev/null || true)
 ok=false
-[[ $rc -eq 0 && "$dnf_args" == install\ -y\ --nogpgcheck\ /var/tmp/numi-kde-update.*/numi-kde-0.1.90-$arch.rpm ]] && ok=true
-check "verified release is installed from a root temp dir" "$ok" "rc=$rc dnf='$dnf_args'" "rc=0 dnf='install -y --nogpgcheck /var/tmp/numi-kde-update.*/numi-kde-0.1.90-$arch.rpm'"
+[[ $rc -eq 0 && "$dnf_args" == install\ -y\ /var/tmp/numi-kde-update.*/numi-kde-0.1.90-$arch.rpm ]] && ok=true
+check "verified, signed release is installed without --nogpgcheck" "$ok" "rc=$rc dnf='$dnf_args'" "rc=0 dnf='install -y /var/tmp/numi-kde-update.*/numi-kde-0.1.90-$arch.rpm'"
+check "project key was imported before checking the signature" "$([[ -s "$work/rpmkeys.log" ]] && echo true || echo false)" "$(cat "$work/rpmkeys.log" 2>/dev/null)" "import <key>"
 
 leftovers=$(find /var/tmp -maxdepth 1 -name "numi-kde-update.*" 2>/dev/null | wc -l)
 check "temporary download directory is cleaned up" "$([[ $leftovers -eq 0 ]] && echo true || echo false)" "$leftovers dirs left" "0 dirs left"
