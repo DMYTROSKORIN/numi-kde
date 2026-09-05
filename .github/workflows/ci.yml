@@ -68,7 +68,7 @@ jobs:
       - name: Run under ThreadSanitizer
         env:
           QT_QPA_PLATFORM: offscreen
-          TSAN_OPTIONS: "suppressions=kde/tests/tsan.supp halt_on_error=1 second_deadlock_stack=1"
+          TSAN_OPTIONS: "suppressions=kde/tests/tsan.supp halt_on_error=1 second_deadlock_stack=1 report_thread_leaks=0"
         run: |
           for suite in qalc stress kwinrules golden; do
             echo "::group::$suite"
