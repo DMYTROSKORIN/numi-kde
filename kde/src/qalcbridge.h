@@ -9,6 +9,7 @@
 #include <QJsonObject>
 #include <QHash>
 #include <QMutex>
+#include <atomic>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -84,6 +85,8 @@ private:
     // Defaults to "USD". Configurable via Settings.
     QString m_defaultCurrency = QStringLiteral("USD");
     mutable QMutex m_calcMutex;
+    // Set by abortCalculation(); evaluateDocument() skips the remaining lines.
+    std::atomic<bool> m_abortRequested{false};
     // Autocomplete snapshot: written at the end of evaluateDocument() (worker thread),
     // read by getCompletions() (GUI thread). Guarded by its own mutex so the GUI never
     // waits on a long calculation.

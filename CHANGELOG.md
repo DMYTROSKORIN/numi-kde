@@ -4,6 +4,8 @@
 
 ### Fix
 
+- **`sum(…, x)` / `product(…, x)` crashed the app**: between evaluations the engine deleted every non-builtin variable, including libqalculate's global unknowns `x`, `y`, `z`, leaving dangling pointers inside the library. Only variables created by the document are removed now. Found by the new golden tests.
+- **Abort skips the rest of the document**: when new input supersedes a running evaluation, the lines not yet reached are no longer evaluated; the engine is destroyed safely even mid-calculation.
 - **Tray icon for light colour schemes**: the original badge is shipped in an inverted variant (dark glyph on a light disc) and chosen from the Plasma colour scheme at start and whenever the scheme changes.
 
 ### Tests and CI

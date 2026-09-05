@@ -79,6 +79,9 @@ QalcBridge::QalcBridge(QObject *parent) : QObject(parent) {
 }
 
 QalcBridge::~QalcBridge() {
+    // Calculator's destructor joins its calculation thread; make sure that
+    // thread is not in the middle of a long computation.
+    abortCalculation();
     delete m_highlighter;
     delete m_calc;
 }
@@ -295,8 +298,10 @@ void QalcBridge::setDecimalPlaces(int places) {
 }
 
 void QalcBridge::abortCalculation() {
-    // Safe to call from any thread: libqalculate's abort() only acts while a
-    // timed calculate() is running and returns once it has been interrupted.
+    // Safe to call from any thread. The flag makes evaluateDocument() skip the
+    // lines it has not reached yet; libqalculate's abort() interrupts the line
+    // being calculated right now (it only acts while a timed calculate() runs).
+    m_abortRequested.store(true);
     if (m_calc->busy())
         m_calc->abort();
 }
@@ -1019,6 +1024,7 @@ QString QalcBridge::highlightLine(const QString &line) const
 
 QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
     QMutexLocker locker(&m_calcMutex);
+    m_abortRequested.store(false);
 
     // Clear per-document variable state from any previous run.
     m_varCurrencyTag.clear();
@@ -1029,11 +1035,14 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
 
     // Clear user-defined variables from previous evaluations.
     // We collect names first to avoid iterator invalidation during removal.
+    // Only *local* variables are ours: the global definitions also contain
+    // non-builtin unknowns such as x, y, z, and deleting those left dangling
+    // pointers inside libqalculate — `sum(sin(x), 1, 10, x)` crashed the app.
     std::vector<std::string> toRemove;
     for (size_t i = 0; ; ++i) {
         Variable *v = m_calc->getVariable(i);
         if (!v) break;
-        if (!v->isBuiltin()) {
+        if (v->isLocal() && !v->isBuiltin()) {
             toRemove.push_back(v->name());
         }
     }
@@ -1125,6 +1134,14 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         const QString totalKey = totalKeyForExpression(trimmed);
 
         res.highlightedHtml = m_highlighter->highlightLine(rawLine, singleWordVars, multiWordVarsSorted);
+
+        // The document was superseded (new input arrived): stop spending time
+        // on the remaining lines, the caller discards this result set anyway.
+        if (m_abortRequested.load()) {
+            res.ok = true;
+            results.append(res);
+            continue;
+        }
 
         // Empty / comment lines
         if (trimmed.isEmpty() || trimmed.startsWith("//") || trimmed.startsWith("#")) {

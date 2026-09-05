@@ -1674,18 +1674,29 @@ static void runEngineStressSuite() {
     {
         QalcBridge bridge;
         bridge.setDecimalPlaces(2);
-        // Nested factorials are expensive for libqalculate; 5 s timeout inside.
-        const QString heavy = QStringLiteral("factorial(factorial(9))\nfactorial(200000)\n2^(2^30)");
+        // Long *iterative* work: libqalculate checks its abort flag between
+        // steps of sum(), so abort() can interrupt it. A single giant GMP
+        // operation (e.g. 2^(2^30)) cannot be interrupted and would stall CI.
+        // Lines after the aborted one must be skipped, not evaluated.
+        const QString heavy = QStringLiteral("sum(sin(x), 1, 10^9, x)\n2 + 2\n1 km to m");
         QElapsedTimer t; t.start();
         QFuture<QList<LineResult>> fut = QtConcurrent::run([&bridge, heavy]() { return bridge.evaluateDocument(heavy); });
         QThread::msleep(150);
         bridge.abortCalculation();
         fut.waitForFinished();
         const qint64 ms = t.elapsed();
-        check("stress: aborted evaluation finishes well under the 5 s per-line timeout", ms < 4000,
-              QStringLiteral("%1 ms").arg(ms), "< 4000 ms");
+        check("stress: aborted evaluation returns promptly (remaining lines skipped)", ms < 3000,
+              QStringLiteral("%1 ms").arg(ms), "< 3000 ms");
         check("stress: aborted evaluation still returns one result per line", fut.result().size() == 3,
               QString::number(fut.result().size()), "3");
+        check("stress: lines after the abort point carry no result",
+              fut.result().size() == 3 && fut.result().at(2).result.isEmpty(),
+              fut.result().size() == 3 ? fut.result().at(2).result : QStringLiteral("n/a"), "");
+        // The bridge is usable again right after an abort.
+        const QList<LineResult> again = bridge.evaluateDocument(QStringLiteral("2 + 2"));
+        check("stress: evaluation works normally after an abort",
+              again.size() == 1 && again.at(0).ok && again.at(0).result == QStringLiteral("4"),
+              again.isEmpty() ? QStringLiteral("no result") : again.at(0).result, "4");
     }
 
     // 2. GUI-thread readers hammer the bridge while evaluations run in the pool.
