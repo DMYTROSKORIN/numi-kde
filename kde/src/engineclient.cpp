@@ -42,10 +42,24 @@ QString EngineClient::enginePath()
     const QByteArray env = qgetenv("NUMI_KDE_ENGINE");
     if (!env.isEmpty() && QFile::exists(QString::fromLocal8Bit(env)))
         return QString::fromLocal8Bit(env);
-    const QString beside = QCoreApplication::applicationDirPath() + QLatin1Char('/') + kEngineName;
-    if (QFile::exists(beside))
-        return beside;
-    return QStringLiteral(NUMI_KDE_LIBEXECDIR "/") + kEngineName;
+
+    // Development builds keep the engine next to the GUI binary. Installed
+    // builds keep it in <prefix>/libexec relative to <prefix>/bin — resolved
+    // from the running binary so the RPM's /usr prefix wins over whatever
+    // prefix the tree was configured with (CPack repackages under /usr).
+    const QString appDir = QCoreApplication::applicationDirPath();
+    const QStringList candidates = {
+        appDir + QLatin1Char('/') + kEngineName,
+        QDir::cleanPath(appDir + QStringLiteral("/../libexec/") + kEngineName),
+        QDir::cleanPath(appDir + QStringLiteral("/../lib/numi-kde/") + kEngineName),
+        QStringLiteral(NUMI_KDE_LIBEXECDIR "/") + kEngineName,
+        QStringLiteral("/usr/libexec/") + kEngineName,
+        QStringLiteral("/usr/lib/numi-kde/") + kEngineName,
+    };
+    for (const QString &candidate : candidates)
+        if (QFile::exists(candidate))
+            return candidate;
+    return candidates.at(3);   // for the error message
 }
 
 bool EngineClient::start()
