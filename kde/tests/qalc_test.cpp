@@ -1791,7 +1791,10 @@ static void runEngineStressSuite() {
               again.isEmpty() ? QStringLiteral("no result") : again.at(0).result, "4");
     }
 
-    // 2. GUI-thread readers hammer the bridge while evaluations run in the pool.
+    // 2. The thread-safe surface (snapshot completions, cancel) is hammered from
+    //    this thread while evaluations run on the worker. Calculator-touching
+    //    calls (highlight, single completion, setters) are NOT made here: the
+    //    contract in qalcbridge.h forbids driving libqalculate from two threads.
     {
         bridge->setDecimalPlaces(2);
         QString doc;
@@ -1808,15 +1811,15 @@ static void runEngineStressSuite() {
             }
         });
 
+        // Bounded by iterations as well as time: every reader that takes the
+        // calculator mutex may wait for a whole document evaluation, and on a
+        // slow runner an unbounded loop turned into minutes.
         QElapsedTimer t; t.start();
         int reads = 0;
-        while (t.elapsed() < 1500) {
+        while (t.elapsed() < 1500 && reads < 2000) {
             bridge->getCompletions(QStringLiteral("Variable num"));
-            bridge->highlightLine(QStringLiteral("Variable number 3 + 4 km"));
-            if (reads % 10 == 0) {
-                bridge->getCompletion(QStringLiteral("kil"));
-                bridge->setDecimalPlaces(2 + reads % 3);
-            }
+            bridge->getCompletions(QStringLiteral("kilo"));
+            if (reads % 50 == 0) bridge->abortCalculation();   // supersede, like the GUI does
             ++reads;
         }
         stop.store(true);
@@ -1826,10 +1829,15 @@ static void runEngineStressSuite() {
               QStringLiteral("finished=%1 %2 reads, %3 evaluations").arg(finished).arg(reads).arg(evaluations.load()), "finished, > 0 each");
         if (!finished) return; // the engine stays alive with its stuck worker
 
+        // Worker is idle now: Calculator-touching calls are fine again from this thread.
+        bridge->evaluateDocument(doc);
         const QStringList completions = bridge->getCompletions(QStringLiteral("Variable number 1"));
         check("stress: completion snapshot is consistent after the run",
               completions.size() == 3 /* 1, 10, 11 */,
               QString::number(completions.size()), "3");
+        check("stress: highlight and single completion work after the concurrent phase",
+              bridge->highlightLine(QStringLiteral("# note")).contains("<span") && bridge->getCompletion(QStringLiteral("kil")).startsWith("kil"),
+              bridge->getCompletion(QStringLiteral("kil")), "kil…");
     }
 }
 

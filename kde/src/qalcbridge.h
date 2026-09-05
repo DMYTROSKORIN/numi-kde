@@ -22,6 +22,15 @@ class Unit;
 
 class SyntaxHighlighter;
 
+/**
+ * Threading contract: everything that reaches libqalculate's Calculator —
+ * evaluateDocument(), getCompletion(), highlightLine(), setDecimalPlaces(),
+ * setDefaultCurrency(), the rate appliers — must run on ONE thread (the engine
+ * process uses a single-thread pool). The library stalls its own calculation
+ * thread when driven from two threads, even with our mutex serialising them.
+ * Thread-safe from any thread: getCompletions() (snapshot), abortCalculation(),
+ * networkStatus().
+ */
 class QalcBridge : public QObject {
     Q_OBJECT
 public:
