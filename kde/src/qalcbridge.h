@@ -9,23 +9,16 @@
 #include <QJsonObject>
 #include <QHash>
 #include <QMutex>
+#include <QSet>
 #include <atomic>
+#include <functional>
+#include "lineresult.h"
 
 class QNetworkAccessManager;
 class QNetworkReply;
 
 class Calculator;
 class Unit;
-
-struct LineResult {
-    bool ok = false;
-    QString result;
-    QString error;
-    QString highlightedHtml;
-    bool hasNumericValue = false;
-    double numericValue = 0.0;
-    QString totalKey;
-};
 
 class SyntaxHighlighter;
 
@@ -35,7 +28,12 @@ public:
     explicit QalcBridge(QObject *parent = nullptr);
     ~QalcBridge();
 
-    QList<LineResult> evaluateDocument(const QString &source);
+    /// Evaluates the whole document. `progress(index)` is invoked (on the calling
+    /// thread) after each line; lines listed in `skipLines` are not evaluated
+    /// and report "Calculation took too long" (the GUI's watchdog poisoned them).
+    QList<LineResult> evaluateDocument(const QString &source,
+                                       const std::function<void(int)> &progress = {},
+                                       const QSet<int> &skipLines = {});
     void setDecimalPlaces(int places);
     /// Tells a running evaluateDocument() (other thread) to skip its remaining lines.
     void abortCalculation();

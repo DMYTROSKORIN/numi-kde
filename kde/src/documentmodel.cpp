@@ -1,6 +1,6 @@
 #include "documentmodel.h"
+#include "engineclient.h"
 #include "kwinrulemanager.h"
-#include "qalcbridge.h"
 
 #include <KWindowSystem>
 #include <KX11Extras>
@@ -17,7 +17,6 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <QHash>
-#include <QtConcurrent>
 #include <QSaveFile>
 
 #ifndef NUMI_KDE_APP_ID
@@ -37,12 +36,22 @@ const QLatin1String kSettingsWindowTitle("Numi-KDE Settings");
 DocumentModel::DocumentModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    m_qalc = new QalcBridge(this);
-    connect(m_qalc, &QalcBridge::ratesUpdated, this, [this]() {
+    // libqalculate lives in a separate process (numi-kde-engine); EngineClient
+    // restarts it when it crashes or stalls, so a bad expression can never
+    // take the application down.
+    m_engine = new EngineClient(this);
+    connect(m_engine, &EngineClient::evaluated, this, &DocumentModel::onEvaluated);
+    connect(m_engine, &EngineClient::ratesUpdated, this, [this]() {
         if (!m_source.trimmed().isEmpty() && m_source.trimmed() != QStringLiteral("/help"))
             evaluate();
     });
-    connect(m_qalc, &QalcBridge::networkStatusChanged, this, &DocumentModel::networkStatusChanged);
+    connect(m_engine, &EngineClient::networkStatusChanged, this, &DocumentModel::networkStatusChanged);
+    connect(m_engine, &EngineClient::engineRestarted, this, [this]() {
+        emit engineRestartsChanged();
+        // Whatever was on screen came from the old engine; recompute it.
+        if (!m_source.trimmed().isEmpty() && m_source.trimmed() != QStringLiteral("/help"))
+            evaluate();
+    });
     QSettings settings("numi-kde", "numi-kde");
     m_history = settings.value("history").value<QVariantList>();
     m_decimalPlaces = qBound(0, settings.value("decimalPlaces", 3).toInt(), 10);
@@ -53,15 +62,11 @@ DocumentModel::DocumentModel(QObject *parent)
     m_debounceTimer->setInterval(50); // 50ms debounce
     connect(m_debounceTimer, &QTimer::timeout, this, &DocumentModel::evaluate);
 
-    connect(&m_watcher, &QFutureWatcher<QPair<quint64, QList<LineResult>>>::finished,
-            this, &DocumentModel::onEvaluationFinished);
+    m_engine->configure(m_decimalPlaces, m_defaultCurrency);
+    m_engine->start();
 }
 
-DocumentModel::~DocumentModel()
-{
-    m_watcher.cancel();
-    m_watcher.waitForFinished();
-}
+DocumentModel::~DocumentModel() = default;
 
 QString DocumentModel::source() const
 {
@@ -75,7 +80,7 @@ void DocumentModel::setSource(const QString &source)
         if (m_source == source) return;
         m_source = source;
         m_debounceTimer->stop();
-        m_watcher.cancel();
+        ++m_evalGeneration;   // anything still in flight is obsolete
         emit sourceChanged();
         beginResetModel();
         m_lines.clear();
@@ -148,7 +153,12 @@ bool DocumentModel::autostart() const
 
 int DocumentModel::networkStatus() const
 {
-    return static_cast<int>(m_qalc->networkStatus());
+    return m_engine->networkStatus();
+}
+
+int DocumentModel::engineRestarts() const
+{
+    return m_engine->restartCount();
 }
 
 bool DocumentModel::isWayland() const
@@ -286,17 +296,17 @@ void DocumentModel::clearHistory()
 
 QString DocumentModel::completeWord(const QString &prefix)
 {
-    return m_qalc->getCompletion(prefix);
+    return m_engine->completion(prefix);
 }
 
 QStringList DocumentModel::getCompletions(const QString &lineContext)
 {
-    return m_qalc->getCompletions(lineContext);
+    return m_engine->completions(lineContext);
 }
 
 QString DocumentModel::highlightExample(const QString &line) const
 {
-    return m_qalc->highlightLine(line);
+    return m_engine->highlight(line);
 }
 
 void DocumentModel::setKeepAbove(bool above)
@@ -361,29 +371,13 @@ bool DocumentModel::applyKWinRules(bool keepAbove)
 
 void DocumentModel::evaluate()
 {
-    // Stop a still-running evaluation first: the setters below take the
-    // calculator mutex and would otherwise wait for it to finish.
-    if (m_watcher.isRunning()) {
-        m_qalc->abortCalculation();
-        m_watcher.cancel();
-    }
-
-    m_qalc->setDecimalPlaces(m_decimalPlaces);
-    m_qalc->setDefaultCurrency(m_defaultCurrency);
-
-    const quint64 gen = ++m_evalGeneration;
-    auto future = QtConcurrent::run([this, src = m_source, gen]() -> QPair<quint64, QList<LineResult>> {
-        return {gen, m_qalc->evaluateDocument(src)};
-    });
-    m_watcher.setFuture(future);
+    m_engine->configure(m_decimalPlaces, m_defaultCurrency);
+    m_engine->evaluate(++m_evalGeneration, m_source);
 }
 
-void DocumentModel::onEvaluationFinished()
+void DocumentModel::onEvaluated(quint64 generation, const QList<LineResult> &qalcResults)
 {
-    if (m_watcher.isCanceled()) return;
-
-    const auto [gen, qalcResults] = m_watcher.result();
-    if (gen != m_evalGeneration) return;
+    if (generation != m_evalGeneration) return;   // superseded while in flight
 
     beginResetModel();
     m_lines = qalcResults;

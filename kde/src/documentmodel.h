@@ -3,11 +3,10 @@
 #include <QAbstractListModel>
 #include <QString>
 #include <QVariantList>
-#include <QFutureWatcher>
 #include <QTimer>
-#include "qalcbridge.h"
+#include "lineresult.h"
 
-class QalcBridge;
+class EngineClient;
 
 class DocumentModel : public QAbstractListModel
 {
@@ -24,6 +23,7 @@ class DocumentModel : public QAbstractListModel
     Q_PROPERTY(int networkStatus READ networkStatus NOTIFY networkStatusChanged)
     Q_PROPERTY(bool isWayland READ isWayland CONSTANT)
     Q_PROPERTY(QString version READ version CONSTANT)
+    Q_PROPERTY(int engineRestarts READ engineRestarts NOTIFY engineRestartsChanged)
 
 public:
     enum Roles {
@@ -51,6 +51,7 @@ public:
     bool autostart() const;
     void setAutostart(bool enable);
     int networkStatus() const;
+    int engineRestarts() const;
     bool isWayland() const;
     QString version() const;
 
@@ -78,10 +79,11 @@ signals:
     void defaultCurrencyChanged();
     void autostartChanged();
     void networkStatusChanged();
+    void engineRestartsChanged();
 
 private:
     void evaluate();
-    void onEvaluationFinished();
+    void onEvaluated(quint64 generation, const QList<LineResult> &lines);
     bool applyKWinRules(bool keepAbove);
     static QString autostartPath();
     static QString legacyAutostartPath();
@@ -91,7 +93,7 @@ private:
     int m_errorCount = 0;
     int m_resultCount = 0;
     bool m_hasTotal = false;
-    QalcBridge *m_qalc;
+    EngineClient *m_engine;
     QVariantList m_history;
     int m_decimalPlaces = 3;
     QString m_defaultCurrency = QStringLiteral("USD");
@@ -99,5 +101,4 @@ private:
     bool m_keepAbove = true;
     QTimer *m_debounceTimer;
     quint64 m_evalGeneration = 0;
-    QFutureWatcher<QPair<quint64, QList<LineResult>>> m_watcher;
 };

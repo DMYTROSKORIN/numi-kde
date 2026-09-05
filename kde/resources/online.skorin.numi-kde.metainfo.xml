@@ -44,6 +44,11 @@
     <color type="primary" scheme_preference="dark">#22242a</color>
   </branding>
   <releases>
+    <release version="0.1.87" date="2026-09-05">
+      <description>
+        <p>The calculation engine runs in a separate, automatically restarted process: a formula can no longer freeze or crash the application.</p>
+      </description>
+    </release>
     <release version="0.1.86" date="2026-09-05">
       <description>
         <p>Releases are GPG-signed; the update helper and installer verify the signature.</p>

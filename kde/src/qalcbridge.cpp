@@ -367,6 +367,10 @@ void QalcBridge::setDefaultCurrency(const QString &currency) {
 
 // Format a number with exactly maxDecimals decimal places.
 // Uses system locale for thousands separators and decimal point.
+// libqalculate gives up on a single line after this long. The GUI's engine
+// watchdog (EngineClient) sits above it and kills a stuck engine process.
+static constexpr int kLineTimeoutMs = 3000;
+
 // Drops trailing zeros (and a dangling decimal point) from a formatted number.
 static QString trimFraction(QString s, const QString &dec) {
     if (s.contains(dec)) {
@@ -836,7 +840,7 @@ double QalcBridge::usdRateForSymbol(const QString &symbol, bool *ok) const
 
     m_calc->clearMessages();
     MathStructure rateResult;
-    m_calc->calculate(&rateResult, QStringLiteral("1 %1 to USD").arg(normalized).toStdString(), 5000, eo);
+    m_calc->calculate(&rateResult, QStringLiteral("1 %1 to USD").arg(normalized).toStdString(), kLineTimeoutMs, eo);
     if (m_calc->aborted() || hasCalculationError(m_calc) || rateResult.isUndefined() || rateResult.isInfinite()) {
         *ok = false;
         return 0.0;
@@ -1128,7 +1132,9 @@ QString QalcBridge::highlightLine(const QString &line) const
     return m_highlighter->highlightLine(line, {}, {});
 }
 
-QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
+QList<LineResult> QalcBridge::evaluateDocument(const QString &source,
+                                               const std::function<void(int)> &progress,
+                                               const QSet<int> &skipLines) {
     QMutexLocker locker(&m_calcMutex);
     m_abortRequested.store(false);
 
@@ -1246,6 +1252,16 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         if (m_abortRequested.load()) {
             res.ok = true;
             results.append(res);
+            if (progress) progress(results.size() - 1);
+            continue;
+        }
+
+        // Poisoned by the GUI watchdog: this exact line hung the engine before.
+        if (skipLines.contains(results.size())) {
+            res.ok = false;
+            res.error = QStringLiteral("Calculation took too long");
+            results.append(res);
+            if (progress) progress(results.size() - 1);
             continue;
         }
 
@@ -1254,6 +1270,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             res.ok = true;
             res.result = "";
             results.append(res);
+            if (progress) progress(results.size() - 1);
             continue;
         }
 
@@ -1299,6 +1316,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 res.hasNumericValue = parseDisplayNumber(currResult, &res.numericValue);
                 res.totalKey = currTag.isEmpty() ? totalKey : currTag;
                 results.append(res);
+        if (progress) progress(results.size() - 1);
                 continue;
             }
         }
@@ -1330,6 +1348,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                         res.numericValue = result;
                         res.totalKey = currency;
                         results.append(res);
+        if (progress) progress(results.size() - 1);
                         continue;
                     }
                 }
@@ -1369,6 +1388,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                             res.numericValue = result;
                             res.totalKey = curr1;
                             results.append(res);
+        if (progress) progress(results.size() - 1);
                             continue;
                         }
                     }
@@ -1380,6 +1400,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             res.ok = true;
             res.result = "";
             results.append(res);
+            if (progress) progress(results.size() - 1);
             continue;
         }
 
@@ -1387,6 +1408,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             res.ok = false;
             res.error = QStringLiteral("Division by zero");
             results.append(res);
+            if (progress) progress(results.size() - 1);
             continue;
         }
 
@@ -1394,6 +1416,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             res.ok = true;
             res.result = QTime::currentTime().toString(QStringLiteral("HH:mm:ss"));
             results.append(res);
+            if (progress) progress(results.size() - 1);
             continue;
         }
 
@@ -1401,6 +1424,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             res.ok = true;
             res.result = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
             results.append(res);
+            if (progress) progress(results.size() - 1);
             continue;
         }
 
@@ -1410,6 +1434,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 res.ok = true;
                 res.result = timeArithResult;
                 results.append(res);
+        if (progress) progress(results.size() - 1);
                 continue;
             }
         }
@@ -1419,6 +1444,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             res.ok = true;
             res.result = dateDifferenceResult;
             results.append(res);
+            if (progress) progress(results.size() - 1);
             continue;
         }
 
@@ -1427,6 +1453,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             res.ok = true;
             res.result = dateArithmeticResult;
             results.append(res);
+            if (progress) progress(results.size() - 1);
             continue;
         }
 
@@ -1443,6 +1470,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                     res.hasNumericValue = parseDisplayNumber(tempResult, &res.numericValue);
                 }
                 results.append(res);
+        if (progress) progress(results.size() - 1);
                 continue;
             }
         }
@@ -1455,6 +1483,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             res.hasNumericValue = parseDisplayNumber(currencyResult, &res.numericValue);
             res.totalKey = totalKey;
             results.append(res);
+            if (progress) progress(results.size() - 1);
             continue;
         }
 
@@ -1527,6 +1556,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 res.ok = false;
                 res.error = QStringLiteral("Variable name conflict: \"%1\" clashes with another variable name").arg(displayName);
                 results.append(res);
+        if (progress) progress(results.size() - 1);
                 continue;
             }
 
@@ -1536,6 +1566,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 res.ok = false;
                 res.error = QStringLiteral("Reserved name: %1").arg(displayName);
                 results.append(res);
+        if (progress) progress(results.size() - 1);
                 continue;
             }
 
@@ -1568,13 +1599,14 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                                             .arg(internalName)
                                             .arg(numVal, 0, 'g', 15);
                         MathStructure tmp;
-                        m_calc->calculate(&tmp, qa.toStdString(), 5000, eo);
+                        m_calc->calculate(&tmp, qa.toStdString(), kLineTimeoutMs, eo);
                         res.ok = true;
                         res.result = currResult;
                         res.hasNumericValue = true;
                         res.numericValue = numVal;
                         res.totalKey = totalKey;
                         results.append(res);
+        if (progress) progress(results.size() - 1);
                         continue;
                     }
                 }
@@ -1583,7 +1615,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             try {
                 m_calc->clearMessages();
                 MathStructure rhsResult;
-                m_calc->calculate(&rhsResult, rhs.toStdString(), 5000, eo);
+                m_calc->calculate(&rhsResult, rhs.toStdString(), kLineTimeoutMs, eo);
                 const QString rhsError = takeCalculationError(m_calc);
                 if (m_calc->aborted() || !rhsError.isEmpty() || rhsResult.isUndefined() || rhsResult.isInfinite()) {
                     res.ok = false;
@@ -1592,7 +1624,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                     // Set the variable in the calculator using the internal (underscore) name.
                     QString assignment = QString("%1 := %2").arg(internalName, rhs);
                     MathStructure _assignTmp;
-                    m_calc->calculate(&_assignTmp, assignment.toStdString(), 5000, eo);
+                    m_calc->calculate(&_assignTmp, assignment.toStdString(), kLineTimeoutMs, eo);
 
                     if (rhsResult.isNumber() && !rhsResult.number().hasImaginaryPart()) {
                         double v = rhsResult.number().floatValue();
@@ -1624,7 +1656,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                                 m_varNumericValue[displayName] = numericForVar;
                                 QString numAssignment = QString("%1 := %2").arg(internalName).arg(numericForVar, 0, 'g', 15);
                                 MathStructure _numTmp;
-                                m_calc->calculate(&_numTmp, numAssignment.toStdString(), 5000, eo);
+                                m_calc->calculate(&_numTmp, numAssignment.toStdString(), kLineTimeoutMs, eo);
                                 res.hasNumericValue = true;
                                 res.numericValue = numericForVar;
                                 res.totalKey = totalKey;
@@ -1659,6 +1691,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                     res.numericValue = value;
                     res.totalKey = totalKey;
                     results.append(res);
+        if (progress) progress(results.size() - 1);
                     continue;
                 }
             }
@@ -1667,7 +1700,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
             try {
                 m_calc->clearMessages();
                 MathStructure result;
-                m_calc->calculate(&result, line.toStdString(), 5000, eo);
+                m_calc->calculate(&result, line.toStdString(), kLineTimeoutMs, eo);
                 const QString calcError = takeCalculationError(m_calc);
                 if (m_calc->aborted() || !calcError.isEmpty() || result.isUndefined() || result.isInfinite()) {
                     res.ok = false;
@@ -1747,6 +1780,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         }
 
         results.append(res);
+        if (progress) progress(results.size() - 1);
     }
 
     if (m_nameIndexDirty)
