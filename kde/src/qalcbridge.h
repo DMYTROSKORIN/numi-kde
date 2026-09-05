@@ -14,6 +14,7 @@ class QNetworkAccessManager;
 class QNetworkReply;
 
 class Calculator;
+class Unit;
 
 struct LineResult {
     bool ok = false;
@@ -35,6 +36,8 @@ public:
 
     QList<LineResult> evaluateDocument(const QString &source);
     void setDecimalPlaces(int places);
+    /// Interrupts a running evaluateDocument() from another thread (no-op when idle).
+    void abortCalculation();
     QString getCompletion(const QString &prefix);
     QStringList getCompletions(const QString &lineContext);
     QString highlightLine(const QString &line) const;
@@ -61,6 +64,7 @@ private:
     bool tryEvaluateCurrencyExpr(const QString &expr, QString *outResult, QString *outCurrency) const;
     double usdRateForSymbol(const QString &symbol, bool *ok) const;
     bool hasUsdRateForSymbol(const QString &symbol) const;
+    bool updateUsdAliasUnit(const QString &name, double usdPerUnit, Unit *usd);
 
     Calculator *m_calc;
     SyntaxHighlighter *m_highlighter;
@@ -80,6 +84,12 @@ private:
     // Defaults to "USD". Configurable via Settings.
     QString m_defaultCurrency = QStringLiteral("USD");
     mutable QMutex m_calcMutex;
+    // Autocomplete snapshot: written at the end of evaluateDocument() (worker thread),
+    // read by getCompletions() (GUI thread). Guarded by its own mutex so the GUI never
+    // waits on a long calculation.
+    mutable QMutex m_snapshotMutex;
+    QStringList m_snapshotVarNames;
+    QHash<QString, QString> m_snapshotVarValues;
     NetworkStatus m_fiatStatus   = NetworkStatus::Idle;
     NetworkStatus m_cryptoStatus = NetworkStatus::Idle;
 

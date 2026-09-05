@@ -13,7 +13,14 @@ find_package(Qt6 6.6 REQUIRED COMPONENTS Core DBus Gui Widgets Network Qml Quick
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(QALCULATE REQUIRED libqalculate)
 find_package(KF6WindowSystem REQUIRED)
+find_package(KF6Config REQUIRED)
+find_package(KF6DBusAddons REQUIRED)
+find_package(KF6Notifications REQUIRED)
 find_package(KF6GlobalAccel QUIET)
+
+# Reverse-DNS application id: desktop file, AppStream id, icon name and
+# Wayland app_id (via QGuiApplication::desktopFileName) all use it.
+set(NUMI_KDE_APP_ID "online.skorin.numi-kde")
 
 qt_policy(SET QTP0001 NEW)
 qt_policy(SET QTP0004 NEW)
@@ -30,6 +37,10 @@ qt_add_executable(numi-kde
   src/syntaxhighlighter.h
   src/updatechecker.cpp
   src/updatechecker.h
+  src/kwinrulemanager.cpp
+  src/kwinrulemanager.h
+  src/windowmemory.cpp
+  src/windowmemory.h
 )
 
 target_include_directories(numi-kde PRIVATE ${QALCULATE_INCLUDE_DIRS})
@@ -69,9 +80,15 @@ target_link_libraries(numi-kde
     Qt6::Quick
     Qt6::QuickControls2
     KF6::WindowSystem
+    KF6::ConfigCore
+    KF6::DBusAddons
+    KF6::Notifications
     ${QALCULATE_LIBRARIES}
 )
-target_compile_definitions(numi-kde PRIVATE NUMI_KDE_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(numi-kde PRIVATE
+  NUMI_KDE_VERSION="${PROJECT_VERSION}"
+  NUMI_KDE_APP_ID="${NUMI_KDE_APP_ID}"
+)
 
 if(KF6GlobalAccel_FOUND)
   target_link_libraries(numi-kde PRIVATE KF6::GlobalAccel)
@@ -82,7 +99,9 @@ endif()
 find_program(SEMGREP_BIN semgrep)
 if(SEMGREP_BIN)
   add_custom_target(semgrep-check
-    COMMAND ${SEMGREP_BIN} scan --config ${CMAKE_SOURCE_DIR}/../.semgrep.yml --config auto --error --exclude "build*" --exclude "third_party" ${CMAKE_SOURCE_DIR}/..
+    # Project rules only: the online registry (--config auto) made the build
+    # depend on network access and on rule sets that change under us.
+    COMMAND ${SEMGREP_BIN} scan --config ${CMAKE_SOURCE_DIR}/../.semgrep.yml --error --exclude "build*" --exclude "third_party" ${CMAKE_SOURCE_DIR}/..
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/..
     COMMENT "Running Semgrep static analysis..."
   )
@@ -90,11 +109,24 @@ if(SEMGREP_BIN)
 endif()
 
 install(TARGETS numi-kde RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES resources/numi-kde.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-install(FILES resources/numi-kde.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
+install(FILES resources/${NUMI_KDE_APP_ID}.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES resources/${NUMI_KDE_APP_ID}.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
 install(FILES resources/numi-kde.png
   DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
-  RENAME numi-kde.png
+  RENAME ${NUMI_KDE_APP_ID}.png
+)
+install(FILES resources/${NUMI_KDE_APP_ID}.svg
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+)
+install(FILES resources/${NUMI_KDE_APP_ID}-symbolic.svg
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/symbolic/apps
+)
+install(FILES resources/numi-kde.notifyrc
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/knotifications6
+)
+# KWin script: remembers window positions on Wayland (see resources/kwin-script/contents/code/main.js)
+install(DIRECTORY resources/kwin-script/
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/kwin/scripts/numi-kde-window-memory
 )
 install(FILES ../LICENSE ../NOTICE
   DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/numi-kde
@@ -115,6 +147,8 @@ add_executable(numi-kde-tests
   src/documentmodel.cpp
   src/qalcbridge.cpp
   src/syntaxhighlighter.cpp
+  src/kwinrulemanager.cpp
+  src/windowmemory.cpp
 )
 target_include_directories(numi-kde-tests PRIVATE src ${QALCULATE_INCLUDE_DIRS})
 target_link_libraries(numi-kde-tests
@@ -130,10 +164,12 @@ target_link_libraries(numi-kde-tests
     Qt6::Quick
     Qt6::QuickControls2
     KF6::WindowSystem
+    KF6::ConfigCore
     ${QALCULATE_LIBRARIES}
 )
 target_compile_definitions(numi-kde-tests PRIVATE
   NUMI_KDE_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml"
+  NUMI_KDE_APP_ID="${NUMI_KDE_APP_ID}"
 )
 set_target_properties(numi-kde-tests PROPERTIES
   AUTOMOC ON
@@ -142,7 +178,8 @@ set_target_properties(numi-kde-tests PROPERTIES
 add_test(NAME qalc-math COMMAND numi-kde-tests qalc)
 add_test(NAME documentmodel COMMAND numi-kde-tests documentmodel)
 add_test(NAME editor-keyhandlers COMMAND numi-kde-tests editor)
-set_tests_properties(qalc-math documentmodel editor-keyhandlers PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+add_test(NAME kwinrules COMMAND numi-kde-tests kwinrules)
+set_tests_properties(qalc-math documentmodel editor-keyhandlers kwinrules PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # ── Packaging ────────────────────────────────────────────────────────────────
 set(CPACK_PACKAGE_NAME "numi-kde")
@@ -160,7 +197,7 @@ set(CPACK_GENERATOR "RPM")
 
 set(CPACK_RPM_PACKAGE_LICENSE "Apache-2.0")
 set(CPACK_RPM_PACKAGE_GROUP "Applications/Productivity")
-set(CPACK_RPM_PACKAGE_REQUIRES "libqalculate, qt6-qtbase, qt6-qtbase-gui, qt6-qtdeclarative, kf6-kwindowsystem, polkit, dnf")
+set(CPACK_RPM_PACKAGE_REQUIRES "libqalculate, qt6-qtbase, qt6-qtbase-gui, qt6-qtdeclarative, kf6-kwindowsystem, kf6-kconfig, kf6-kdbusaddons, kf6-knotifications, kf6-qqc2-desktop-style, kf6-kdeclarative, polkit, dnf, curl")
 if(KF6GlobalAccel_FOUND)
   string(APPEND CPACK_RPM_PACKAGE_REQUIRES ", kf6-kglobalaccel")
 endif()

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>online.skorin.numi-kde</id>
+  <name>Numi-KDE</name>
+  <summary>Document-style calculator for KDE Plasma</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <description>
+    <p>Numi-KDE treats your calculations as a small live document: type expressions like notes and results appear next to each line as you type.</p>
+    <p>Features:</p>
+    <ul>
+      <li>Unit conversion and arithmetic powered by libqalculate</li>
+      <li>Live fiat and crypto exchange rates, mixed-currency arithmetic</li>
+      <li>Date and time arithmetic, percentages, variables with spaces in their names</li>
+      <li>Compact always-on-top window toggled by a global shortcut, lives in the system tray</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">online.skorin.numi-kde.desktop</launchable>
+  <provides>
+    <binary>numi-kde</binary>
+  </provides>
+  <developer id="online.skorin">
+    <name>DMYTRO SKORIN</name>
+  </developer>
+  <update_contact>dev@skorin.online</update_contact>
+  <url type="homepage">https://github.com/DMYTROSKORIN/numi-kde</url>
+  <url type="bugtracker">https://github.com/DMYTROSKORIN/numi-kde/issues</url>
+  <url type="vcs-browser">https://github.com/DMYTROSKORIN/numi-kde</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Inline help and live results next to each line</caption>
+      <image>https://raw.githubusercontent.com/DMYTROSKORIN/numi-kde/main/docs/screenshot.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <keywords>
+    <keyword>calculator</keyword>
+    <keyword>units</keyword>
+    <keyword>currency</keyword>
+    <keyword>dates</keyword>
+  </keywords>
+  <branding>
+    <color type="primary" scheme_preference="light">#6fc4e8</color>
+    <color type="primary" scheme_preference="dark">#22242a</color>
+  </branding>
+  <releases>
+    <release version="0.1.81" date="2026-09-05">
+      <description>
+        <p>Window position is remembered again on Wayland, updates install silently and restart the app when it is not in use, hardened update helper, single-instance, thread-safety fixes, standard app id and icons.</p>
+      </description>
+    </release>
+    <release version="0.1.80" date="2026-09-05"/>
+    <release version="0.1.79" date="2026-08-06"/>
+  </releases>
+</component>

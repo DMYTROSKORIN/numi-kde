@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Layouts
+import org.kde.kquickcontrols as KQuickControls
 
 Item {
     id: root
@@ -34,9 +35,15 @@ Item {
         }
 
         Controls.CheckBox {
-            text: qsTr("Auto-download updates")
-            checked: updateChecker ? updateChecker.autoDownloadUpdates : true
-            onToggled: if (updateChecker) updateChecker.setAutoDownloadUpdates(checked)
+            text: qsTr("Esc hides the window")
+            checked: appWindow ? appWindow.escHidesWindow : true
+            onToggled: if (appWindow) appWindow.escHidesWindow = checked
+        }
+
+        Controls.CheckBox {
+            text: qsTr("Install updates automatically")
+            checked: updateChecker ? updateChecker.autoInstallUpdates : true
+            onToggled: if (updateChecker) updateChecker.setAutoInstallUpdates(checked)
         }
 
         Controls.MenuSeparator { Layout.fillWidth: true }
@@ -95,74 +102,22 @@ Item {
 
         // ── Global hotkey ─────────────────────────────────────────────
         ColumnLayout {
-            id: hotkeyColumn
             Layout.fillWidth: true
             spacing: 6
-            property bool recordingHotkey: false
-
-            function keyName(key, text) {
-                if (key >= Qt.Key_0 && key <= Qt.Key_9) return String.fromCharCode("0".charCodeAt(0) + key - Qt.Key_0)
-                if (key >= Qt.Key_A && key <= Qt.Key_Z) return String.fromCharCode("A".charCodeAt(0) + key - Qt.Key_A)
-                if (key >= Qt.Key_F1 && key <= Qt.Key_F12) return "F" + (key - Qt.Key_F1 + 1)
-                if (key === Qt.Key_Space) return "Space"
-                if (text && text.length > 0) return text.toUpperCase()
-                return ""
-            }
 
             Controls.Label { text: qsTr("Global hotkey") }
 
-            Controls.TextField {
-                id: hotkeyField
+            // Standard KDE recorder: accepts any sequence and asks about
+            // conflicts with other global shortcuts before applying.
+            KQuickControls.KeySequenceItem {
+                id: hotkeyItem
                 Layout.fillWidth: true
-                text: hotkeyColumn.recordingHotkey
-                      ? qsTr("Press shortcut…")
-                      : (shortcutManager ? shortcutManager.sequence : "Ctrl+Alt+1")
-                readOnly: true
-                activeFocusOnPress: true
-                placeholderText: "Ctrl+Alt+1"
-
-                Keys.onPressed: (event) => {
-                    if (!hotkeyColumn.recordingHotkey) return
-                    if (event.key === Qt.Key_Escape) {
-                        hotkeyColumn.recordingHotkey = false
-                        event.accepted = true
-                        return
-                    }
-                    if (event.key === Qt.Key_Control || event.key === Qt.Key_Alt ||
-                        event.key === Qt.Key_Shift   || event.key === Qt.Key_Meta) {
-                        event.accepted = true
-                        return
-                    }
-                    let parts = []
-                    if (event.modifiers & Qt.ControlModifier) parts.push("Ctrl")
-                    if (event.modifiers & Qt.AltModifier)     parts.push("Alt")
-                    if (event.modifiers & Qt.ShiftModifier)   parts.push("Shift")
-                    if (event.modifiers & Qt.MetaModifier)    parts.push("Meta")
-                    let key = hotkeyColumn.keyName(event.key, event.text)
-                    if (key.length > 0 && parts.length > 0 && shortcutManager) {
-                        parts.push(key)
-                        shortcutManager.sequence = parts.join("+")
-                        hotkeyColumn.recordingHotkey = false
-                    }
-                    event.accepted = true
+                showClearButton: false
+                keySequence: shortcutManager ? shortcutManager.sequence : "Ctrl+Alt+1"
+                onKeySequenceModified: {
+                    if (shortcutManager)
+                        shortcutManager.applyKeySequence(keySequence)
                 }
-
-                TapHandler {
-                    onTapped: {
-                        hotkeyColumn.recordingHotkey = true
-                        hotkeyField.forceActiveFocus()
-                    }
-                }
-            }
-
-            Controls.Label {
-                Layout.fillWidth: true
-                text: hotkeyColumn.recordingHotkey
-                      ? qsTr("Press a combination, Esc to cancel")
-                      : qsTr("Click to record a shortcut")
-                font.italic: true
-                opacity: 0.7
-                wrapMode: Text.WordWrap
             }
 
             Controls.Label {

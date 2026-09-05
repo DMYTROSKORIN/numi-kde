@@ -10,11 +10,12 @@ It describes architecture, conventions, and workflow. Read it fully before makin
 - **Never add `Co-Authored-By`** lines to commits — ever
 - **Never change code without owner approval** — propose first, implement after explicit confirmation
 - **Release**: tag-push only — see Release Process below. Never `gh release create <file>`
-- **Tests must pass** before any commit — run all three suites:
+- **Tests must pass** before any commit — run all four suites:
   ```
   ./kde/build/numi-kde-tests qalc
   ./kde/build/numi-kde-tests documentmodel
   ./kde/build/numi-kde-tests editor
+  ./kde/build/numi-kde-tests kwinrules
   ```
 
 ---
@@ -38,7 +39,8 @@ kde/
   src/           C++ backend
   qml/           QML frontend
   tests/         Unit tests (qalc_test.cpp)
-  resources/     Icons, .desktop, .metainfo.xml
+  resources/     Icons (PNG, SVG, symbolic), online.skorin.numi-kde.desktop / .metainfo.xml,
+                 numi-kde.notifyrc, polkit policy + update helper script
   CMakeLists.txt Build definition (version lives here)
 docs/
   architecture.md  Deep-dive architecture doc
@@ -65,7 +67,9 @@ scripts/check-semgrep.sh       Called by pre-commit hook
 | `documentmodel.cpp/h` | QAbstractListModel exposed to QML — owns document state, session history, KWin rules, autostart |
 | `shortcutmanager.cpp/h` | KGlobalAccel global hotkey management (default: Ctrl+Alt+1) |
 | `syntaxhighlighter.cpp/h` | Token-based HTML highlighter for the editor pane |
-| `updatechecker.cpp/h` | GitHub API polling for new releases (24h auto-check interval) |
+| `updatechecker.cpp/h` | GitHub API polling for new releases (24h auto-check interval); runs the polkit helper with a version number; restart logic lives in `main.cpp` |
+| `kwinrulemanager.cpp/h` | KConfig-based management of our KWin window rules in `kwinrulesrc` (KWin 6 format, UUID groups, `rules=`/`Order=` list) |
+| `windowmemory.cpp/h` | D-Bus endpoint `/WindowMemory` (`online.skorin.numi_kde.WindowMemory`) used by the KWin script `resources/kwin-script` to save/restore window positions on Wayland |
 
 ### QML Frontend (`kde/qml/`)
 
@@ -121,22 +125,28 @@ Max 25 entries, persisted via `QSettings("numi-kde", "numi-kde")`.
 | Feature | Implementation |
 |---------|---------------|
 | Keep-above X11 | `KX11Extras::setState(NET::KeepAbove \| NET::SkipTaskbar \| NET::SkipPager)` |
-| Keep-above Wayland | Writes `~/.config/kwinrulesrc` + DBus `org.kde.KWin reconfigure` |
+| Keep-above Wayland | Two KWin rules (main / settings window, exact `app_id` + title match) via `KWinRuleManager` + DBus `org.kde.KWin reconfigure`. Never rewrite `kwinrulesrc` by hand — KWin owns it |
+| Window position Wayland | **KWin never persists `positionrule=4` for Wayland windows** (verified in KWin 6.7 sources: no `finishWindowRules()` for xdg toplevels). Shipped KWin script `numi-kde-window-memory` → D-Bus `WindowMemory` → `QSettings [WindowMemory]`; restored on `workspace.windowAdded`. D-Bus interface names cannot contain `-`, hence `numi_kde` |
+| Single instance | `KDBusService(Unique)`, service `online.skorin.numi-kde`; second launch → `activateRequested` → show window |
+| Notifications | `KNotification` events `updateInstalled`, `updated`, `updateFailed` from `resources/numi-kde.notifyrc` |
 | Global shortcut | `KGlobalAccel` + configurable sequence (default `Ctrl+Alt+1`) |
-| Autostart | Writes `~/.config/autostart/numi-kde.desktop` |
+| Autostart | Writes `$XDG_CONFIG_HOME/autostart/online.skorin.numi-kde.desktop` (`Exec=numi-kde --hidden`) |
 | Tray icon | `QSystemTrayIcon` with context menu (toggle, check updates, quit) |
 
 ---
 
 ## Build
 
-Requirements: **CMake ≥ 3.24**, Qt 6, KF6 (kwindowsystem, kglobalaccel), libqalculate, C++20 compiler.
+Requirements: **CMake ≥ 3.24**, Qt 6, KF6 (kwindowsystem, kglobalaccel, kconfig, kdbusaddons, knotifications), libqalculate, C++20 compiler.
+Runtime: `kf6-qqc2-desktop-style` (QML style `org.kde.desktop`), `kf6-kdeclarative` (`KeySequenceItem`), `curl` (update helper).
+
+Application id is `online.skorin.numi-kde` (`NUMI_KDE_APP_ID` in CMake). `applicationName`/`organizationName` stay `numi-kde` on purpose: QSettings path, history and the KGlobalAccel component depend on them.
 
 ```sh
 # Debug — fast iteration
 cmake -S kde -B kde/build -DCMAKE_BUILD_TYPE=Debug
 cmake --build kde/build -j$(nproc)
-./kde/build/numi-kde-tests          # must be 70/70
+./kde/build/numi-kde-tests qalc          # plus documentmodel, editor, kwinrules — all green
 
 # Release + RPM
 cmake -S kde -B kde/build-release -DCMAKE_BUILD_TYPE=Release
@@ -192,10 +202,22 @@ replaced by the CI-built one while SHA256SUMS is still being generated, causing 
 
 ---
 
+## Self-Update Flow
+
+1. `UpdateChecker::checkAsync()` polls `releases/latest` (hourly timer, 24 h gate).
+2. Newer tag → `installUpdate()` runs `pkexec /usr/libexec/numi-kde-install-update <version>`.
+   The helper (`resources/numi-kde-install-update.sh`, polkit `allow_active=yes`) downloads the RPM
+   and `SHA256SUMS` from the release itself, verifies checksum + package name, refuses downgrades, then `dnf install`.
+   **Never pass a file path to the helper** — that was a local privilege escalation in ≤ 0.1.80.
+3. `main.cpp`: window hidden → `restartApp()` immediately (`numi-kde --hidden`); window visible → restart on next hide,
+   KNotification with "Restart now". First start after an update shows one "Numi-KDE updated" notification.
+
 ## Static Analysis
 
 Pre-commit hook runs `scripts/check-semgrep.sh` on staged C++ files.
 Rules in `.semgrep.yml`: `system()`, `popen()`, `strcpy()`, `sprintf()` are forbidden.
+Only the project rules are used (no `--config auto` / online registry) — builds must not depend on network access.
+CI additionally runs `desktop-file-validate` and `appstreamcli validate` on `kde/resources/`.
 
 Activate the hook once per repo clone:
 ```sh

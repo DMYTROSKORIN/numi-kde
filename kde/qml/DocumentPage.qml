@@ -24,7 +24,7 @@ Item {
     onShowResultsSeparatorChanged: enforceWindowMinimum()
 
     function focusEditor() {
-        editor.flickable.forceActiveFocus()
+        editor.textEdit.forceActiveFocus()
     }
 
     function enforceWindowMinimum() {

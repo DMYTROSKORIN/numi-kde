@@ -74,7 +74,8 @@ For Arch, Ubuntu, Debian and other distributions — build and install from sour
 sudo dnf install -y \
   cmake gcc-c++ libqalculate-devel \
   qt6-qtbase-devel qt6-qtdeclarative-devel \
-  kf6-kwindowsystem-devel kf6-kglobalaccel-devel
+  kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
+  kf6-kconfig-devel kf6-kdbusaddons-devel kf6-knotifications-devel
 ```
 </details>
 

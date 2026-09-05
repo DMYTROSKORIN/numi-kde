@@ -22,6 +22,7 @@ jobs:
             git cmake ninja-build gcc-c++ \
             qt6-qtbase-devel qt6-qtdeclarative-devel \
             kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
+            kf6-kconfig-devel kf6-kdbusaddons-devel kf6-knotifications-devel \
             libqalculate-devel \
             rpm-build
 

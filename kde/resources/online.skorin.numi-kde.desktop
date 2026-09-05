@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Numi-KDE
+GenericName=Document Calculator
+Comment=A KDE-native document calculator for people who think in text
+Exec=numi-kde
+Icon=online.skorin.numi-kde
+Terminal=false
+StartupNotify=true
+SingleMainWindow=true
+Categories=Qt;KDE;Utility;Calculator;
+Keywords=calculator;math;units;currency;convert;dates;numi;
+Actions=hidden;
+
+[Desktop Action hidden]
+Name=Start in the system tray
+Exec=numi-kde --hidden

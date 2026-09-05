@@ -200,6 +200,21 @@ void QalcBridge::onCryptoReply(QNetworkReply *reply) {
     }
 }
 
+// If a currency unit named `name` already exists and is one of our alias units
+// based directly on USD, refresh its rate in place. Returns false when the unit
+// is missing or is libqalculate's own (EUR-based) definition, in which case the
+// caller replaces it. Avoids leaking a fresh AliasUnit on every hourly refresh.
+bool QalcBridge::updateUsdAliasUnit(const QString &name, double usdPerUnit, Unit *usd) {
+    Unit *existing = m_calc->getUnit(name.toStdString());
+    if (!existing || existing->subtype() != SUBTYPE_ALIAS_UNIT)
+        return false;
+    auto *alias = static_cast<AliasUnit *>(existing);
+    if (alias->firstBaseUnit() != usd || alias->isBuiltin())
+        return false;
+    alias->setExpression(std::to_string(usdPerUnit));
+    return true;
+}
+
 void QalcBridge::applyFiatRates(const QJsonObject &rates) {
     QMutexLocker locker(&m_calcMutex);
 
@@ -213,6 +228,9 @@ void QalcBridge::applyFiatRates(const QJsonObject &rates) {
         m_fiatUsdRates.insert(normalized, usdPerCurrency);
 
         if (normalized == QStringLiteral("USD"))
+            continue;
+
+        if (updateUsdAliasUnit(normalized, usdPerCurrency, usd))
             continue;
 
         auto *unit = new AliasUnit(
@@ -244,6 +262,9 @@ void QalcBridge::applyCryptoRates(const QJsonObject &rates) {
         if (price <= 0) continue;
         m_cryptoUsdRates.insert(symbol.toUpper(), price);
 
+        if (updateUsdAliasUnit(symbol, price, usd))
+            continue;
+
         // 1 crypto = price USD  →  relation = price (as string)
         auto *unit = new AliasUnit(
             "Cryptocurrency",       // category
@@ -264,10 +285,19 @@ void QalcBridge::applyCryptoRates(const QJsonObject &rates) {
 }
 
 void QalcBridge::setDecimalPlaces(int places) {
+    QMutexLocker locker(&m_calcMutex);
     m_decimalPlaces = places;
 }
 
+void QalcBridge::abortCalculation() {
+    // Safe to call from any thread: libqalculate's abort() only acts while a
+    // timed calculate() is running and returns once it has been interrupted.
+    if (m_calc->busy())
+        m_calc->abort();
+}
+
 void QalcBridge::setDefaultCurrency(const QString &currency) {
+    QMutexLocker locker(&m_calcMutex);
     const QString upper = currency.trimmed().toUpper();
     m_defaultCurrency = upper.isEmpty() ? QStringLiteral("USD") : upper;
 }
@@ -978,6 +1008,7 @@ bool QalcBridge::tryEvaluateCurrencyExpr(const QString &rawExpr,
 
 QString QalcBridge::highlightLine(const QString &line) const
 {
+    QMutexLocker locker(&m_calcMutex);
     return m_highlighter->highlightLine(line, {}, {});
 }
 
@@ -1585,6 +1616,14 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
         results.append(res);
     }
 
+    {
+        QMutexLocker snapshotLock(&m_snapshotMutex);
+        m_snapshotVarNames = m_displayToInternal.keys();
+        m_snapshotVarValues.clear();
+        for (auto it = m_userVarDisplayValues.constBegin(); it != m_userVarDisplayValues.constEnd(); ++it)
+            m_snapshotVarValues.insert(it.key(), it.value());
+    }
+
     return results;
 }
 
@@ -1599,6 +1638,7 @@ static bool caseInsensitivePrefixMatch(const std::string &name, const std::strin
 
 QString QalcBridge::getCompletion(const QString &prefix) {
     if (prefix.isEmpty()) return prefix;
+    QMutexLocker locker(&m_calcMutex);
 
     QStringList matches;
     std::string p = prefix.toLower().toStdString();
@@ -1680,11 +1720,15 @@ QStringList QalcBridge::getCompletions(const QString &lineContext) {
     QSet<QString> seen;
 
     // User-defined variables: match against full segment (supports multi-word completions).
-    for (auto it = m_displayToInternal.constBegin(); it != m_displayToInternal.constEnd(); ++it) {
-        const QString &displayName = it.key();
-        if (displayName.startsWith(segmentTrimmed, Qt::CaseInsensitive) && !seen.contains(displayName)) {
-            seen.insert(displayName);
-            result << (displayName + '\t' + m_userVarDisplayValues.value(displayName));
+    // Read from the snapshot published by the last evaluateDocument() run, so the
+    // GUI thread never touches state the worker thread may be rewriting.
+    {
+        QMutexLocker snapshotLock(&m_snapshotMutex);
+        for (const QString &displayName : std::as_const(m_snapshotVarNames)) {
+            if (displayName.startsWith(segmentTrimmed, Qt::CaseInsensitive) && !seen.contains(displayName)) {
+                seen.insert(displayName);
+                result << (displayName + '\t' + m_snapshotVarValues.value(displayName));
+            }
         }
     }
 

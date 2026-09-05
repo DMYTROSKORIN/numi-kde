@@ -16,10 +16,12 @@ ShortcutManager::ShortcutManager(QAction *action, QObject *parent)
 {
     QSettings settings("numi-kde", "numi-kde");
     m_sequence = settings.value(QStringLiteral("globalShortcut"), QStringLiteral("Ctrl+Alt+1")).toString();
+    // The action text is what KGlobalAccel stores as the shortcut's friendly
+    // name, so it has to be set before the shortcut is registered.
+    updateActionText();
     if (!registerShortcut(m_sequence, false)) {
         qWarning() << "Failed to register global shortcut" << m_sequence;
     }
-    updateActionText();
 }
 
 QString ShortcutManager::sequence() const
@@ -50,6 +52,11 @@ void ShortcutManager::setSequence(const QString &sequence)
     setStatus(QStringLiteral("Shortcut saved"));
     updateActionText();
     emit sequenceChanged();
+}
+
+void ShortcutManager::applyKeySequence(const QKeySequence &sequence)
+{
+    setSequence(sequence.toString(QKeySequence::PortableText));
 }
 
 bool ShortcutManager::registerShortcut(const QString &sequence, bool promptForConflicts)

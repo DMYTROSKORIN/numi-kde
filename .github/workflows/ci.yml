@@ -20,6 +20,7 @@ jobs:
             git cmake ninja-build gcc-c++ \
             qt6-qtbase-devel qt6-qtdeclarative-devel \
             kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
+            kf6-kconfig-devel kf6-kdbusaddons-devel kf6-knotifications-devel \
             libqalculate-devel
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -42,7 +43,7 @@ jobs:
     steps:
       - name: Install tools
         run: |
-          dnf install -y git python3-pip ShellCheck
+          dnf install -y git python3-pip ShellCheck appstream desktop-file-utils
           pip3 install semgrep --quiet
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -51,4 +52,9 @@ jobs:
         run: semgrep --config .semgrep.yml --error kde/src kde/tests
 
       - name: ShellCheck
-        run: shellcheck packaging/install.sh packaging/uninstall.sh scripts/check-semgrep.sh
+        run: shellcheck packaging/install.sh packaging/uninstall.sh scripts/check-semgrep.sh kde/resources/numi-kde-install-update.sh
+
+      - name: Validate desktop entry and AppStream metadata
+        run: |
+          desktop-file-validate kde/resources/online.skorin.numi-kde.desktop
+          appstreamcli validate --no-net --pedantic kde/resources/online.skorin.numi-kde.metainfo.xml
