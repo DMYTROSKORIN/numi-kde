@@ -12,7 +12,7 @@ Remove numi-kde using the system package manager (Fedora / RPM-based only).
 User settings and history are preserved by default.
 
 Options:
-  --purge    Also remove user configuration (~/.config/numi-kde and
+  --purge    Also remove the imported signing key, user configuration (~/.config/numi-kde and
              ~/.local/share/numi-kde) after explicit confirmation
   --help     Show this message
 EOF
@@ -72,6 +72,11 @@ if [[ "$PURGE" -eq 1 ]]; then
       "${XDG_DATA_HOME:-$HOME/.local/share}/numi-kde" \
       "${XDG_CONFIG_HOME:-$HOME/.config}/autostart/online.skorin.numi-kde.desktop" \
       "${XDG_CONFIG_HOME:-$HOME/.config}/autostart/numi-kde.desktop"
+    # The release signing key imported by install.sh / the update helper.
+    while IFS= read -r key; do
+      [[ -n "$key" ]] || continue
+      sudo rpm -e "$key" && log "removed signing key $key"
+    done < <(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\n' 2>/dev/null | grep -i '411c68b856cec16e' || true)
     log "user data removed"
   else
     log "purge cancelled — user data preserved"

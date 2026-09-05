@@ -10,14 +10,16 @@ usage() {
 Usage: install.sh [OPTIONS]
 
 Install numi-kde from GitHub Releases (Fedora / RPM-based systems only).
+Verifies SHA256SUMS and the GPG signature of the package (project key
+7022A791 58931F41 31646599 411C68B8 56CEC16E) before installing.
 
 Options:
   --dry-run    Show what would be done without making changes
   --help       Show this message
 
 Environment:
-  NUMI_KDE_VERSION  Install a specific version (e.g. v0.1.6).
-                    Defaults to the latest release.
+  NUMI_KDE_VERSION  Install a specific version (e.g. v0.1.87; releases before
+                    v0.1.86 are unsigned and rejected). Defaults to the latest release.
 
 Supported distributions:
   Fedora (dnf)
