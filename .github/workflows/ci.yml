@@ -21,7 +21,7 @@ jobs:
             qt6-qtbase-devel qt6-qtdeclarative-devel \
             kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
             kf6-kconfig-devel kf6-kdbusaddons-devel kf6-knotifications-devel \
-            libqalculate-devel
+            libqalculate-devel dbus-daemon glibc-langpack-en rpm-build
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -31,8 +31,50 @@ jobs:
       - name: Build
         run: cmake --build build --target numi-kde numi-kde-tests
 
+      # dbus-run-session gives the D-Bus contract test a real session bus.
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: dbus-run-session -- ctest --test-dir build --output-on-failure
+
+      # Every PR must still produce an RPM that carries all runtime files.
+      - name: Package and verify RPM contents
+        run: |
+          cmake --build build --target package
+          bash scripts/check-rpm-contents.sh build/*.rpm
+
+  thread-sanitizer:
+    name: ThreadSanitizer (engine + KWin contract suites)
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:44
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          dnf install -y --disablerepo=fedora-cisco-openh264 \
+            git cmake ninja-build gcc-c++ libtsan \
+            qt6-qtbase-devel qt6-qtdeclarative-devel \
+            kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
+            kf6-kconfig-devel kf6-kdbusaddons-devel kf6-knotifications-devel \
+            libqalculate-devel dbus-daemon glibc-langpack-en
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Configure (TSAN)
+        run: cmake -S kde -B build-tsan -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DNUMI_KDE_TSAN=ON
+
+      - name: Build tests
+        run: cmake --build build-tsan --target numi-kde-tests
+
+      - name: Run under ThreadSanitizer
+        env:
+          QT_QPA_PLATFORM: offscreen
+          TSAN_OPTIONS: "suppressions=kde/tests/tsan.supp halt_on_error=1 second_deadlock_stack=1 report_thread_leaks=0"
+        run: |
+          for suite in qalc stress kwinrules golden; do
+            echo "::group::$suite"
+            ./build-tsan/numi-kde-tests "$suite"
+            echo "::endgroup::"
+          done
 
   static-analysis:
     name: Static Analysis
@@ -52,7 +94,10 @@ jobs:
         run: semgrep --config .semgrep.yml --error kde/src kde/tests
 
       - name: ShellCheck
-        run: shellcheck packaging/install.sh packaging/uninstall.sh scripts/check-semgrep.sh kde/resources/numi-kde-install-update.sh
+        run: shellcheck packaging/install.sh packaging/uninstall.sh scripts/check-semgrep.sh scripts/check-rpm-contents.sh scripts/e2e-window-position.sh kde/resources/numi-kde-install-update.sh kde/tests/shell/test-install-helper.sh
+
+      - name: Install helper tests
+        run: bash kde/tests/shell/test-install-helper.sh
 
       - name: Validate desktop entry and AppStream metadata
         run: |

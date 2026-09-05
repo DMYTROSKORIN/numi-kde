@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.1.83 - 2026-09-05
+
+### Fix
+
+- **Tray icon for light colour schemes**: the original badge is shipped in an inverted variant (dark glyph on a light disc) and chosen from the Plasma colour scheme at start and whenever the scheme changes.
+
+### Tests and CI
+
+- **KWin script contract test**: `numi-kde-window-memory` runs in a QJSEngine with a mocked KWin `workspace` and `callDBus`; checks which windows it touches, what it reports, how it restores and when it must stay silent (off-screen, popups, foreign apps).
+- **D-Bus contract test**: service, path and interface are parsed from `main.js`, validated against the D-Bus spec and the C++ `Q_CLASSINFO`, and round-tripped through a real session bus (`dbus-run-session` in CI). A hyphen in the interface name would now fail the build instead of silently breaking position memory.
+- **Golden documents**: `kde/tests/fixtures/golden/*.numi` evaluated line by line against `.expected` (rounding at 0/2/10 places, leap-year and month-end dates, unicode variable names, currency, units, time, totals, error and incomplete-input cases). `numi-kde-tests golden --record` regenerates them.
+- **Offline, deterministic exchange rates** for every test via `kde/tests/fixtures/rates.json` and `NUMI_KDE_OFFLINE_RATES`.
+- **Engine stress test**: a long evaluation must stop promptly on `abortCalculation()`; completions, highlighting and setters are hammered from another thread while documents evaluate. A ThreadSanitizer CI job runs the engine and KWin suites with `-DNUMI_KDE_TSAN=ON`.
+- **Install helper tests** (bash, stubbed `curl`/`rpm`/`dnf`): path arguments, bad versions, downgrades, missing assets, checksum mismatches and foreign package names never reach `dnf`.
+- **RPM contents check** on every PR and release: all runtime files (desktop, metainfo, notifyrc, polkit policy, KWin script, all icon sizes) and dependencies must be present; `rpmlint` runs informationally.
+- **End-to-end script** `scripts/e2e-window-position.sh` for a live Plasma session: show, move, hide, show, restart, compare geometry.
+
+### Known issues found by the new tests (not changed in this release)
+
+- `sqrt(-1)` displays `0` instead of an error or `i`.
+- Very large or very small results are printed as long decimal expansions (`6.022e23 * 2`, `1e-7`, `1 / 3e10` → `0` at 3 decimals) instead of scientific notation.
+- Rounding to 0 decimals is inconsistent at .5 (`1.5 → 2`, `2.5 → 2`, `100 * 1.005 → 101`).
+
 ## 0.1.82 - 2026-09-05
 
 ### Fix

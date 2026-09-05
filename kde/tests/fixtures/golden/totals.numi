@@ -1,0 +1,8 @@
+# decimals=2
+Rent = 1200
+Internet = 45
+Coffee = 4.50 * 18
+Rent + Internet + Coffee
+20% of 500
+500 + 10%
+500 - 10%

@@ -10,13 +10,15 @@ It describes architecture, conventions, and workflow. Read it fully before makin
 - **Never add `Co-Authored-By`** lines to commits — ever
 - **Never change code without owner approval** — propose first, implement after explicit confirmation
 - **Release**: tag-push only — see Release Process below. Never `gh release create <file>`
-- **Tests must pass** before any commit — run all four suites:
+- **Tests must pass** before any commit — run the whole suite (needs a session bus for the D-Bus contract test):
   ```
-  ./kde/build/numi-kde-tests qalc
-  ./kde/build/numi-kde-tests documentmodel
-  ./kde/build/numi-kde-tests editor
-  ./kde/build/numi-kde-tests kwinrules
+  dbus-run-session -- ctest --test-dir kde/build --output-on-failure
   ```
+  Suites: `qalc`, `documentmodel`, `editor`, `kwinrules` (+ window memory), `kwinscript` (+ D-Bus contract),
+  `golden`, `stress`, and the shell test `kde/tests/shell/test-install-helper.sh`.
+  Golden documents live in `kde/tests/fixtures/golden/*.numi`; after an intended output change run
+  `./kde/build/numi-kde-tests golden --record` and review the `.expected` diff before committing.
+  Exchange rates in tests come from `kde/tests/fixtures/rates.json` (`NUMI_KDE_OFFLINE_RATES=1`), never from the network.
 
 ---
 
@@ -39,7 +41,8 @@ kde/
   src/           C++ backend
   qml/           QML frontend
   tests/         Unit tests (qalc_test.cpp)
-  resources/     Icons (original PNG logo, pre-rendered hicolor sizes in icons/hicolor — no SVG, owner's decision),
+  resources/     Icons (original PNG logo, pre-rendered hicolor sizes in icons/hicolor — no SVG, owner's decision;
+                 tray: numi-kde-tray.png for dark schemes, numi-kde-tray-light.png = inverted, picked by palette),
                  online.skorin.numi-kde.desktop / .metainfo.xml,
                  numi-kde.notifyrc, polkit policy + update helper script
   CMakeLists.txt Build definition (version lives here)
@@ -212,6 +215,24 @@ replaced by the CI-built one while SHA256SUMS is still being generated, causing 
    **Never pass a file path to the helper** — that was a local privilege escalation in ≤ 0.1.80.
 3. `main.cpp`: window hidden → `restartApp()` immediately (`numi-kde --hidden`); window visible → restart on next hide,
    KNotification with "Restart now". First start after an update shows one "Numi-KDE updated" notification.
+
+## Test Layers
+
+| Layer | What it guards | Where |
+|-------|----------------|-------|
+| `qalc` | math, units, dates, currency (fixture rates), completions | `tests/qalc_test.cpp` |
+| `golden` | whole documents line-by-line vs `.expected` (rounding, dates, unicode vars, edge cases) | `tests/fixtures/golden/` |
+| `documentmodel` | model roles, totals, history, autostart + migration | `tests/qalc_test.cpp` |
+| `editor` | QML key handlers (Tab completion, Esc) in a QQuickView | `tests/qalc_test.cpp` |
+| `kwinrules` | KConfig rule writing in KWin 6 format, legacy cleanup, `WindowMemory` storage | `tests/qalc_test.cpp` |
+| `kwinscript` | `resources/kwin-script` run in QJSEngine with mocked `workspace`/`callDBus`; D-Bus interface/path/service contract incl. live round trip | `tests/qalc_test.cpp` |
+| `stress` | abort of a running evaluation; concurrent completions/highlighting while evaluating (run under TSAN in CI) | `tests/qalc_test.cpp` |
+| shell | polkit helper with stubbed curl/rpm/dnf: rejects paths, downgrades, bad checksums, foreign packages | `tests/shell/test-install-helper.sh` |
+| packaging | RPM must contain every runtime file and dependency | `scripts/check-rpm-contents.sh` (CI + release) |
+| e2e (manual) | real KWin: show → move → hide → show → restart, geometry compared | `scripts/e2e-window-position.sh` — run on a Plasma Wayland session before a release that touches window handling |
+
+CI: `ci.yml` runs ctest under `dbus-run-session`, builds the RPM and checks its contents, runs the shell tests,
+`desktop-file-validate`, `appstreamcli validate`, and a ThreadSanitizer job (`-DNUMI_KDE_TSAN=ON`, suppressions in `tests/tsan.supp`).
 
 ## Static Analysis
 

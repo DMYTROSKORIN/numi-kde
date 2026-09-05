@@ -10,6 +10,8 @@
 #include <QAction>
 #include <QIcon>
 #include <QDebug>
+#include <QEvent>
+#include <QPalette>
 #include <cstdio>
 
 #include <KDBusService>
@@ -89,6 +91,32 @@ static void toggleWindow(QWindow *win, DocumentModel *model)
     }
 }
 
+// The tray badge exists in two hand-made variants: the original (light glyph on
+// a dark disc) for dark colour schemes and its inverse for light ones. Plasma's
+// colour scheme reaches us through the application palette.
+static QIcon trayIconForPalette()
+{
+    const bool lightScheme = QGuiApplication::palette().color(QPalette::Window).lightness() > 128;
+    return QIcon(lightScheme ? QStringLiteral(":/icons/numi-kde-tray-light.png")
+                             : QStringLiteral(":/icons/numi-kde-tray.png"));
+}
+
+// Swaps the tray icon when the user changes the colour scheme while we run.
+class TrayThemeWatcher : public QObject
+{
+public:
+    TrayThemeWatcher(QSystemTrayIcon *tray, QObject *parent = nullptr) : QObject(parent), m_tray(tray) {}
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (event->type() == QEvent::ApplicationPaletteChange || event->type() == QEvent::ThemeChange)
+            m_tray->setIcon(trayIconForPalette());
+        return QObject::eventFilter(watched, event);
+    }
+private:
+    QSystemTrayIcon *m_tray;
+};
+
 static KNotification *notify(const QString &event, const QString &title, const QString &text)
 {
     auto *n = new KNotification(event, KNotification::CloseOnTimeout);
@@ -126,8 +154,6 @@ int main(int argc, char *argv[])
     app.setQuitOnLastWindowClosed(false);   // stay alive in tray when window is closed
     const QIcon appIcon = QIcon::fromTheme(QStringLiteral(NUMI_KDE_APP_ID),
                                            QIcon(QStringLiteral(":/icons/numi-kde.png")));
-    // The tray keeps the original monochrome Numi-KDE badge from the resources.
-    const QIcon trayIcon(QStringLiteral(":/icons/numi-kde-tray.png"));
     app.setWindowIcon(appIcon);
 
     // Single instance: a second launch (menu, autostart, `numi-kde` from a
@@ -204,8 +230,10 @@ int main(int argc, char *argv[])
 
     // ── System tray ──────────────────────────────────────────────────────
     QSystemTrayIcon tray;
-    tray.setIcon(trayIcon);
+    tray.setIcon(trayIconForPalette());
     tray.setToolTip(QStringLiteral("Numi-KDE"));
+    TrayThemeWatcher trayThemeWatcher(&tray);
+    app.installEventFilter(&trayThemeWatcher);
 
     QMenu trayMenu;
     trayMenu.addAction(&showHideAction);

@@ -24,7 +24,7 @@ jobs:
             kf6-kwindowsystem-devel kf6-kglobalaccel-devel \
             kf6-kconfig-devel kf6-kdbusaddons-devel kf6-knotifications-devel \
             libqalculate-devel \
-            rpm-build
+            rpm-build dbus-daemon glibc-langpack-en
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -35,7 +35,7 @@ jobs:
         run: cmake --build build/release --target numi-kde numi-kde-tests
 
       - name: Test
-        run: ctest --test-dir build/release --output-on-failure
+        run: dbus-run-session -- ctest --test-dir build/release --output-on-failure
 
       - name: Package
         run: cmake --build build/release --target package
@@ -45,6 +45,14 @@ jobs:
           rpm -qpi build/release/*.rpm
           rpm -qpl build/release/*.rpm
           rpm -qpR build/release/*.rpm
+
+      - name: Verify RPM contents
+        run: bash scripts/check-rpm-contents.sh build/release/*.rpm
+
+      - name: rpmlint (informational)
+        run: |
+          dnf install -y rpmlint
+          rpmlint build/release/*.rpm || true
 
       - name: Install and probe RPM
         run: |
