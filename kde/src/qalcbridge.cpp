@@ -127,11 +127,13 @@ void QalcBridge::rebuildNameIndexLocked() {
 }
 
 QalcBridge::~QalcBridge() {
-    // Calculator's destructor joins its calculation thread; make sure that
-    // thread is not in the middle of a long computation.
     abortCalculation();
     delete m_highlighter;
-    delete m_calc;
+    // Calculator's destructor joins its calculation thread. If that thread is
+    // still busy (a timed-out line that libqalculate had to force-stop), the
+    // join can block forever; leaking the engine at shutdown is the lesser evil.
+    if (!m_calc->busy())
+        delete m_calc;
 }
 
 QalcBridge::NetworkStatus QalcBridge::networkStatus() const

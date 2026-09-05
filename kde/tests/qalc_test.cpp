@@ -1776,7 +1776,10 @@ static void runEngineStressSuite() {
         check("stress: evaluation works normally after a cancel",
               again.size() == 1 && again.at(0).ok && again.at(0).result == QStringLiteral("4"),
               again.isEmpty() ? QStringLiteral("no result") : again.at(0).result, "4");
-        delete bridge;
+        // Deliberately not deleted: after libqalculate had to force-stop its
+        // calculation thread, ~Calculator() may wait on that thread forever
+        // (seen as a 300 s ctest timeout on CI). The process exits anyway.
+        (void)bridge;
     }
 
     // 2. GUI-thread readers hammer the bridge while evaluations run in the pool.
