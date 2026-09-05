@@ -6,6 +6,7 @@
 
 - **The calculation engine runs in its own process.** libqalculate now lives in `numi-kde-engine` (`/usr/libexec`), talking to the app over stdin/stdout with one JSON message per line. The GUI no longer links libqalculate at all.
 - **Nothing a formula does can take the app down.** If the engine crashes it is respawned within a fraction of a second and the document is recomputed. If it stops making progress for 6 seconds, it is killed, the offending line is marked *Calculation took too long* and remembered, the rest of the document is computed by the fresh engine, and that exact line is not sent to the engine again until it is edited. Restart count is exposed to QML as `documentModel.engineRestarts`.
+- **One thread for libqalculate.** Inside the engine every call that reaches the library (evaluation, highlighting, single-word completion, settings) runs on a single worker thread, in order; the main thread only does I/O and serves Tab completions from a lock-free snapshot. Driving the library from two threads, even serialised by a mutex, made its calculation thread stall for the full per-line timeout on every line (seen as multi-minute evaluations on the CI runner).
 - Per-line limit inside the engine lowered from 5 to 3 seconds; the GUI watchdog sits above it.
 - `numi-kde --probe` now spawns the real engine and evaluates through it, exactly like the GUI.
 

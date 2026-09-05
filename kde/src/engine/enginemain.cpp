@@ -12,8 +12,10 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QFuture>
 #include <QSet>
 #include <QThread>
+#include <QThreadPool>
 #include <QtConcurrent>
 
 #include <cstdio>
@@ -48,12 +50,19 @@ protected:
     }
 };
 
+// Every call that touches libqalculate goes through ONE worker thread, in
+// order: the library's Calculator does not tolerate being driven from two
+// threads even when the calls are serialised by a mutex (its internal
+// calculation thread stalls until the per-line timeout). The main thread only
+// does I/O and answers completions from QalcBridge's lock-free snapshot.
 class EngineServer : public QObject
 {
     Q_OBJECT
 public:
     EngineServer()
     {
+        m_calcPool.setMaxThreadCount(1);
+        m_calcPool.setExpiryTimeout(-1);
         connect(&m_bridge, &QalcBridge::ratesUpdated, this, [this]() {
             send({{QStringLiteral("ev"), QStringLiteral("ratesUpdated")}});
         });
@@ -82,11 +91,15 @@ public slots:
         const qint64 id = req.value(QStringLiteral("id")).toVariant().toLongLong();
 
         if (op == QLatin1String("configure")) {
-            if (req.contains(QStringLiteral("decimals")))
-                m_bridge.setDecimalPlaces(req.value(QStringLiteral("decimals")).toInt());
-            if (req.contains(QStringLiteral("currency")))
-                m_bridge.setDefaultCurrency(req.value(QStringLiteral("currency")).toString());
-            reply(id, {});
+            const bool hasDecimals = req.contains(QStringLiteral("decimals"));
+            const int decimals = req.value(QStringLiteral("decimals")).toInt();
+            const bool hasCurrency = req.contains(QStringLiteral("currency"));
+            const QString currency = req.value(QStringLiteral("currency")).toString();
+            onCalcThread([this, hasDecimals, decimals, hasCurrency, currency]() {
+                if (hasDecimals) m_bridge.setDecimalPlaces(decimals);
+                if (hasCurrency) m_bridge.setDefaultCurrency(currency);
+                return QJsonObject();
+            }, id);
         } else if (op == QLatin1String("evaluate")) {
             Job job;
             job.id = id;
@@ -112,12 +125,15 @@ public slots:
             }
             reply(id, {});
         } else if (op == QLatin1String("completions")) {
+            // Snapshot-based, no Calculator access: answered immediately, even mid-evaluation.
             reply(id, {{QStringLiteral("items"),
                         QJsonArray::fromStringList(m_bridge.getCompletions(req.value(QStringLiteral("context")).toString()))}});
         } else if (op == QLatin1String("completion")) {
-            reply(id, {{QStringLiteral("value"), m_bridge.getCompletion(req.value(QStringLiteral("prefix")).toString())}});
+            const QString prefix = req.value(QStringLiteral("prefix")).toString();
+            onCalcThread([this, prefix]() { return QJsonObject{{QStringLiteral("value"), m_bridge.getCompletion(prefix)}}; }, id);
         } else if (op == QLatin1String("highlight")) {
-            reply(id, {{QStringLiteral("html"), m_bridge.highlightLine(req.value(QStringLiteral("line")).toString())}});
+            const QString line = req.value(QStringLiteral("line")).toString();
+            onCalcThread([this, line]() { return QJsonObject{{QStringLiteral("html"), m_bridge.highlightLine(line)}}; }, id);
         } else if (op == QLatin1String("ping")) {
             reply(id, {{QStringLiteral("version"), QStringLiteral(NUMI_KDE_VERSION)}});
         } else if (op == QLatin1String("_crash")) {
@@ -159,9 +175,18 @@ private:
         };
         const QString source = job.source;
         const QSet<int> skip = job.skip;
-        m_watcher.setFuture(QtConcurrent::run([this, source, skip, progress]() {
+        m_watcher.setFuture(QtConcurrent::run(&m_calcPool, [this, source, skip, progress]() {
             return m_bridge.evaluateDocument(source, progress, skip);
         }));
+    }
+
+    // Runs `work` on the single calculator thread (after whatever is queued)
+    // and replies with its result from the main thread.
+    void onCalcThread(std::function<QJsonObject()> work, qint64 id)
+    {
+        QtConcurrent::run(&m_calcPool, std::move(work)).then(this, [this, id](QJsonObject fields) {
+            reply(id, fields);
+        });
     }
 
     void onEvaluationFinished()
@@ -191,6 +216,7 @@ private:
     }
 
     QalcBridge m_bridge;
+    QThreadPool m_calcPool;   // exactly one thread: the only one that touches libqalculate
     QFutureWatcher<QList<LineResult>> m_watcher;
     std::optional<Job> m_running;
     std::optional<Job> m_pending;

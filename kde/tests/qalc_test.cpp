@@ -32,6 +32,7 @@
 #include <QQmlContext>
 #include <QQuickItem>
 #include <cstdio>
+#include <cstdlib>
 #include <clocale>
 
 // Minimal mock for EditorPane QML tests — only Q_INVOKABLEs accessed by EditorPane.qml
@@ -1756,21 +1757,23 @@ static bool waitFinished(const QFuture<void> &f, int ms) {
 static void runEngineStressSuite() {
     // ONE engine for the whole suite: libqalculate's Calculator is a
     // process-wide singleton (global CALCULATOR pointer) and a second instance
-    // next to a live one misbehaves. The heavy line below must finish on its
-    // own well inside libqalculate's 5 s per-line timeout — a force-stopped
-    // calculation thread makes ~Calculator() and process exit hang.
-    QalcBridge bridgeObject;
-    QalcBridge *bridge = &bridgeObject;
+    // next to a live one misbehaves. It is never destroyed: if the per-line
+    // timeout ever force-stops the calculation thread (slow CI runners),
+    // ~Calculator() and static destructors hang — main() leaves via _Exit()
+    // after this suite for the same reason.
+    auto *bridge = new QalcBridge;
     bridge->setDecimalPlaces(2);
 
     // 1. Cancelling a document skips the lines not yet reached while the line
     //    in flight runs to completion (~0.6 s here, a few seconds on CI).
     {
-        const QString heavy = QStringLiteral("sum(sin(x), 1, 10^5, x)\n2 + 2\n1 km to m");
+        // ~0.2 s locally, a second or two on a slow runner: far below the 3 s
+        // per-line timeout, so libqalculate never has to force-stop anything.
+        const QString heavy = QStringLiteral("sum(sin(x), 1, 3 * 10^4, x)\n2 + 2\n1 km to m");
         QList<LineResult> results;
         QElapsedTimer t; t.start();
         QFuture<void> fut = QtConcurrent::run([bridge, heavy, &results]() { results = bridge->evaluateDocument(heavy); });
-        QThread::msleep(50);
+        QThread::msleep(20);
         bridge->abortCalculation();
         const bool finished = waitFinished(fut, 20000);
         const qint64 ms = t.elapsed();
@@ -1788,7 +1791,10 @@ static void runEngineStressSuite() {
               again.isEmpty() ? QStringLiteral("no result") : again.at(0).result, "4");
     }
 
-    // 2. GUI-thread readers hammer the bridge while evaluations run in the pool.
+    // 2. The thread-safe surface (snapshot completions, cancel) is hammered from
+    //    this thread while evaluations run on the worker. Calculator-touching
+    //    calls (highlight, single completion, setters) are NOT made here: the
+    //    contract in qalcbridge.h forbids driving libqalculate from two threads.
     {
         bridge->setDecimalPlaces(2);
         QString doc;
@@ -1805,15 +1811,15 @@ static void runEngineStressSuite() {
             }
         });
 
+        // Bounded by iterations as well as time: every reader that takes the
+        // calculator mutex may wait for a whole document evaluation, and on a
+        // slow runner an unbounded loop turned into minutes.
         QElapsedTimer t; t.start();
         int reads = 0;
-        while (t.elapsed() < 1500) {
+        while (t.elapsed() < 1500 && reads < 2000) {
             bridge->getCompletions(QStringLiteral("Variable num"));
-            bridge->highlightLine(QStringLiteral("Variable number 3 + 4 km"));
-            if (reads % 10 == 0) {
-                bridge->getCompletion(QStringLiteral("kil"));
-                bridge->setDecimalPlaces(2 + reads % 3);
-            }
+            bridge->getCompletions(QStringLiteral("kilo"));
+            if (reads % 50 == 0) bridge->abortCalculation();   // supersede, like the GUI does
             ++reads;
         }
         stop.store(true);
@@ -1823,10 +1829,15 @@ static void runEngineStressSuite() {
               QStringLiteral("finished=%1 %2 reads, %3 evaluations").arg(finished).arg(reads).arg(evaluations.load()), "finished, > 0 each");
         if (!finished) return; // the engine stays alive with its stuck worker
 
+        // Worker is idle now: Calculator-touching calls are fine again from this thread.
+        bridge->evaluateDocument(doc);
         const QStringList completions = bridge->getCompletions(QStringLiteral("Variable number 1"));
         check("stress: completion snapshot is consistent after the run",
               completions.size() == 3 /* 1, 10, 11 */,
               QString::number(completions.size()), "3");
+        check("stress: highlight and single completion work after the concurrent phase",
+              bridge->highlightLine(QStringLiteral("# note")).contains("<span") && bridge->getCompletion(QStringLiteral("kil")).startsWith("kil"),
+              bridge->getCompletion(QStringLiteral("kil")), "kil…");
     }
 }
 
@@ -2008,6 +2019,12 @@ int main(int argc, char *argv[]) {
     }
 
     std::printf("\n=== Results: %d passed, %d failed ===\n", passed, failed);
+    if (suite == QStringLiteral("stress")) {
+        // The stress engine is deliberately leaked (see runEngineStressSuite);
+        // skip static destructors that could wait on its calculation thread.
+        std::fflush(stdout);
+        std::_Exit(failed > 0 ? 1 : 0);
+    }
     return failed > 0 ? 1 : 0;
 }
 
