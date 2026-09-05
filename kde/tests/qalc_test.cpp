@@ -198,7 +198,7 @@ static void runSuite(QalcBridge &bridge) {
     }
     {
         auto r = eval("500/0");
-        check("division by zero is Error", !r.ok && r.error == "Error", r.error, "Error");
+        check("division by zero is an explained Error", !r.ok && r.error == "Division by zero", r.error, "Division by zero");
     }
 
     // ── Variables ────────────────────────────────────────────────────────────
@@ -768,8 +768,10 @@ static void runSuite(QalcBridge &bridge) {
     }
     {
         auto results = bridge.evaluateDocument("500.42 , 599 58");
-        check("reject vector/list input with Error",
-              results.size() == 1 && !results[0].ok && results[0].error == "Error", "result shown", "Error");
+        check("reject vector/list input with an explained Error",
+              results.size() == 1 && !results[0].ok && results[0].error.contains("Vectors"),
+              results.size() == 1 ? (results[0].ok ? "result shown" : results[0].error) : "no result",
+              "Vectors and matrices are not supported");
     }
     {
         auto results = bridge.evaluateDocument("/helpjunk");
@@ -883,13 +885,19 @@ static void runSuite(QalcBridge &bridge) {
               list.isEmpty(), QString::number(list.size()), "0");
     }
     {
-        // Results sorted alphabetically by name
+        // Keywords (the leading group) are sorted alphabetically by name;
+        // library names (units/functions) follow as separate groups.
         auto list = bridge.getCompletions("to");
         bool sorted = true;
-        for (int i = 1; i < list.size(); ++i) {
+        static const QStringList keywords = {"today", "tomorrow"};
+        int keywordCount = 0;
+        for (int i = 0; i < list.size(); ++i)
+            if (keywords.contains(list[i].section('\t', 0, 0))) keywordCount = i + 1;
+        for (int i = 1; i < keywordCount; ++i) {
             if (list[i].section('\t', 0, 0).toLower() < list[i-1].section('\t', 0, 0).toLower())
                 { sorted = false; break; }
         }
+        if (keywordCount != 2) sorted = false;
         check("getCompletions results sorted alphabetically",
               !list.isEmpty() && sorted,
               sorted ? QString("ok (%1 items)").arg(list.size()) : list.join(", "),
@@ -1286,6 +1294,71 @@ static void runEditorSuite() {
         check("Esc key does not crash the editor",
               view.rootObject() != nullptr, "ok", "ok");
     }
+}
+
+// ── Autocomplete of units/currencies/functions + error texts ─────────────────
+static bool hasCompletion(const QStringList &list, const QString &name) {
+    for (const QString &item : list)
+        if (item.section('\t', 0, 0) == name) return true;
+    return false;
+}
+
+static void runCompletionAndErrorSuite(QalcBridge &bridge) {
+    std::printf("\n--- completions ---\n");
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("5 kilo"));
+        check("completions: units are offered from two typed letters (kilo → kilometer, kilogram)",
+              hasCompletion(c, "kilometer") && hasCompletion(c, "kilogram"), c.join(" | "), "kilometer, kilogram …");
+    }
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("100 US"));
+        check("completions: currencies are offered (US → USD)", hasCompletion(c, "USD"), c.join(" | "), "USD …");
+        const QStringList e = bridge.getCompletions(QStringLiteral("100 eu"));
+        check("completions: fixture currency EUR is offered case-insensitively", hasCompletion(e, "EUR"), e.join(" | "), "EUR …");
+    }
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("2 + sq"));
+        check("completions: functions are offered with an opening parenthesis (sq → sqrt()", hasCompletion(c, "sqrt("), c.join(" | "), "sqrt( …");
+        QString desc;
+        for (const QString &item : c) if (item.startsWith("sqrt(\t")) desc = item.section('\t', 1);
+        check("completions: function entries carry libqalculate's title", !desc.isEmpty(), desc, "non-empty title");
+    }
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("k"));
+        bool libraryNames = false;
+        for (const QString &item : c) if (item.section('\t', 0, 0).size() > 1) libraryNames = true;
+        check("completions: a single typed letter does not flood with library names", !libraryNames, c.join(" | "), "no unit/function names");
+    }
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("30 da"));
+        check("completions: keywords still come first (da → days)", !c.isEmpty() && c.first().section('\t', 0, 0) == "days",
+              c.isEmpty() ? "none" : c.first(), "days …");
+        int idx = -1; for (int i = 0; i < c.size(); ++i) if (c.at(i).section('\t', 0, 0) == "day") idx = i;
+        check("completions: library names follow keywords (day unit present)", idx > 0, QString::number(idx), "> 0");
+    }
+    {
+        bridge.evaluateDocument(QStringLiteral("Monthly income = 5000\nMonthly income * 12"));
+        const QStringList c = bridge.getCompletions(QStringLiteral("Mon"));
+        check("completions: user variables lead, library names follow",
+              !c.isEmpty() && c.first().section('\t', 0, 0) == "Monthly income" && hasCompletion(c, "month"),
+              c.join(" | "), "Monthly income first, month later");
+    }
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("cent"));
+        check("completions: at most 12 units for a broad prefix", c.size() <= 12 + 3, QString::number(c.size()), "<= 15");
+    }
+
+    std::printf("\n--- error texts ---\n");
+    auto errorOf = [&bridge](const QString &line) {
+        const QList<LineResult> r = bridge.evaluateDocument(line);
+        return r.isEmpty() ? QStringLiteral("(no result)") : (r.first().ok ? QStringLiteral("(ok: %1)").arg(r.first().result) : r.first().error);
+    };
+    check("errors: explicit division by zero is explained", errorOf("1/0") == "Division by zero", errorOf("1/0"), "Division by zero");
+    check("errors: temperature below absolute zero is explained", errorOf("-300 K to C").contains("absolute zero"), errorOf("-300 K to C"), "…absolute zero…");
+    check("errors: vectors are explained", errorOf("[1, 2] * 3").contains("Vectors"), errorOf("[1, 2] * 3"), "Vectors and matrices are not supported");
+    check("errors: infinite result is explained", errorOf("ln(0)") == "Result is infinite", errorOf("ln(0)"), "Result is infinite");
+    check("errors: a correct line has no error text",
+          bridge.evaluateDocument("2 + 2").first().error.isEmpty(), bridge.evaluateDocument("2 + 2").first().error, "");
 }
 
 // ── KWin rule manager tests ─────────────────────────────────────────────────
@@ -1816,6 +1889,7 @@ int main(int argc, char *argv[]) {
         QalcBridge bridge;
         bridge.setDecimalPlaces(3);
         runSuite(bridge);
+        runCompletionAndErrorSuite(bridge);
     }
 
     std::printf("\n=== Results: %d passed, %d failed ===\n", passed, failed);
