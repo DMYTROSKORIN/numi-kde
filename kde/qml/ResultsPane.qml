@@ -48,6 +48,11 @@ Controls.ScrollView {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
+
+                // Why did this line fail? The engine's explanation on hover.
+                Controls.ToolTip.visible: !ok && resultMouse.containsMouse && diagnostic.length > 0
+                Controls.ToolTip.text: diagnostic
+                Controls.ToolTip.delay: 250
             }
 
             MouseArea {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.85 - 2026-09-05
+
+### Added
+
+- **Autocomplete for units, currencies and functions.** From two typed characters Tab offers libqalculate's units (`kilo` → kilometer, kilogram …), currencies (`US` → USD) and functions with an opening parenthesis (`sq` → `sqrt(`), each with its description. User variables and keywords keep coming first; at most 12 library names per group.
+- **Error explanations.** Hovering a red `Error` shows why the line failed: division by zero, temperature below absolute zero, vectors and matrices, infinite or undefined results, or libqalculate's own message (for example a function called with too few arguments).
+
 ## 0.1.84 - 2026-09-05
 
 ### Fix

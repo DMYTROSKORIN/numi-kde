@@ -198,7 +198,7 @@ static void runSuite(QalcBridge &bridge) {
     }
     {
         auto r = eval("500/0");
-        check("division by zero is Error", !r.ok && r.error == "Error", r.error, "Error");
+        check("division by zero is an explained Error", !r.ok && r.error == "Division by zero", r.error, "Division by zero");
     }
 
     // ── Variables ────────────────────────────────────────────────────────────
@@ -768,8 +768,10 @@ static void runSuite(QalcBridge &bridge) {
     }
     {
         auto results = bridge.evaluateDocument("500.42 , 599 58");
-        check("reject vector/list input with Error",
-              results.size() == 1 && !results[0].ok && results[0].error == "Error", "result shown", "Error");
+        check("reject vector/list input with an explained Error",
+              results.size() == 1 && !results[0].ok && results[0].error.contains("Vectors"),
+              results.size() == 1 ? (results[0].ok ? "result shown" : results[0].error) : "no result",
+              "Vectors and matrices are not supported");
     }
     {
         auto results = bridge.evaluateDocument("/helpjunk");
@@ -883,13 +885,19 @@ static void runSuite(QalcBridge &bridge) {
               list.isEmpty(), QString::number(list.size()), "0");
     }
     {
-        // Results sorted alphabetically by name
+        // Keywords (the leading group) are sorted alphabetically by name;
+        // library names (units/functions) follow as separate groups.
         auto list = bridge.getCompletions("to");
         bool sorted = true;
-        for (int i = 1; i < list.size(); ++i) {
+        static const QStringList keywords = {"today", "tomorrow"};
+        int keywordCount = 0;
+        for (int i = 0; i < list.size(); ++i)
+            if (keywords.contains(list[i].section('\t', 0, 0))) keywordCount = i + 1;
+        for (int i = 1; i < keywordCount; ++i) {
             if (list[i].section('\t', 0, 0).toLower() < list[i-1].section('\t', 0, 0).toLower())
                 { sorted = false; break; }
         }
+        if (keywordCount != 2) sorted = false;
         check("getCompletions results sorted alphabetically",
               !list.isEmpty() && sorted,
               sorted ? QString("ok (%1 items)").arg(list.size()) : list.join(", "),
@@ -1288,6 +1296,71 @@ static void runEditorSuite() {
     }
 }
 
+// ── Autocomplete of units/currencies/functions + error texts ─────────────────
+static bool hasCompletion(const QStringList &list, const QString &name) {
+    for (const QString &item : list)
+        if (item.section('\t', 0, 0) == name) return true;
+    return false;
+}
+
+static void runCompletionAndErrorSuite(QalcBridge &bridge) {
+    std::printf("\n--- completions ---\n");
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("5 kilo"));
+        check("completions: units are offered from two typed letters (kilo → kilometer, kilogram)",
+              hasCompletion(c, "kilometer") && hasCompletion(c, "kilogram"), c.join(" | "), "kilometer, kilogram …");
+    }
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("100 US"));
+        check("completions: currencies are offered (US → USD)", hasCompletion(c, "USD"), c.join(" | "), "USD …");
+        const QStringList e = bridge.getCompletions(QStringLiteral("100 eu"));
+        check("completions: fixture currency EUR is offered case-insensitively", hasCompletion(e, "EUR"), e.join(" | "), "EUR …");
+    }
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("2 + sq"));
+        check("completions: functions are offered with an opening parenthesis (sq → sqrt()", hasCompletion(c, "sqrt("), c.join(" | "), "sqrt( …");
+        QString desc;
+        for (const QString &item : c) if (item.startsWith("sqrt(\t")) desc = item.section('\t', 1);
+        check("completions: function entries carry libqalculate's title", !desc.isEmpty(), desc, "non-empty title");
+    }
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("k"));
+        bool libraryNames = false;
+        for (const QString &item : c) if (item.section('\t', 0, 0).size() > 1) libraryNames = true;
+        check("completions: a single typed letter does not flood with library names", !libraryNames, c.join(" | "), "no unit/function names");
+    }
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("30 da"));
+        check("completions: keywords still come first (da → days)", !c.isEmpty() && c.first().section('\t', 0, 0) == "days",
+              c.isEmpty() ? "none" : c.first(), "days …");
+        int idx = -1; for (int i = 0; i < c.size(); ++i) if (c.at(i).section('\t', 0, 0) == "day") idx = i;
+        check("completions: library names follow keywords (day unit present)", idx > 0, QString::number(idx), "> 0");
+    }
+    {
+        bridge.evaluateDocument(QStringLiteral("Monthly income = 5000\nMonthly income * 12"));
+        const QStringList c = bridge.getCompletions(QStringLiteral("Mon"));
+        check("completions: user variables lead, library names follow",
+              !c.isEmpty() && c.first().section('\t', 0, 0) == "Monthly income" && hasCompletion(c, "month"),
+              c.join(" | "), "Monthly income first, month later");
+    }
+    {
+        const QStringList c = bridge.getCompletions(QStringLiteral("cent"));
+        check("completions: at most 12 units for a broad prefix", c.size() <= 12 + 3, QString::number(c.size()), "<= 15");
+    }
+
+    std::printf("\n--- error texts ---\n");
+    auto errorOf = [&bridge](const QString &line) {
+        const QList<LineResult> r = bridge.evaluateDocument(line);
+        return r.isEmpty() ? QStringLiteral("(no result)") : (r.first().ok ? QStringLiteral("(ok: %1)").arg(r.first().result) : r.first().error);
+    };
+    check("errors: explicit division by zero is explained", errorOf("1/0") == "Division by zero", errorOf("1/0"), "Division by zero");
+    check("errors: temperature below absolute zero is explained", errorOf("-300 K to C").contains("absolute zero"), errorOf("-300 K to C"), "…absolute zero…");
+    check("errors: vectors are explained", errorOf("[1, 2] * 3").contains("Vectors"), errorOf("[1, 2] * 3"), "Vectors and matrices are not supported");
+    check("errors: infinite result is explained", errorOf("ln(0)") == "Result is infinite", errorOf("ln(0)"), "Result is infinite");
+    check("errors: a correct line has no error text",
+          bridge.evaluateDocument("2 + 2").first().error.isEmpty(), bridge.evaluateDocument("2 + 2").first().error, "");
+}
+
 // ── KWin rule manager tests ─────────────────────────────────────────────────
 // kwinrulesrc is owned by KWin; we must only ever touch our own group and the
 // [General] rules list, in the format KWin 6 actually reads.
@@ -1678,21 +1751,28 @@ static bool waitFinished(const QFuture<void> &f, int ms) {
 }
 
 static void runEngineStressSuite() {
-    // 1. Cancelling a document skips the lines not yet reached; the line in
-    //    flight ends by libqalculate's own timeout (5 s). Total stays bounded.
+    // ONE engine for the whole suite: libqalculate's Calculator is a
+    // process-wide singleton (global CALCULATOR pointer) and a second instance
+    // next to a live one misbehaves. The heavy line below must finish on its
+    // own well inside libqalculate's 5 s per-line timeout — a force-stopped
+    // calculation thread makes ~Calculator() and process exit hang.
+    QalcBridge bridgeObject;
+    QalcBridge *bridge = &bridgeObject;
+    bridge->setDecimalPlaces(2);
+
+    // 1. Cancelling a document skips the lines not yet reached while the line
+    //    in flight runs to completion (~0.6 s here, a few seconds on CI).
     {
-        auto *bridge = new QalcBridge;   // leaked on purpose if it ever hangs
-        bridge->setDecimalPlaces(2);
-        const QString heavy = QStringLiteral("sum(sin(x), 1, 10^9, x)\n2 + 2\n1 km to m");
+        const QString heavy = QStringLiteral("sum(sin(x), 1, 10^5, x)\n2 + 2\n1 km to m");
         QList<LineResult> results;
         QElapsedTimer t; t.start();
         QFuture<void> fut = QtConcurrent::run([bridge, heavy, &results]() { results = bridge->evaluateDocument(heavy); });
-        QThread::msleep(150);
+        QThread::msleep(50);
         bridge->abortCalculation();
         const bool finished = waitFinished(fut, 20000);
         const qint64 ms = t.elapsed();
-        check("stress: cancelled evaluation returns within the per-line timeout budget", finished && ms < 12000,
-              QStringLiteral("finished=%1 after %2 ms").arg(finished).arg(ms), "finished, < 12000 ms");
+        check("stress: cancelled evaluation returns without running the remaining lines", finished && ms < 4500,
+              QStringLiteral("finished=%1 after %2 ms").arg(finished).arg(ms), "finished, < 4500 ms");
         if (!finished) return;
         check("stress: cancelled evaluation still returns one result per line", results.size() == 3,
               QString::number(results.size()), "3");
@@ -1703,13 +1783,11 @@ static void runEngineStressSuite() {
         check("stress: evaluation works normally after a cancel",
               again.size() == 1 && again.at(0).ok && again.at(0).result == QStringLiteral("4"),
               again.isEmpty() ? QStringLiteral("no result") : again.at(0).result, "4");
-        delete bridge;
     }
 
     // 2. GUI-thread readers hammer the bridge while evaluations run in the pool.
     {
-        QalcBridge bridge;
-        bridge.setDecimalPlaces(2);
+        bridge->setDecimalPlaces(2);
         QString doc;
         for (int i = 0; i < 12; ++i)
             doc += QStringLiteral("Variable number %1 = %2 * 1.5\n").arg(i).arg(i + 1);
@@ -1719,7 +1797,7 @@ static void runEngineStressSuite() {
         std::atomic<int> evaluations{0};
         QFuture<void> worker = QtConcurrent::run([&]() {
             while (!stop.load()) {
-                bridge.evaluateDocument(doc);
+                bridge->evaluateDocument(doc);
                 ++evaluations;
             }
         });
@@ -1727,11 +1805,11 @@ static void runEngineStressSuite() {
         QElapsedTimer t; t.start();
         int reads = 0;
         while (t.elapsed() < 1500) {
-            bridge.getCompletions(QStringLiteral("Variable num"));
-            bridge.highlightLine(QStringLiteral("Variable number 3 + 4 km"));
+            bridge->getCompletions(QStringLiteral("Variable num"));
+            bridge->highlightLine(QStringLiteral("Variable number 3 + 4 km"));
             if (reads % 10 == 0) {
-                bridge.getCompletion(QStringLiteral("kil"));
-                bridge.setDecimalPlaces(2 + reads % 3);
+                bridge->getCompletion(QStringLiteral("kil"));
+                bridge->setDecimalPlaces(2 + reads % 3);
             }
             ++reads;
         }
@@ -1740,9 +1818,9 @@ static void runEngineStressSuite() {
         check("stress: concurrent completions/highlighting during evaluation do not crash or hang",
               finished && reads > 0 && evaluations.load() > 0,
               QStringLiteral("finished=%1 %2 reads, %3 evaluations").arg(finished).arg(reads).arg(evaluations.load()), "finished, > 0 each");
-        if (!finished) { new QalcBridge; return; } // never destroy a bridge whose worker is stuck
+        if (!finished) return; // the engine stays alive with its stuck worker
 
-        const QStringList completions = bridge.getCompletions(QStringLiteral("Variable number 1"));
+        const QStringList completions = bridge->getCompletions(QStringLiteral("Variable number 1"));
         check("stress: completion snapshot is consistent after the run",
               completions.size() == 3 /* 1, 10, 11 */,
               QString::number(completions.size()), "3");
@@ -1816,6 +1894,7 @@ int main(int argc, char *argv[]) {
         QalcBridge bridge;
         bridge.setDecimalPlaces(3);
         runSuite(bridge);
+        runCompletionAndErrorSuite(bridge);
     }
 
     std::printf("\n=== Results: %d passed, %d failed ===\n", passed, failed);

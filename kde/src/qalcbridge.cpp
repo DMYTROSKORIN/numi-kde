@@ -74,16 +74,66 @@ QalcBridge::QalcBridge(QObject *parent) : QObject(parent) {
         return;
 
     m_ratesRefreshTimer->start();
+    {
+        QMutexLocker locker(&m_calcMutex);
+        rebuildNameIndexLocked();
+    }
+
     fetchFiatRates();
     fetchCryptoRates();
 }
 
+// Builds the unit / currency / function name list used by getCompletions().
+// Must be called with m_calcMutex held; publishes under m_snapshotMutex.
+void QalcBridge::rebuildNameIndexLocked() {
+    static const QRegularExpression plainName(QStringLiteral("^[A-Za-z][A-Za-z0-9_]*$"));
+    QList<NameEntry> index;
+    auto add = [&](const std::string &rawName, const std::string &rawTitle, NameKind kind) {
+        const QString name = QString::fromStdString(rawName);
+        if (name.size() < 2 || !plainName.match(name).hasMatch()) return;
+        QString title = QString::fromStdString(rawTitle);
+        if (title == name) title.clear();
+        // Functions are inserted with their opening parenthesis.
+        index.append({kind == NameKind::Function ? name + QLatin1Char('(') : name, title, kind});
+    };
+    for (size_t i = 0; ; ++i) {
+        Unit *u = m_calc->getUnit(i);
+        if (!u) break;
+        if (!u->isActive() || u->isHidden()) continue;
+        const NameKind kind = u->isCurrency() ? NameKind::Currency : NameKind::Unit;
+        // Currency units created from exchange rates carry only name(), no name list.
+        add(u->name(), u->title(true), kind);
+        for (size_t j = 0; j < u->countNames(); ++j)
+            add(u->getName(j).name, u->title(true), kind);
+    }
+    for (size_t i = 0; ; ++i) {
+        MathFunction *f = m_calc->getFunction(i);
+        if (!f) break;
+        if (!f->isActive() || f->isHidden()) continue;
+        add(f->name(), f->title(true), NameKind::Function);
+        for (size_t j = 0; j < f->countNames(); ++j)
+            add(f->getName(j).name, f->title(true), NameKind::Function);
+    }
+    std::sort(index.begin(), index.end(), [](const NameEntry &a, const NameEntry &b) {
+        if (a.name.size() != b.name.size()) return a.name.size() < b.name.size();
+        return a.name.compare(b.name, Qt::CaseInsensitive) < 0;
+    });
+    index.erase(std::unique(index.begin(), index.end(),
+                            [](const NameEntry &a, const NameEntry &b) { return a.name == b.name && a.kind == b.kind; }),
+                index.end());
+    QMutexLocker snapshotLock(&m_snapshotMutex);
+    m_nameIndex = std::move(index);
+    m_nameIndexDirty = false;
+}
+
 QalcBridge::~QalcBridge() {
-    // Calculator's destructor joins its calculation thread; make sure that
-    // thread is not in the middle of a long computation.
     abortCalculation();
     delete m_highlighter;
-    delete m_calc;
+    // Calculator's destructor joins its calculation thread. If that thread is
+    // still busy (a timed-out line that libqalculate had to force-stop), the
+    // join can block forever; leaking the engine at shutdown is the lesser evil.
+    if (!m_calc->busy())
+        delete m_calc;
 }
 
 QalcBridge::NetworkStatus QalcBridge::networkStatus() const
@@ -225,6 +275,7 @@ bool QalcBridge::updateUsdAliasUnit(const QString &name, double usdPerUnit, Unit
 
 void QalcBridge::applyFiatRates(const QJsonObject &rates) {
     QMutexLocker locker(&m_calcMutex);
+    m_nameIndexDirty = true;
 
     Unit *usd = m_calc->getUnit("USD");
     if (!usd) return;
@@ -261,6 +312,7 @@ void QalcBridge::applyFiatRates(const QJsonObject &rates) {
 
 void QalcBridge::applyCryptoRates(const QJsonObject &rates) {
     QMutexLocker locker(&m_calcMutex);
+    m_nameIndexDirty = true;
 
     Unit *usd = m_calc->getUnit("USD");
     if (!usd) return;
@@ -708,15 +760,31 @@ static bool hasExplicitDivisionByZero(const QString &trimmed)
     return divisionByZero.match(trimmed).hasMatch();
 }
 
-static bool hasCalculationError(Calculator *calc)
+// Drains libqalculate's message queue; returns the first error text, or empty.
+static QString takeCalculationError(Calculator *calc)
 {
-    bool hasError = false;
+    QString first;
     for (CalculatorMessage *message = calc->message(); message; message = calc->nextMessage()) {
-        if (message->type() == MESSAGE_ERROR)
-            hasError = true;
+        if (message->type() == MESSAGE_ERROR && first.isEmpty())
+            first = QString::fromStdString(message->message());
     }
     calc->clearMessages();
-    return hasError;
+    return first;
+}
+
+static bool hasCalculationError(Calculator *calc)
+{
+    return !takeCalculationError(calc).isEmpty();
+}
+
+// Human-readable reason for a failed calculation, shown as a tooltip on "Error".
+static QString describeFailure(Calculator *calc, const MathStructure &result, const QString &libraryError)
+{
+    if (calc->aborted()) return QStringLiteral("Calculation took too long");
+    if (!libraryError.isEmpty()) return libraryError;
+    if (result.isUndefined()) return QStringLiteral("Result is undefined");
+    if (result.isInfinite()) return QStringLiteral("Result is infinite");
+    return QStringLiteral("Error");
 }
 
 bool QalcBridge::hasUsdRateForSymbol(const QString &symbol) const
@@ -1317,7 +1385,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
 
         if (hasExplicitDivisionByZero(trimmed)) {
             res.ok = false;
-            res.error = "Error";
+            res.error = QStringLiteral("Division by zero");
             results.append(res);
             continue;
         }
@@ -1368,7 +1436,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 if (tempResult.isEmpty()) {
                     // Physics violation (e.g. below absolute zero)
                     res.ok = false;
-                    res.error = QStringLiteral("Error");
+                    res.error = QStringLiteral("Temperature below absolute zero (0 K = −273.15 °C)");
                 } else {
                     res.ok = true;
                     res.result = tempResult;
@@ -1516,9 +1584,10 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 m_calc->clearMessages();
                 MathStructure rhsResult;
                 m_calc->calculate(&rhsResult, rhs.toStdString(), 5000, eo);
-                if (m_calc->aborted() || hasCalculationError(m_calc) || rhsResult.isUndefined() || rhsResult.isInfinite()) {
+                const QString rhsError = takeCalculationError(m_calc);
+                if (m_calc->aborted() || !rhsError.isEmpty() || rhsResult.isUndefined() || rhsResult.isInfinite()) {
                     res.ok = false;
-                    res.error = "Error";
+                    res.error = describeFailure(m_calc, rhsResult, rhsError);
                 } else {
                     // Set the variable in the calculator using the internal (underscore) name.
                     QString assignment = QString("%1 := %2").arg(internalName, rhs);
@@ -1529,7 +1598,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                         double v = rhsResult.number().floatValue();
                         if (!std::isfinite(v)) {
                             res.ok = false;
-                            res.error = "Error";
+                            res.error = QStringLiteral("Result is not a finite number");
                         } else {
                             m_varNumericValue[displayName] = v;
                             res.result = smartFormat(v, m_decimalPlaces);
@@ -1542,9 +1611,10 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                     } else {
                         QString rhsStr = QString::fromStdString(m_calc->print(rhsResult, 2000, po_display));
                         res.result = rhsStr;
-                        res.ok = !hasCalculationError(m_calc);
+                        const QString printError = takeCalculationError(m_calc);
+                        res.ok = printError.isEmpty();
                         if (!res.ok) {
-                            res.error = "Error";
+                            res.error = printError;
                         } else {
                             if (res.ok)
                                 m_userVarDisplayValues[displayName] = rhsStr;
@@ -1564,7 +1634,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 }
             } catch (...) {
                 res.ok = false;
-                res.error = "Error";
+                res.error = QStringLiteral("Internal calculation error");
             }
         } else {
             // "X% from/of NUMBER CURRENCY" — libqalculate always normalises
@@ -1598,14 +1668,15 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                 m_calc->clearMessages();
                 MathStructure result;
                 m_calc->calculate(&result, line.toStdString(), 5000, eo);
-                if (m_calc->aborted() || hasCalculationError(m_calc) || result.isUndefined() || result.isInfinite()) {
+                const QString calcError = takeCalculationError(m_calc);
+                if (m_calc->aborted() || !calcError.isEmpty() || result.isUndefined() || result.isInfinite()) {
                     res.ok = false;
-                    res.error = "Error";
+                    res.error = describeFailure(m_calc, result, calcError);
                 } else if (result.isNumber() && !result.number().hasImaginaryPart()) {
                     double v = result.number().floatValue();
                     if (!std::isfinite(v)) {
                         res.ok = false;
-                        res.error = "Error";
+                        res.error = QStringLiteral("Result is not a finite number");
                     } else {
                         res.result = smartFormat(v, m_decimalPlaces);
                         res.hasNumericValue = true;
@@ -1626,7 +1697,7 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                     // but this broke currency sums (e.g. 600 AED + 400 USD).
                     if (out.startsWith('[') && out.endsWith(']')) {
                         res.ok = false;
-                        res.error = "Error";
+                        res.error = QStringLiteral("Vectors and matrices are not supported");
                     } else {
                         res.result = out;
                         static QRegularExpression conversionWord(
@@ -1636,13 +1707,15 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
                             res.hasNumericValue = parseDisplayNumber(out, &res.numericValue);
                         if (res.hasNumericValue)
                             res.totalKey = totalKey;
-                        res.ok = !hasCalculationError(m_calc);
+                        const QString printError = takeCalculationError(m_calc);
+                        res.ok = printError.isEmpty();
+                        if (!res.ok) res.error = printError;
                     }
-                    if (!res.ok) res.error = "Error";
+                    if (!res.ok && res.error.isEmpty()) res.error = "Error";
                 }
             } catch (...) {
                 res.ok = false;
-                res.error = "Error";
+                res.error = QStringLiteral("Internal calculation error");
             }
         }
 
@@ -1675,6 +1748,9 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source) {
 
         results.append(res);
     }
+
+    if (m_nameIndexDirty)
+        rebuildNameIndexLocked();
 
     {
         QMutexLocker snapshotLock(&m_snapshotMutex);
@@ -1810,6 +1886,53 @@ QStringList QalcBridge::getCompletions(const QString &lineContext) {
     std::sort(result.begin(), result.end(), [](const QString &a, const QString &b) {
         return a.section('\t', 0, 0).compare(b.section('\t', 0, 0), Qt::CaseInsensitive) < 0;
     });
+
+    // Units, currencies and functions known to libqalculate: from two typed
+    // characters on, currencies first, then units, then functions. The index
+    // is pre-sorted (shorter names first), so the closest matches lead.
+    if (lastWord.size() >= 2) {
+        constexpr int kMaxLibraryCompletions = 12;
+
+        // SI prefixes live apart from units in libqalculate ("kilometer" is
+        // prefix + "meter"), so the everyday combinations are synthesised here.
+        static const QStringList prefixes = {
+            QStringLiteral("kilo"), QStringLiteral("mega"), QStringLiteral("giga"), QStringLiteral("tera"),
+            QStringLiteral("milli"), QStringLiteral("micro"), QStringLiteral("nano"), QStringLiteral("centi"), QStringLiteral("deci")};
+        static const QStringList prefixable = {
+            QStringLiteral("meter"), QStringLiteral("gram"), QStringLiteral("second"), QStringLiteral("byte"),
+            QStringLiteral("watt"), QStringLiteral("hertz"), QStringLiteral("joule"), QStringLiteral("volt"),
+            QStringLiteral("ampere"), QStringLiteral("liter"), QStringLiteral("newton"), QStringLiteral("pascal")};
+        const QString lower = lastWord.toLower();
+        for (const QString &prefix : prefixes) {
+            QString rest;
+            if (lower.startsWith(prefix))
+                rest = lower.mid(prefix.size());              // "kilom" → offer kilometer
+            else if (!prefix.startsWith(lower))
+                continue;                                     // "kil" → offer all kilo…
+            for (const QString &base : prefixable) {
+                if (!base.startsWith(rest)) continue;
+                const QString name = prefix + base;
+                if (seen.contains(name)) continue;
+                seen.insert(name);
+                result << (name + '\t');
+            }
+        }
+
+        QMutexLocker snapshotLock(&m_snapshotMutex);
+        for (NameKind kind : {NameKind::Currency, NameKind::Unit, NameKind::Function}) {
+            int added = 0;
+            for (const NameEntry &entry : std::as_const(m_nameIndex)) {
+                if (entry.kind != kind || !entry.name.startsWith(lastWord, Qt::CaseInsensitive)) continue;
+                const QString key = entry.name.endsWith(QLatin1Char('(')) ? entry.name.chopped(1) : entry.name;
+                if (seen.contains(key) || seen.contains(entry.name)) continue;
+                seen.insert(entry.name);
+                QString description = entry.description;
+                if (kind == NameKind::Currency && description.isEmpty()) description = QStringLiteral("currency");
+                result << (entry.name + '\t' + description);
+                if (++added >= kMaxLibraryCompletions) break;
+            }
+        }
+    }
 
     return result;
 }

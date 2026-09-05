@@ -66,6 +66,10 @@ private:
     double usdRateForSymbol(const QString &symbol, bool *ok) const;
     bool hasUsdRateForSymbol(const QString &symbol) const;
     bool updateUsdAliasUnit(const QString &name, double usdPerUnit, Unit *usd);
+    void rebuildNameIndexLocked();
+
+    enum class NameKind { Unit, Currency, Function };
+    struct NameEntry { QString name; QString description; NameKind kind; };
 
     Calculator *m_calc;
     SyntaxHighlighter *m_highlighter;
@@ -93,6 +97,8 @@ private:
     mutable QMutex m_snapshotMutex;
     QStringList m_snapshotVarNames;
     QHash<QString, QString> m_snapshotVarValues;
+    QList<NameEntry> m_nameIndex;      // units/currencies/functions for autocomplete (snapshot mutex)
+    bool m_nameIndexDirty = true;      // set under the calc mutex when units change
     NetworkStatus m_fiatStatus   = NetworkStatus::Idle;
     NetworkStatus m_cryptoStatus = NetworkStatus::Idle;
 
