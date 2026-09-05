@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.82 - 2026-09-05
+
+### Fix
+
+- **Original icons are back**: the SVG app icon and the symbolic tray icon introduced in 0.1.81 are removed. The original Numi-KDE logo is now shipped as PNG in all hicolor sizes (16–256 px) under the new icon name, and the tray uses the original monochrome badge again.
+
 ## 0.1.81 - 2026-09-05
 
 ### Fix
@@ -22,7 +28,7 @@
 ### KDE / Linux integration
 
 - **Single instance** via `KDBusService`: a second launch shows the existing window.
-- **Reverse-DNS application id** `online.skorin.numi-kde` for the desktop file, AppStream metadata, icons and Wayland `app_id`; scalable SVG icon and a symbolic tray icon that follows the panel colour scheme.
+- **Reverse-DNS application id** `online.skorin.numi-kde` for the desktop file, AppStream metadata, icons and Wayland `app_id`.
 - **KNotification** with a `notifyrc` for update events (configurable in System Settings).
 - **Standard KDE shortcut recorder** (`KeySequenceItem`) in Settings; window activation via `KWindowSystem::activateWindow`; component shown as "Numi-KDE" in Shortcuts settings.
 - **Esc hides the window** (new setting, on by default).
