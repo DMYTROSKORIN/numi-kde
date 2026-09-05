@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.80 - 2026-09-05
+
+### CI
+
+- **GitHub Actions on Node.js 24**: upgraded `actions/checkout` (v7.0.1), `actions/upload-artifact` (v7.0.1), `actions/download-artifact` (v8.0.1) and `softprops/action-gh-release` (v3.0.3) ahead of the Node.js 20 runner removal on 2026-09-16
+- **Actions pinned to commit SHAs**: all `uses:` references now point to full 40-character commit hashes (supply-chain hardening); this also unblocks the local `semgrep-check` build step, which flagged mutable tags
+
 ## 0.1.79 - 2026-08-06
 
 ### Fix
