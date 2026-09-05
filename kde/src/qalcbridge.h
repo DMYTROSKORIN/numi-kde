@@ -37,7 +37,7 @@ public:
 
     QList<LineResult> evaluateDocument(const QString &source);
     void setDecimalPlaces(int places);
-    /// Interrupts a running evaluateDocument() from another thread (no-op when idle).
+    /// Tells a running evaluateDocument() (other thread) to skip its remaining lines.
     void abortCalculation();
     QString getCompletion(const QString &prefix);
     QStringList getCompletions(const QString &lineContext);

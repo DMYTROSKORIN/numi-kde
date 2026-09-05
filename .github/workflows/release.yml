@@ -35,7 +35,7 @@ jobs:
         run: cmake --build build/release --target numi-kde numi-kde-tests
 
       - name: Test
-        run: dbus-run-session -- ctest --test-dir build/release --output-on-failure
+        run: dbus-run-session -- ctest --test-dir build/release --output-on-failure --timeout 300
 
       - name: Package
         run: cmake --build build/release --target package

@@ -6,6 +6,7 @@
 
 - **Complex results** are printed as libqalculate writes them (`sqrt(-1)` → `i`, `sqrt(-4)` → `2i`) instead of a bogus `0`.
 - **Scientific notation** for magnitudes a double cannot show exactly (≥ 1e15: `6.022e23 * 2` → `1.204e24`, `2^100` → `1.268e30`) and for non-zero values that would otherwise vanish into `0` at the chosen precision (`1e-7` → `1e-7`, `1 / 3e10` → `3.333e-11`). At 0 decimals small values still round to `0`, as requested.
+- **Cancelling a running evaluation no longer calls `Calculator::abort()`** from another thread: it raced with libqalculate's own timeout handling and could hang the calculation thread on slow machines. The superseded document still skips its remaining lines; the line in flight ends by the engine's per-line timeout.
 - **Rounding is half-away-from-zero at every precision**: `2.5` → `3`, `-2.5` → `-3`, `1.005 * 100` → `101` at 0 decimals; `0.125` → `0.13`, `2.675` → `2.68`, `-1.005` → `-1.01` at 2 decimals. Previously the platform's banker's rounding and binary representation made `.5` cases inconsistent.
 
 ## 0.1.83 - 2026-09-05
