@@ -7,6 +7,10 @@
 - **Total footer is back for everyday documents.** Since 0.1.2 the footer required at least two numeric rows and hid itself as soon as a plain number stood next to a currency row, so `50+50+50` or `202`, `62`, `264 EUR to USD` showed no total at all. The footer now sums every numeric row from the first one on, and plain numbers join a single currency or unit group (`100 EUR` + `50` → `150`). Rows of two different currencies or units still show no total, because they are not comparable.
 - **Currency arithmetic without a conversion word counts towards the total.** `USD 296.46 +2%` or `2 km + 3 km` are printed by libqalculate with their unit; the engine exposed no numeric value for them, so they were silently left out. Such rows are now keyed by the unit they are printed in (`USD`, `KM`) and summed like any other.
 
+### CI
+
+- Release job installs the freshly built RPM with `--allowerasing`: the `fedora:44` image now ships `systemd-standalone-tmpfiles`, which conflicts with the full `systemd` required by `polkit`.
+
 ## 0.1.87 - 2026-09-05
 
 ### Changed

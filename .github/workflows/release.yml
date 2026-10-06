@@ -80,9 +80,11 @@ jobs:
           dnf install -y rpmlint
           rpmlint build/release/*.rpm || true
 
+      # --allowerasing: the fedora:44 image ships systemd-standalone-tmpfiles, which
+      # conflicts with the full systemd that polkit (a runtime dependency) pulls in.
       - name: Install and probe RPM
         run: |
-          dnf install -y ./build/release/*.rpm
+          dnf install -y --allowerasing ./build/release/*.rpm
           numi-kde --version
           numi-kde --probe
           dnf remove -y numi-kde
