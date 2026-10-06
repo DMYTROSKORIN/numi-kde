@@ -123,7 +123,9 @@ functions (≤ 12 per group). Common SI-prefixed long names (`kilometer`, `milli
 synthesised because libqalculate stores prefixes apart from units.
 
 `LineResult::hasNumericValue` and `LineResult::totalKey` are the boundary between display formatting and
-totals: `DocumentModel` shows a total only when every numeric row shares one total key.
+totals: `DocumentModel` sums every numeric row from the first one on. Plain numbers (key `number`) join a
+single currency or unit group; rows of two different currencies or units hide the footer. The engine keys a
+row by the unit it was printed in (`USD 296.46 +2%` → `USD 302.39` → key `USD`), not only by a conversion target.
 
 ## KDE Integration
 

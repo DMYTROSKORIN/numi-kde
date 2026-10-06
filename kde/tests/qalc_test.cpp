@@ -612,6 +612,27 @@ static void runSuite(QalcBridge &bridge) {
               r.ok && r.result == "USD 125" && r.hasNumericValue && r.numericValue == 125.0 && r.totalKey == "USD",
               QString("%1 (%2)").arg(r.result, QString::number(r.numericValue)), "USD 125");
     }
+    {
+        // No conversion word, libqalculate prints the currency itself: the row must
+        // still expose its value and be keyed by the printed currency (Total footer).
+        auto r = eval("USD 100 + 2%");
+        check("currency percent arithmetic exposes value and USD key",
+              r.ok && r.hasNumericValue && qAbs(r.numericValue - 102.0) < 1e-9 && r.totalKey == "USD",
+              QString("%1 (%2, %3)").arg(r.result, QString::number(r.numericValue), r.totalKey), "USD 102 (102, USD)");
+    }
+    {
+        auto r = eval("2 km + 3 km");
+        check("unit arithmetic exposes value keyed by the printed unit",
+              r.ok && r.hasNumericValue && r.numericValue == 5.0 && r.totalKey == "KM",
+              QString("%1 (%2, %3)").arg(r.result, QString::number(r.numericValue), r.totalKey), "5 km (5, KM)");
+    }
+    {
+        // A date is not a quantity: no numeric value, no total key.
+        auto r = eval("today + 1 day");
+        check("date arithmetic carries no total key",
+              r.ok && !r.hasNumericValue && r.totalKey.isEmpty(),
+              QString("%1 (%2)").arg(r.result, r.totalKey), "<date> ()");
+    }
 
     // ── Cryptocurrency conversion ───────────────────────────────────────────
     bridge.setDecimalPlaces(2); // crypto results often fractional; test with 2 places
@@ -1001,12 +1022,45 @@ static void runDocumentModelSuite() {
               QString::number(model.total()), "3000");
     }
     {
+        // Plain numbers join a single currency group: 500 AED = USD 125 (fixture rate) + 100.
         setAndWait("500 AED to USD\n100");
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
+               && model.hasTotal()
+               && model.total() == 225.0;
+        check("DocumentModel total: plain number joins a currency group", ok,
+              model.hasTotal() ? QString::number(model.total()) : "no total", "225");
+    }
+    {
+        // One numeric row is already a total (regression: hidden since 0.1.2).
+        setAndWait("50+50+50");
+        bool ok = model.rowCount() == 1
+               && model.resultCount() == 1
+               && model.hasTotal()
+               && model.total() == 150.0;
+        check("DocumentModel total for a single row", ok,
+              model.hasTotal() ? QString::number(model.total()) : "no total", "150");
+    }
+    {
+        // Currency arithmetic without a conversion word ("USD X +2%") is printed by
+        // libqalculate as "USD 102"; it must still carry a value and the USD key.
+        setAndWait("USD 10\nUSD 100 + 2%");
+        bool ok = model.rowCount() == 2
+               && model.resultCount() == 2
+               && model.errorCount() == 0
+               && model.hasTotal()
+               && qAbs(model.total() - 112.0) < 1e-9;
+        check("DocumentModel total includes currency percent arithmetic", ok,
+              model.hasTotal() ? QString::number(model.total()) : "no total", "112");
+    }
+    {
+        // Two different typed groups stay incomparable even with plain numbers present.
+        setAndWait("100 EUR\n100 USD\n5");
+        bool ok = model.rowCount() == 3
+               && model.resultCount() == 3
                && !model.hasTotal();
-        check("DocumentModel total rejects mixed dimensions", ok,
+        check("DocumentModel total rejects two currencies plus a plain number", ok,
               model.hasTotal() ? QString::number(model.total()) : "no total", "no total");
     }
     {
@@ -1031,13 +1085,15 @@ static void runDocumentModelSuite() {
     }
     {
         const QString date = QDate::currentDate().addYears(-2).addDays(-5).toString("dd.MM.yyyy");
+        // The date span is text, not a quantity: only the plain row is summed.
         setAndWait(QStringLiteral("today - %1\n100").arg(date));
         bool ok = model.rowCount() == 2
                && model.resultCount() == 2
                && model.errorCount() == 0
-               && !model.hasTotal();
+               && model.hasTotal()
+               && model.total() == 100.0;
         check("DocumentModel total ignores date span text", ok,
-              model.hasTotal() ? QString::number(model.total()) : "no total", "no total");
+              model.hasTotal() ? QString::number(model.total()) : "no total", "100");
     }
 
     // ── History persistence behavior ────────────────────────────────────────

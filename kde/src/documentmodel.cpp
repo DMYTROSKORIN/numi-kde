@@ -385,7 +385,9 @@ void DocumentModel::onEvaluated(quint64 generation, const QList<LineResult> &qal
     m_resultCount = 0;
     m_total = 0.0;
     m_hasTotal = false;
-    QHash<QString, QPair<int, double>> totalsByKey;
+    QHash<QString, QPair<int, double>> typedTotals;   // currency / unit code → (rows, sum)
+    int plainRows = 0;
+    double plainSum = 0.0;
 
     for (const LineResult &res : std::as_const(m_lines)) {
         if (!res.ok) {
@@ -393,18 +395,32 @@ void DocumentModel::onEvaluated(quint64 generation, const QList<LineResult> &qal
         } else if (!res.result.isEmpty()) {
             m_resultCount++;
             if (res.hasNumericValue && !res.totalKey.isEmpty()) {
-                auto entry = totalsByKey.value(res.totalKey, qMakePair(0, 0.0));
-                entry.first += 1;
-                entry.second += res.numericValue;
-                totalsByKey.insert(res.totalKey, entry);
+                if (res.totalKey == kPlainTotalKey) {
+                    plainRows++;
+                    plainSum += res.numericValue;
+                } else {
+                    auto entry = typedTotals.value(res.totalKey, qMakePair(0, 0.0));
+                    entry.first += 1;
+                    entry.second += res.numericValue;
+                    typedTotals.insert(res.totalKey, entry);
+                }
             }
         }
     }
 
-    if (totalsByKey.size() == 1) {
-        const auto entry = totalsByKey.cbegin().value();
-        if (entry.first >= 2) {
-            m_total = entry.second;
+    // The footer sums every numeric row, from the first one on. Plain numbers
+    // join a single currency/unit group ("100 EUR" + "50" → 150); rows of two
+    // different currencies or units are not comparable, so no total is shown.
+    if (typedTotals.size() <= 1) {
+        int rows = plainRows;
+        double sum = plainSum;
+        if (!typedTotals.isEmpty()) {
+            const auto entry = typedTotals.cbegin().value();
+            rows += entry.first;
+            sum += entry.second;
+        }
+        if (rows >= 1) {
+            m_total = sum;
             m_hasTotal = true;
         }
     }

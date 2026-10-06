@@ -737,7 +737,31 @@ static QString totalKeyForExpression(const QString &trimmed)
     if (match.hasMatch())
         return match.captured(1).toUpper();
 
-    return QStringLiteral("number");
+    return kPlainTotalKey;
+}
+
+// Total key from a printed quantity: "USD 302.39" → USD, "1,000 m" → M.
+// Used for libqalculate output that is a single number with one currency or
+// unit but whose expression has no conversion word ("USD 296.46 +2%",
+// "2 km + 3 km"), so the footer can still sum these rows. Anything else
+// (dates, times with several units, text) yields no key.
+static bool totalKeyFromDisplay(const QString &display, QString *key)
+{
+    static QRegularExpression currencyPrefix(
+        "^([A-Za-z]{3,5})\\s+[+-]?\\d[\\d\\s.,'’]*$",
+        QRegularExpression::UseUnicodePropertiesOption);
+    static QRegularExpression unitSuffix(
+        "^[+-]?\\d[\\d\\s.,'’]*\\s+([A-Za-z°µ]+)$",
+        QRegularExpression::UseUnicodePropertiesOption);
+
+    const QString trimmed = display.trimmed();
+    auto match = currencyPrefix.match(trimmed);
+    if (!match.hasMatch())
+        match = unitSuffix.match(trimmed);
+    if (!match.hasMatch())
+        return false;
+    *key = match.captured(1).toUpper();
+    return true;
 }
 
 static bool isIncompleteExpression(const QString &trimmed)
@@ -1736,10 +1760,14 @@ QList<LineResult> QalcBridge::evaluateDocument(const QString &source,
                         static QRegularExpression conversionWord(
                             "\\b(?:to|in|as)\\b",
                             QRegularExpression::CaseInsensitiveOption);
-                        if (conversionWord.match(trimmed).hasMatch())
+                        // A printed single quantity ("USD 302.39", "5 km") is keyed by
+                        // the unit it was printed in; a conversion keeps its target key.
+                        QString displayKey;
+                        const bool singleQuantity = totalKeyFromDisplay(out, &displayKey);
+                        if (singleQuantity || conversionWord.match(trimmed).hasMatch())
                             res.hasNumericValue = parseDisplayNumber(out, &res.numericValue);
                         if (res.hasNumericValue)
-                            res.totalKey = totalKey;
+                            res.totalKey = singleQuantity ? displayKey : totalKey;
                         const QString printError = takeCalculationError(m_calc);
                         res.ok = printError.isEmpty();
                         if (!res.ok) res.error = printError;
