@@ -49,7 +49,7 @@ The installer downloads the `.rpm` from GitHub Releases, verifies `SHA256SUMS` a
 
 **Install a specific version** (0.1.86 or newer — earlier releases are unsigned):
 ```sh
-curl -fsSL https://raw.githubusercontent.com/DMYTROSKORIN/numi-kde/main/packaging/install.sh | NUMI_KDE_VERSION=v0.1.87 bash
+curl -fsSL https://raw.githubusercontent.com/DMYTROSKORIN/numi-kde/main/packaging/install.sh | NUMI_KDE_VERSION=v0.1.88 bash
 ```
 
 **Dry run (no changes made):**

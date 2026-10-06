@@ -18,7 +18,7 @@ Options:
   --help       Show this message
 
 Environment:
-  NUMI_KDE_VERSION  Install a specific version (e.g. v0.1.87; releases before
+  NUMI_KDE_VERSION  Install a specific version (e.g. v0.1.88; releases before
                     v0.1.86 are unsigned and rejected). Defaults to the latest release.
 
 Supported distributions:

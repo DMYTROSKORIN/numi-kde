@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-09-05 (v0.1.87).
+Last updated: 2026-10-06 (v0.1.88).
 
 ## Product Shape
 
