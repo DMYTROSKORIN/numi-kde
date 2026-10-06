@@ -138,7 +138,7 @@ sudo dnf install -y kde/build-release/numi-kde-*.rpm
 
 | | |
 |---|---|
-| **Document mode** | One expression per line, results aligned in a live column, automatic total when the lines are compatible |
+| **Document mode** | One expression per line, results aligned in a live column, automatic total of all numeric lines (plain numbers sum with a single currency; mixed currencies show no total) |
 | **Math** | Arithmetic, variables, functions — `sqrt`, `sin`, `log`, `sum(x^2, 1, 10, x)` and everything else libqalculate knows |
 | **Unit conversion** | Length, weight, speed, area, data, time — natural syntax like `10 m to ft`, `60 km/h to m/s`, `1 GiB to MB` |
 | **Currency** | Live fiat rates via Frankfurter · top-50 crypto via CoinGecko · mixed arithmetic like `600 AED + 400 USD` · configurable default currency |
